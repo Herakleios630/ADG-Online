@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vite/
+coverage/
+Konzepte/
+*.log
+*.local
+.env
+.env.*
+!.env.example
