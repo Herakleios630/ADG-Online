@@ -1,6 +1,29 @@
-# AdG Online Development Plan
+# AdG Online Roadmap
 
 Development is phase-gated. Do not work on the next phase until the current phase has been implemented, tested, demonstrated, and explicitly approved by the user.
+
+## Status Overview
+
+- [x] Repository, planning docs, and rule-governance foundation
+- [x] P0 - Product Shell Feasibility
+- [~] P1 - Rule Knowledge + Data Foundation
+- [ ] P2 - Fundamental Geometry
+- [ ] P3 - Tournament Setup + Terrain + Deployment Foundation
+- [ ] P4 - Movement Commands
+- [ ] P5 - ZOC + Movement Validation
+- [ ] P6 - Corps + Command System
+- [ ] P7 - Charge + Conformation
+- [ ] P8 - Shooting System
+- [ ] P9 - Melee Combat System
+- [ ] P10 - Rout, Pursuit, Army Cohesion + Victory
+- [ ] P11 - Army Builder
+- [ ] P12 - Full Match Flow + Local Singleplayer
+- [ ] P13 - Replay, Undo + Review Viewer
+- [ ] P14 - Multiplayer Preparation
+- [ ] P15 - Visual Asset System + Player Colors
+- [ ] P16 - QA, Packaging + Release Candidate
+
+## Global Rules
 
 Before every phase:
 
@@ -9,10 +32,16 @@ Before every phase:
 - identify edge cases and test cases;
 - confirm the current phase scope;
 - use a feature, bugfix, or docs branch for implementation work;
-- keep JavaScript modules under 800 lines where possible and never above 1000 lines without refactoring or explicit approval.
+- keep JavaScript modules under 800 lines where possible and never above 1000 lines without refactoring or explicit approval;
 - treat `standard-200` as the default target unless the user explicitly approves a different format.
+- keep `roadmap.md` as the durable master plan and one active phase checklist such as `P0_todo.md` as the concrete execution list.
+- write every active phase checklist as an execution board with per-card goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
+- when preparing the next phase, GPT-5.5 should draft the next execution-board checklist such as `P1_todo.md`, `P2_todo.md`, or later phase boards; GPT-5.4 should then execute the approved active checklist card by card.
 
 ## P0 - Product Shell Feasibility
+
+Status: [x] Complete - accepted by user on 2026-05-14
+Active task list: see `P0_todo.md`.
 
 Goals:
 - Render a start menu shell.
@@ -36,12 +65,15 @@ Success criteria:
 - One unit renders at a deterministic position and facing.
 - User can preview and confirm a straight advance.
 - The advance updates state through an action, not direct UI mutation.
+- Deployment overlays can be cycled for P0 visual help without claiming full setup-rule validation.
 - No rotation, ZOC, command, terrain, combat, or conformation rules are implemented yet.
 - Unit tests or smoke checks exist for the small state/action path.
 - Browser smoke test confirms menu, options, and battlefield navigation.
 - User approves P0 before P1 begins.
 
 ## P1 - Rule Knowledge + Data Foundation
+
+Status: [~] Review handoff complete - awaiting explicit user approval before P2
 
 Goals:
 - Create AI-readable rule markdown structure.
@@ -55,7 +87,7 @@ Goals:
 Dependencies:
 - P0 approved.
 - `docs/rules-knowledge.md` accepted.
-- Source PDFs and spreadsheet available.
+- Source PDFs, OCR working copies, and spreadsheet available.
 
 Success criteria:
 - `docs/rules/` index and first extracted rule summaries exist for the next implementation areas.
@@ -63,12 +95,21 @@ Success criteria:
 - Unit-level state is documented separately from global movement/combat/rule tables.
 - Standard-200 data requirements are captured: 200 points, 3 corps, mandatory camp, table profile, commander/camp budget, and initiative inputs.
 - Hidden information is represented as a local gameplay concern, not only a multiplayer concern.
+- OCR working copies are documented as search aids and cross-check helpers, never as authoritative replacements for the original source PDFs and errata.
 - Open verification items are tracked for image-only PDF sections.
 - Test command exists and can run at least one placeholder or foundation test.
 - File-size guard convention is documented in project governance.
 - User approves P1 before P2 begins.
 
+Current handoff state:
+- P1 documentation and validation baseline are in place and ready for user review.
+- Open rule-source questions remain tracked in `docs/rules/open-verification.md`; these are carried forward honestly instead of guessed away.
+- Current open verification does not block P2 fundamental geometry, but it does block later setup, terrain, and hidden-information implementation details.
+- P2 must not start until the user explicitly approves P1 complete.
+
 ## P2 - Fundamental Geometry
+
+Status: [ ] Not started
 
 Goals:
 - Rotation.
@@ -89,6 +130,8 @@ Success criteria:
 - User approves P2 before P3 begins.
 
 ## P3 - Tournament Setup + Terrain + Deployment Foundation
+
+Status: [ ] Not started
 
 Goals:
 - Battlefield dimensions.
@@ -120,6 +163,8 @@ Success criteria:
 
 ## P4 - Movement Commands
 
+Status: [ ] Not started
+
 Goals:
 - Advance.
 - Wheel.
@@ -146,6 +191,8 @@ Success criteria:
 
 ## P5 - ZOC + Movement Validation
 
+Status: [ ] Not started
+
 Goals:
 - ZOC detection.
 - Most threatening enemy.
@@ -170,6 +217,8 @@ Success criteria:
 - User approves P5 before P6 begins.
 
 ## P6 - Corps + Command System
+
+Status: [ ] Not started
 
 Goals:
 - Corps activation.
@@ -196,6 +245,8 @@ Success criteria:
 
 ## P7 - Charge + Conformation
 
+Status: [ ] Not started
+
 Goals:
 - Charge declaration.
 - Contact detection.
@@ -218,6 +269,8 @@ Success criteria:
 
 ## P8 - Shooting System
 
+Status: [ ] Not started
+
 Goals:
 - Shooting ranges.
 - Line of sight.
@@ -238,6 +291,8 @@ Success criteria:
 - User approves P8 before P9 begins.
 
 ## P9 - Melee Combat System
+
+Status: [ ] Not started
 
 Goals:
 - Dice system.
@@ -262,11 +317,13 @@ Success criteria:
 
 ## P10 - Rout, Pursuit, Army Cohesion + Victory
 
+Status: [ ] Not started
+
 Goals:
 - Rout checks.
 - Pursuit movement.
 - Army cohesion.
-- Victory/end-game state.
+- Victory/end-of-game state.
 - Rally hooks if required by sequence.
 
 Dependencies:
@@ -277,11 +334,13 @@ Dependencies:
 Success criteria:
 - Routed units, pursuits, and follow-up contacts are resolved through actions.
 - Army cohesion is computed from rule data and current state.
-- Victory/end-game state is deterministic and explained.
+- Victory/end-of-game state is deterministic and explained.
 - Tests cover light troop destruction, pursuit choices, and army cohesion thresholds.
 - User approves P10 before P11 begins.
 
 ## P11 - Army Builder
+
+Status: [ ] Not started
 
 Goals:
 - Army selection.
@@ -305,6 +364,8 @@ Success criteria:
 
 ## P12 - Full Match Flow + Local Singleplayer
 
+Status: [ ] Not started
+
 Goals:
 - Complete menu-to-result game flow.
 - Local singleplayer/hotseat match mode.
@@ -326,6 +387,8 @@ Success criteria:
 
 ## P13 - Replay, Undo + Review Viewer
 
+Status: [ ] Not started
+
 Goals:
 - Action logging.
 - Undo.
@@ -345,6 +408,8 @@ Success criteria:
 - User approves P13 before P14 begins.
 
 ## P14 - Multiplayer Preparation
+
+Status: [ ] Not started
 
 Goals:
 - Action-based sync.
@@ -367,6 +432,8 @@ Success criteria:
 
 ## P15 - Visual Asset System + Player Colors
 
+Status: [ ] Not started
+
 Goals:
 - Replace rectangle units with asset-backed visuals.
 - Support PNG or atlas sprites.
@@ -387,6 +454,8 @@ Success criteria:
 - User approves P15 before P16 begins.
 
 ## P16 - QA, Packaging + Release Candidate
+
+Status: [ ] Not started
 
 Goals:
 - Regression suite.

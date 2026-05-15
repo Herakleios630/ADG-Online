@@ -122,7 +122,7 @@ The AdG-Rules-Engine-Agent can be the specialist default, but the repository sho
 ## Recommended Document Changes
 
 - Update `docs/architecture.md` with a standard-200 profile, pre-battle state machine, hidden-information model, tournament modes, and AI guardrails.
-- Update `todo.md` so P1 blocks on rule extraction for standard-200, sequence, terrain/setup, command context, deployment, and hidden information.
+- Update `roadmap.md` so P1 blocks on rule extraction for standard-200, sequence, terrain/setup, command context, deployment, and hidden information.
 - Update P3 to be tournament setup, terrain, battle plan, deployment, and hidden-info foundation rather than only terrain placement.
 - Update P4 so movement cannot claim official legality without command context.
 - Update `docs/army-builder.md` with standard-200 invariants and sanity checks.

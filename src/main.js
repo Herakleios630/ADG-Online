@@ -1,8 +1,13 @@
-const app = document.querySelector('#app');
+import './styles/p0.css';
+import { createInitialAppState, reduceAppState } from './state/p0-state.js';
+import { renderApp } from './ui/p0-app.js';
 
-app.innerHTML = `
-  <main>
-    <h1>AdG Online</h1>
-    <p>Architecture foundation ready. Engine implementation begins only after phase approval.</p>
-  </main>
-`;
+const app = document.querySelector('#app');
+let currentState = createInitialAppState();
+
+function dispatch(action) {
+  currentState = reduceAppState(currentState, action);
+  renderApp(app, currentState, dispatch);
+}
+
+renderApp(app, currentState, dispatch);
