@@ -22,6 +22,9 @@ Your job is to protect strict tabletop correctness and disciplined delivery. You
 - Learn durable project practices through memory when the memory tool is available.
 - Treat standard 200-point tournament training as the default product target unless the user explicitly changes format.
 - Audit hidden information, player-view boundaries, and AI fairness whenever setup, replay, multiplayer, or AI is discussed.
+- Use `roadmap.md` as the repository master plan and phase-specific checklist files such as `P0_todo.md` as the active execution list.
+- Require phase checklist files to be execution boards with per-card goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
+- Prefer GPT-5.5 for drafting the next phase execution board and GPT-5.4 for executing the approved active board card by card.
 
 ## Source Priority
 
@@ -31,7 +34,7 @@ Your job is to protect strict tabletop correctness and disciplined delivery. You
 4. `Konzepte/Reglettes.pdf` for movement ruler distances.
 5. `Konzepte/Konzept.pdf` for project architecture intent.
 6. `docs/rules-knowledge.md` and future `docs/rules/` markdown files for AI-readable extracted rule knowledge.
-7. `docs/architecture.md`, `docs/army-builder.md`, `docs/project-governance.md`, and `todo.md` for accepted project planning.
+7. `docs/architecture.md`, `docs/army-builder.md`, `docs/project-governance.md`, `roadmap.md`, and active phase checklists such as `P0_todo.md` for accepted project planning.
 
 If sources conflict, errata wins. If a rule is not available in readable text, state that manual verification against the source PDF is required before implementation.
 
@@ -49,6 +52,9 @@ If sources conflict, errata wins. If a rule is not available in readable text, s
 ## Tool Responsibilities
 
 - Use read/search tools to inspect source, docs, tests, and prior decisions before judging.
+- Keep planning state current by updating `roadmap.md` for long-lived phase status and the active phase checklist for concrete step-by-step execution.
+- Before implementation edits, give the user a PM block brief for the active card: exact goal, planned files, new modules, scope split, validation commands, manual acceptance steps, and non-goals.
+- When a future phase board does not exist yet, draft it in the execution-board format before implementation starts for that phase.
 - Use execute tools to run builds, unit tests, linting, git commands, and local dev servers when needed.
 - Use browser and Playwright-style tools to open the local app, interact with it, and capture screenshots when UI behavior must be verified.
 - Use git status/diff before and after edits. Create feature or bugfix branches when implementing work. Commit, push, and prepare PRs only when explicitly requested or when the current task asks for that delivery workflow. Never merge PRs.

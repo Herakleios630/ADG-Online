@@ -43,6 +43,13 @@ See `docs/project-governance.md` for workflow, testing, memory, branch, commit, 
 
 See `docs/rules-knowledge.md` for the plan to turn image-heavy PDFs into AI-readable markdown and structured rule tables.
 
+Current validation baseline:
+
+- `npm run test` for the current minimal Node-based foundation tests.
+- `npm run build` for the current application build gate.
+
+P1 deliberately keeps this validation surface small. Later phases should add narrow pure tests, data-shape checks, source-reference consistency checks, visibility tests, and browser smoke checks without forcing a large framework migration unless the existing harness becomes insufficient.
+
 ## Final Game Scope
 
 The final product should support a complete match flow:
@@ -188,6 +195,16 @@ Only the base Vite shell exists at project initialization. The target structure 
 
 `engine/validation` orchestrates rule checks and returns structured diagnostics. It does not own rule facts; it coordinates modules and formats reasons.
 
+Validation layers should remain modular too:
+
+- pure engine tests validate deterministic logic and edge cases;
+- data validation checks schema shape, source references, and verified fixture consistency;
+- visibility validation checks filtered player views and reveal transitions;
+- replay validation checks deterministic re-application and view-specific playback;
+- UI validation checks that the shell can exercise the engine without bypassing it.
+
+No single test layer should be treated as sufficient by itself once the engine grows.
+
 `engine/replay` owns action logs, deterministic re-application, snapshots, undo boundaries, and replay playback state.
 
 `engine/random` owns seeded dice and random draws. Dice are never taken directly from `Math.random()`.
@@ -276,17 +293,69 @@ GameState = {
 
 Data is split into three layers.
 
+The split is strict and intentional:
+
+- format profiles define match-level constraints and setup assumptions;
+- rosters define selected army content and list-validation results;
+- unit definitions define stable catalog identity and default rule hooks;
+- unit instances define mutable current match state only;
+- global rule tables define derived allowances, factors, restrictions, and results.
+
+Anything that can change during play belongs on instances or other match state. Anything that is a reusable rule fact belongs in shared data or rule tables, not copied onto every unit.
+
+`FormatProfile` is the match-level rules/profile surface:
+
+```ts
+FormatProfile = {
+  id,
+  rulesetVersion,
+  playerCount,
+  pointsPerArmy,
+  corpsPerArmy,
+  commanderRequirements,
+  campRequirements,
+  battlefieldProfileId,
+  udInCm,
+  setupFlowProfileId,
+  initiativeModelId,
+  sourceRefs
+}
+```
+
+`Roster` is army selection and validation state:
+
+```ts
+Roster = {
+  id,
+  playerId,
+  armyListId,
+  formatId,
+  selectedEntries,
+  corpsAssignments,
+  commanderSelections,
+  campSelection,
+  pointsSpent,
+  validationState,
+  sourceRefs
+}
+```
+
 `UnitDefinition` is stable rules/data identity:
 
 ```ts
 UnitDefinition = {
   id,
+  armyListId,
+  listEntryId,
   troopType,
   category,
   baseProfileId,
   defaultQuality,
   defaultCohesion,
+  protection,
   defaultAbilities,
+  keywords,
+  rosterConstraints,
   visualProfileId,
   sourceRefs
 }
@@ -321,7 +390,22 @@ UnitInstance = {
     offTable,
     terrainState,
     contactState
-  }
+  },
+  visibilityState,
+  temporaryEffects,
+  actionFlags
+}
+```
+
+`BaseProfile` is shared measurement identity and should not be duplicated ad hoc across unrelated units:
+
+```ts
+BaseProfile = {
+  id,
+  widthUd,
+  depthUd,
+  shape,
+  sourceRefs
 }
 ```
 
@@ -329,6 +413,9 @@ UnitInstance = {
 
 ```ts
 RuleTables = {
+  formatProfiles,
+  battlefieldProfiles,
+  baseProfiles,
   movementAllowances,
   maneuverCosts,
   zocRules,
@@ -344,7 +431,49 @@ RuleTables = {
 
 Example rule: a unit instance may store that it is Heavy Infantry, Cataphract, in command, has stakes, has current cohesion loss, and is currently in contact. It must not store hardcoded movement distance or combat factor against cavalry. Those values are derived from global rule tables, source data, terrain, state, and validation context.
 
+Data boundary rules:
+
+- `FormatProfile` may define point cap, corps count, camp requirement, battlefield size, and setup hooks; individual units must not duplicate those facts.
+- `Roster` may store selected list entries, corps assignment, commander choices, camp choice, and validation results; it must not become the live battlefield state.
+- `UnitDefinition` may store stable troop identity, protection, base profile hook, and default abilities; it must not store current position, current command state, or current combat state.
+- `UnitInstance` may store current pose, current cohesion, command state, reveal state, and current temporary effects; it must not store global movement allowances, combat factors, terrain tables, or point costs as authoritative values.
+- `RuleTables` may define movement, command, combat, terrain, conformation, setup, and victory values; they must not be mutated by UI interaction.
+- Asset mappings may influence rendering only and must never be used to infer legality.
+
 Hidden information is part of canonical game state but not necessarily part of each player's visible state. The engine must be able to derive a player view from the canonical state.
+
+Visibility boundary rules:
+
+- canonical state stores full truth, including hidden declarations and unrevealed setup or battlefield facts;
+- player views are derived projections and must never become the authority source;
+- replay should support both canonical review and player-scoped historical views from the same action log;
+- future multiplayer must send only filtered player-view payloads, never the full canonical hidden state;
+- future AI may read only the same visibility-scoped projection as its side.
+
+Planning shape:
+
+```ts
+VisibilityState = {
+  dataClass,
+  ownerPlayerId,
+  currentScope,
+  revealTriggers,
+  revealedAtActionId,
+  sourceRefs
+}
+```
+
+```ts
+PlayerView = {
+  viewerPlayerId,
+  mode,
+  visibleState,
+  hiddenRedactions,
+  explanationPolicy
+}
+```
+
+`explanationPolicy` matters because explanation text itself can leak canonical hidden information if it is not filtered with the same care as battlefield data.
 
 ```ts
 Action = {
@@ -755,7 +884,7 @@ Rule basis: movement in ZOC must charge, align/get closer under allowed cases, c
 
 ## Phase Gate Rule
 
-Development is locked to the phase plan in `todo.md`.
+Development is locked to the phase plan in `roadmap.md`.
 
 - Do not work on P1 until P0 is implemented, tested, demonstrated, and approved by the user.
 - Do not start any next phase because it seems convenient.

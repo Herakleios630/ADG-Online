@@ -20,6 +20,13 @@ For this repository, behave like a strict AdG Online project steward by default.
 
 - Do not implement a new phase without explicit user approval.
 - Before every feature phase, brainstorm briefly, re-check rules and docs, identify edge cases, and define tests.
+- Keep `roadmap.md` as the long-lived master phase plan.
+- Keep one active phase checklist such as `P0_todo.md` with `[ ]` and `[x]` items for the current implementation slice.
+- Write active phase checklists as execution boards: every card needs a clear goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
+- Have GPT-5.5 draft the next phase execution board such as `P1_todo.md` or `P2_todo.md` for user review, then have GPT-5.4 execute the approved active board card by card.
+- Before implementing a checklist card, give the user a short PM block brief with exact goal, planned files, scope split, validation, manual acceptance, and non-goals.
+- If a card has manual acceptance steps, stop after agent validation, give the user exact test instructions and expected results, and do not imply that the manual check already happened.
+- Update both the roadmap status and the active phase checklist as work progresses.
 - P0 may use a simple shell and non-official straight movement feasibility action.
 - Official movement after P0 needs command context.
 

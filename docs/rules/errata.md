@@ -4,6 +4,34 @@ Status: initial planning summary, not a complete rules extract.
 
 The February 2024 errata overrides the base rulebook where it applies. Each affected feature phase must re-check the exact errata wording before implementation.
 
+Use this file for compact project summaries of errata impact, not as a substitute for the errata PDF itself.
+
+## Extraction Rules
+
+- Keep summaries short and in original project wording.
+- Do not paste long passages from the errata PDF.
+- When an errata item changes a later feature phase, also ensure the affected rule area is tracked in `open-verification.md` until the exact source wording is checked for that phase.
+- If the base rule and errata interaction is still uncertain, mark the downstream rule entry as `errata-check` or `superseded-by-errata` rather than guessing.
+
+## Entry Format
+
+```markdown
+## Errata ID: movement.turns.light-troops
+
+Source: Errata_ADG_V4_English.pdf, page X
+Status: verified | needs-source-check
+Affected areas: movement, zoc
+
+Summary:
+- ...
+
+Implementation impact:
+- ...
+
+Open verification:
+- link to `open-verification.md` item if still unresolved
+```
+
 ## Movement And ZOC
 
 - Quarter-turn and half-turn restrictions include an errata clarification: do not combine multiple quarter/half turns in the same movement except where light troop rules allow it.
