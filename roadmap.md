@@ -6,8 +6,8 @@ Development is phase-gated. Do not work on the next phase until the current phas
 
 - [x] Repository, planning docs, and rule-governance foundation
 - [x] P0 - Product Shell Feasibility
-- [~] P1 - Rule Knowledge + Data Foundation
-- [ ] P2 - Fundamental Geometry
+- [x] P1 - Rule Knowledge + Data Foundation
+- [~] P2 - Fundamental Geometry
 - [ ] P3 - Tournament Setup + Terrain + Deployment Foundation
 - [ ] P4 - Movement Commands
 - [ ] P5 - ZOC + Movement Validation
@@ -73,7 +73,7 @@ Success criteria:
 
 ## P1 - Rule Knowledge + Data Foundation
 
-Status: [~] Review handoff complete - awaiting explicit user approval before P2
+Status: [x] Complete - accepted by user on 2026-05-16
 
 Goals:
 - Create AI-readable rule markdown structure.
@@ -101,15 +101,15 @@ Success criteria:
 - File-size guard convention is documented in project governance.
 - User approves P1 before P2 begins.
 
-Current handoff state:
-- P1 documentation and validation baseline are in place and ready for user review.
+Final handoff state:
+- P1 documentation and validation baseline are accepted as complete for phase progression.
 - Open rule-source questions remain tracked in `docs/rules/open-verification.md`; these are carried forward honestly instead of guessed away.
 - Current open verification does not block P2 fundamental geometry, but it does block later setup, terrain, and hidden-information implementation details.
-- P2 must not start until the user explicitly approves P1 complete.
+- P2 may now move into brainstorming and execution-board preparation; implementation still requires an approved P2 board.
 
 ## P2 - Fundamental Geometry
 
-Status: [ ] Not started
+Status: [~] Brainstorming - execution board pending user review
 
 Goals:
 - Rotation.

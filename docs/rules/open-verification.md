@@ -184,7 +184,7 @@ Use this compact entry format for new items:
 
 ## P1-08 Review And P2 Readiness Notes
 
-- P1 review handoff status: documentation foundation is ready for user review, but phase completion still requires explicit user approval before P2 begins.
+- P1 review handoff status: documentation foundation accepted complete by the user on 2026-05-16; P2 may move into brainstorming and execution-board preparation.
 - Geometry readiness note: the current open verification set does not block P2 pure geometry work for rotated rectangles, facing, and front or flank or rear relationships.
 - Geometry boundary note: P2 should depend on `BaseProfile` dimensions and orientation conventions from the P1 planning docs, not on terrain, setup, movement allowance, or hidden-info rule confirmation.
 - Carry-forward warning: setup, terrain, disclosure, and phase-order open items remain blockers for P3+ and must stay in this tracker until checked against authoritative sources.
