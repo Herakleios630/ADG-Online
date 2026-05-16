@@ -1,6 +1,6 @@
 # P1 TODO - Rule Knowledge + Data Foundation
 
-Status: Review handoff complete - awaiting explicit user approval before P2
+Status: Complete - accepted by user on 2026-05-16
 Intended branch: `docs/p1-rule-data-foundation`
 Master plan: `roadmap.md`
 Architecture source: `docs/architecture.md`
@@ -115,24 +115,24 @@ Hard rules:
 - [x] Hidden-information model reviewed
 - [x] Foundation test/data validation strategy selected
 - [x] P1 demonstrated to user
-- [ ] P1 approved complete by user
+- [x] P1 approved complete by user
 
 ## Definition Of Done
 
 P1 is done when:
 
-- [ ] `docs/rules/index.md` explains the rule-doc structure, source-reference format, and open-verification workflow.
-- [ ] First extracted summaries exist or are expanded for P2-P4 planning areas.
-- [ ] `docs/rules/standard-200.md`, `docs/rules/sequence-of-play.md`, `docs/rules/terrain-and-setup.md`, and `docs/rules/hidden-info.md` are reviewed enough to guide P2-P4.
-- [ ] Unit-level match state is documented separately from movement, combat, terrain, command, and army-list rule tables.
-- [ ] Standard 200 data requirements are captured: 200 points, 3 corps, mandatory camp, table profile, commander/camp budget, and initiative inputs.
-- [ ] Hidden information is documented as a local gameplay and player-view concern.
-- [ ] Open verification items are recorded for source gaps and image-only PDF sections.
-- [ ] `npm run test` can run at least one foundation or placeholder validation test.
-- [ ] `npm run build` passes.
-- [ ] File-size guard convention is documented.
-- [ ] Roadmap and this board reflect final P1 status.
-- [ ] User approves P1 before P2 begins.
+- [x] `docs/rules/index.md` explains the rule-doc structure, source-reference format, and open-verification workflow.
+- [x] First extracted summaries exist or are expanded for P2-P4 planning areas.
+- [x] `docs/rules/standard-200.md`, `docs/rules/sequence-of-play.md`, `docs/rules/terrain-and-setup.md`, and `docs/rules/hidden-info.md` are reviewed enough to guide P2-P4.
+- [x] Unit-level match state is documented separately from movement, combat, terrain, command, and army-list rule tables.
+- [x] Standard 200 data requirements are captured: 200 points, 3 corps, mandatory camp, table profile, commander/camp budget, and initiative inputs.
+- [x] Hidden information is documented as a local gameplay and player-view concern.
+- [x] Open verification items are recorded for source gaps and image-only PDF sections.
+- [x] `npm run test` can run at least one foundation or placeholder validation test.
+- [x] `npm run build` passes.
+- [x] File-size guard convention is documented.
+- [x] Roadmap and this board reflect final P1 status.
+- [x] User approves P1 before P2 begins.
 
 ## Execution Cards
 
@@ -711,4 +711,4 @@ Manual acceptance:
 
 Still open:
 - no further P1 implementation cards;
-- phase progression is blocked until explicit user approval.
+- P2 execution-board drafting and approval remain separate next steps.

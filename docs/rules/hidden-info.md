@@ -2,6 +2,8 @@
 
 Status: player-view planning extract; exact source wording and trigger details still require verification before implementation.
 
+Implementation source-status map: see [setup-source-notes.md](setup-source-notes.md) for the current P3 split between safe hidden-info infrastructure and still-blocked official rule claims.
+
 ## Source References
 
 - `Rules.pdf`, battle plan, ambush, deployment, and flank march sections around pages 76-80.
@@ -19,6 +21,16 @@ Core private data:
 - fake ambush markers;
 - unrevealed off-table units;
 - private confirmation that some units are not visible because they are in ambush or flank marching.
+
+## P3 Tournament Battle Plan UI Note
+
+For P3 planning, the battle plan should be represented as a private setup board with four practical assignment areas: `left`, `center`, `right`, and `flank march`. These are tournament battle-plan fields for corps assignment and are not the same as battlefield sectors or deployment-zone geometry.
+
+For future multiplayer, the battle-plan board must be genuinely secret owner data. The opponent may see public setup objects once placed, but should not receive battle-plan assignments, flank-march contents, fake-marker truth, ambush contents, or hidden off-table assignments through state payloads, UI text, explanations, logs, or previews.
+
+Ambush markers should have private content fields where the owning player records which units are inside each marker. The marker shell can become public when placed, while the contents remain canonical hidden information until a verified reveal rule applies.
+
+Ambush marker state should preserve enough structured data for later correct play: marker shell identity, owning player, public footprint, private contents, fake or real truth when verified, reveal state, and source status. P3 may keep official reveal and placement legality source-blocked, but it should not collapse marker contents into unstructured public notes.
 
 Other likely visibility-scoped data classes to preserve explicitly:
 

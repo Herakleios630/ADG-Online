@@ -2,11 +2,29 @@
 
 Status: planning skeleton for P3; exact terrain tables, geometry, and placement restrictions still require source verification.
 
+Implementation source-status map: see [setup-source-notes.md](setup-source-notes.md) for the current `verified enough for placeholder`, `placeholder-only allowed`, and `blocked` split used by P3.
+
 ## Source References
 
 - `Rules.pdf`, terrain description around pages 71-72.
 - `Rules.pdf`, setting up around pages 73-76.
 - `Errata_ADG_V4_English.pdf`, terrain, deployment, and setup corrections.
+- `Reference_Sheet_V4.pdf`, tournament quick-reference cross-check for setup and terrain summaries; does not override errata or full rulebook text.
+
+## P3 Placeholder Terrain Direction
+
+P3 should place terrain as geometry-first placeholders: simple shapes or areas with visible text labels such as `Hill`, `Wood`, `Field`, `Road`, `River`, `Camp`, or `Ambush marker`. These placeholders are real setup objects in state, not decorative artwork, but they should not claim full official terrain effects until the relevant rules are source-checked.
+
+Placeholder terrain should capture at least:
+
+- table footprint in UD, including corners or area bounds;
+- shape model such as area, rectangle, ellipse, or path placeholder;
+- label text visible on the battlefield;
+- terrain type and source-verification status;
+- owner or placement role when relevant;
+- locked or draft placement state.
+
+This keeps P3 useful visually while preserving rule discipline: physical footprint checks can be tested early, while exact terrain quotas, overlap, road, river, and adjustment rules remain blocked until verified.
 
 ## Terrain Selection Model
 
@@ -92,6 +110,12 @@ Setup must also model:
 - ambush markers;
 - flank marches;
 - dismounting decisions.
+
+## Tournament Battle Plan Board Direction
+
+The practical tournament battle plan should be modeled as its own private setup board, not as battlefield sector geometry. It has simple assignment fields for `left`, `center`, `right`, and `flank march` so corps can be assigned by drag and drop. These fields describe the player's plan and corps grouping; they are not the same as the P0/P3 battlefield sector guides.
+
+Ambush planning should use marker fields that allow the owning player to record which units are hidden in each marker. The public battlefield can later show marker shells, while the canonical setup state preserves hidden contents and visibility scope.
 
 ## Setup Object Fields Needed Later
 

@@ -515,6 +515,13 @@ Geometry invariants:
 - Contact can be front, flank, rear, corner-to-corner, flank-to-flank, or incomplete.
 - Any physical impossibility must be represented explicitly, not resolved by nudging silently.
 
+P2 geometry boundary:
+
+- P2 may compute geometric relationships such as `front`, `leftFlank`, `rightFlank`, `rear`, `boundary`, and `ambiguous` from rotated-rectangle base geometry.
+- These P2 relationship labels are development-facing geometry outputs only. They do not by themselves prove official AdG movement, charge, ZOC, conformation, contact, or combat legality.
+- P2 debug overlays must render from `engine/geometry` outputs rather than duplicated UI math.
+- P2 geometry uses base dimensions and pose only; sprite art, terrain, setup state, and hidden information are out of scope for these calculations.
+
 ## Terrain And Setup System
 
 Terrain and deployment are first-class rule systems.
@@ -534,6 +541,13 @@ Setup responsibilities:
 
 Terrain must affect movement, ZOC, shooting, combat, visibility, ambushes, and deployment through data-driven rules. Terrain cannot be a decorative overlay.
 
+P3 setup UI direction:
+
+- The right-side battlefield panel should become a phase tracker. During setup it shows the pre-battle checklist; during later battle phases it should switch to command, movement, shooting, melee, rout/pursuit/cleanup, and victory or end-turn steps.
+- Terrain, camps, markers, and deployment placeholders begin as labelled UD-footprint objects, not final artwork.
+- Battle-plan `left`, `center`, `right`, and `flank march` assignment fields are private setup data, not battlefield sectors.
+- Deployment placeholders must preserve corps identity, owning player, pose, footprint, and overlap-relevant geometry so later validators can check corps-relative setup, legal zones, and non-overlap without replacing the data model.
+
 ## Hidden Information Model
 
 Hidden information must exist before multiplayer.
@@ -546,6 +560,8 @@ Private data includes:
 - flank march corps and arrival flank;
 - unrevealed off-table units;
 - private deployment facts that should not be shown to the opponent.
+
+For future multiplayer, hidden setup data must not merely be hidden in the UI. It must be absent from the opponent's serialized player view. Battle plans, flank-march details, ambush contents, fake-marker truth, and unrevealed off-table assignments are owner-private until a verified reveal rule changes that visibility.
 
 The engine exposes derived views:
 

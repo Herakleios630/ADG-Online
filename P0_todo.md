@@ -361,7 +361,7 @@ Completed 2026-05-14:
 - Upgraded the battlefield surface styling in `src/styles/p0.css` so it reads as a deterministic green/brown grass-mud field rather than a generic placeholder panel.
 - Removed the unnecessary top HUD/info strip so the battlefield presentation stays closer to the intended final product direction.
 - Added a fixed-frame battlefield camera: zoom level `1` shows the full `120 x 80` field, higher zoom levels show an in-frame cropped section, middle-mouse panning is limited to that fixed frame, and the minimap marks the current visible area.
-- Corrected the placeholder unit footprint so it now reads as a medium infantry stand at `1 UD x 0.5 UD`, i.e. `4 cm x 2 cm` under the P0 scale assumption.
+- Corrected the placeholder unit footprint so it now reads as a medium infantry stand at `1 UD x 1 UD`, i.e. `4 cm x 4 cm` under the P0 scale assumption.
 - Kept the surface intentionally rules-light: no terrain pieces, no deployment legality, and no unit interaction logic yet.
 - Preserved enough open space in the battlefield layout for the next P0 cards to add overlays and a test unit without replacing the whole screen again.
 
@@ -382,7 +382,7 @@ Manual acceptance:
 - confirm there is visible reserved UI space on the left for future command buttons and on the right below the minimap for later log/dice UI;
 - confirm the top-right minimap is visible when the option is enabled and that its camera rectangle changes with zoom and pan;
 - confirm `1 UD = 4 cm`, `30 UD x 20 UD`, and `120 cm x 80 cm` are visible in the minimap card when that option is enabled;
-- confirm the placeholder unit looks like a sharp-cornered medium infantry footprint, i.e. `1 UD x 0.5 UD` / `4 cm x 2 cm` rather than an oversized block;
+- confirm the placeholder unit looks like a sharp-cornered medium infantry footprint, i.e. `1 UD x 1 UD` / `4 cm x 4 cm` rather than an oversized block;
 - confirm the battlefield area feels stable and spacious enough for later overlays and a test unit;
 - confirm there are still no terrain rules or fake setup claims on this screen.
 

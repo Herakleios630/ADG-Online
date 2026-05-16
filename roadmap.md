@@ -6,8 +6,8 @@ Development is phase-gated. Do not work on the next phase until the current phas
 
 - [x] Repository, planning docs, and rule-governance foundation
 - [x] P0 - Product Shell Feasibility
-- [~] P1 - Rule Knowledge + Data Foundation
-- [ ] P2 - Fundamental Geometry
+- [x] P1 - Rule Knowledge + Data Foundation
+- [x] P2 - Fundamental Geometry
 - [ ] P3 - Tournament Setup + Terrain + Deployment Foundation
 - [ ] P4 - Movement Commands
 - [ ] P5 - ZOC + Movement Validation
@@ -73,7 +73,7 @@ Success criteria:
 
 ## P1 - Rule Knowledge + Data Foundation
 
-Status: [~] Review handoff complete - awaiting explicit user approval before P2
+Status: [x] Complete - accepted by user on 2026-05-16
 
 Goals:
 - Create AI-readable rule markdown structure.
@@ -101,15 +101,16 @@ Success criteria:
 - File-size guard convention is documented in project governance.
 - User approves P1 before P2 begins.
 
-Current handoff state:
-- P1 documentation and validation baseline are in place and ready for user review.
+Final handoff state:
+- P1 documentation and validation baseline are accepted as complete for phase progression.
 - Open rule-source questions remain tracked in `docs/rules/open-verification.md`; these are carried forward honestly instead of guessed away.
 - Current open verification does not block P2 fundamental geometry, but it does block later setup, terrain, and hidden-information implementation details.
-- P2 must not start until the user explicitly approves P1 complete.
+- P2 may now move into brainstorming and execution-board preparation; implementation still requires an approved P2 board.
 
 ## P2 - Fundamental Geometry
 
-Status: [ ] Not started
+Status: [x] Complete - accepted by user on 2026-05-16
+Active task list: see `P2_todo.md`.
 
 Goals:
 - Rotation.
@@ -129,9 +130,17 @@ Success criteria:
 - Tests cover axis-aligned, rotated, edge, and corner cases.
 - User approves P2 before P3 begins.
 
+Final handoff state:
+- P2 deterministic geometry and debug tooling are accepted complete.
+- P2 established pure rotated-rectangle geometry, unit-base edges, facing boundaries, geometric relationship labels, debug-unit drag and rotation, selected-reference rotation, and browser-validated facing overlays.
+- P2 also established that future table-edge, collision, contact, and legality work must reason from full unit footprints rather than center-only assumptions.
+- Current open verification does not block completed P2 geometry, but still blocks P3+ setup, terrain, deployment, and hidden-information implementation details until source-checked.
+- P3 planning may begin, but implementation requires an approved P3 execution board and explicit user approval.
+
 ## P3 - Tournament Setup + Terrain + Deployment Foundation
 
-Status: [ ] Not started
+Status: [x] Complete on `feature/p3-setup-terrain-foundation` - user accepted P3 on 2026-05-16 and PR handoff is ready
+Active task list: see `P3_todo.md`.
 
 Goals:
 - Battlefield dimensions.
@@ -151,6 +160,7 @@ Dependencies:
 - Verified setup and terrain source notes for standard-200 setup.
 - Terrain data model separated from rendering.
 - Hidden-information model from P1.
+- `Reference_Sheet_V4.pdf` added as a tournament quick-reference cross-check; errata and full rules remain authoritative.
 
 Success criteria:
 - Terrain pieces are serializable state objects.
@@ -160,6 +170,30 @@ Success criteria:
 - Player-view handling exists for private setup data.
 - Tests cover legal and illegal setup examples for the implemented setup subset.
 - User approves P3 before P4 begins.
+
+Current planning state:
+- P3 should place labelled terrain and setup-object placeholders with real UD-space footprints, but not claim complete official terrain legality until source verification is complete.
+- The right-side battlefield panel should evolve into a phase tracker: setup/pre-battle steps during P3, later command/movement/shooting/melee/rout-victory steps during battle phases.
+- The tournament battle-plan board should be modeled separately from battlefield sectors, with practical `left`, `center`, `right`, and `flank march` assignment fields.
+- Battle plans, flank-march details, ambush contents, fake-marker truth, and hidden off-table assignments must be designed as secret owner data for future multiplayer.
+- Ambush marker contents should be private canonical setup data, with public marker shells kept separate for player-view filtering and later correct ambush play.
+- Deployment placeholders should preserve corps identity, full footprints, and non-overlap hooks for later official deployment validators.
+- P3 branch handoff is complete and the dirty accepted-P2/P3 worktree has been carried onto `feature/p3-setup-terrain-foundation` without discard.
+- P3-01 source review is complete and P3-02 setup skeleton plus phase tracker are accepted.
+- P3-03 standard-200 battlefield profile plumbing is accepted by user review.
+- P3-04 established the terrain placeholder data model with serializable state objects, shape/source-status fields, and full-footprint battlefield-bounds checks.
+- P3-05 implemented and user-accepted placeholder terrain palette, labelled battlefield rendering, and drag movement that stays inside reducer-enforced full-footprint bounds.
+- User explicitly accepted P3-05 only at placeholder level; official river and road constraints such as side-to-side placement remain open for later rule-validation work.
+- P3-06 implemented and user-accepted a terrain validation skeleton that separates verified physical errors from explicit `needs-source-check` warnings in reducer state and the battlefield UI.
+- P3-07 implemented and user-accepted public setup-object placeholders, including two mandatory standard-200 camps plus camp-step placeholder hooks for fortifications, obstacles, and stakes.
+- User explicitly accepted P3-07 only at placeholder level; stakes, fortification, and obstacle legality remain open for later rule-validation work.
+- P3-08 implemented and user-accepted a private battle-plan board with owner-only placeholder corps assignments for `left`, `center`, `right`, and `flank march`.
+- P3-09 implemented and user-accepted optional public ambush-marker shells and owner-private marker contents as placeholder hidden-setup infrastructure, with explicit add-first placement instead of forced default markers.
+- P3-10 implemented and user-accepted a first setup privacy projection with `canonical`, `player-one-view`, `player-two-view`, and `hotseat-handoff` rendering modes.
+- P3-11 implemented and user-accepted explicit deployment-zone placeholders and visible deployment placeholder metadata as source-status-driven setup scaffolding, while leaving any light-troop sub-zone source-blocked for later rule-complete work.
+- P3-12 consolidated automated validation, and the user then reported the manual/browser review as acceptable for the current placeholder foundation.
+- Final pre-close polish aligned the mandatory camps with the owning table edge: player 1 near the lower edge, player 2 near the upper edge.
+- P3-13 closed the phase handoff: tests and build are green, planning boards agree, P3 is complete, and P4 remains not started pending a future explicit start decision.
 
 ## P4 - Movement Commands
 

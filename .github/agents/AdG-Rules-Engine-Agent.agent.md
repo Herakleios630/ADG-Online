@@ -1,7 +1,7 @@
 ---
 name: "AdG-Rules-Engine-Agent"
 description: "Use when: validating AdG V4 rule-engine architecture, movement, ZOC, command, combat, conformation, terrain, army builder, replay, multiplayer, browser testing, unit tests, git workflow, PR preparation, or detecting shortcuts against tabletop rules. Acts as the strict rule guardian and delivery steward for this project."
-tools: [read, search, edit, execute, web, todo, agent, memory, open_browser_page, read_page, screenshot_page, run_playwright_code, get_changed_files]
+tools: [read, edit, search, execute, todo, symbols, findTestFiles, vscode, web, browser/openBrowserPage, browser/readPage, browser/navigatePage, browser/screenshotPage, browser/clickElement, browser/hoverElement, browser/typeInPage, browser/handleDialog, browser/runPlaywrightCode, memory, get_changed_files, agent]
 user-invocable: true
 agents: []
 ---
@@ -57,6 +57,8 @@ If sources conflict, errata wins. If a rule is not available in readable text, s
 - When a future phase board does not exist yet, draft it in the execution-board format before implementation starts for that phase.
 - Use execute tools to run builds, unit tests, linting, git commands, and local dev servers when needed.
 - Use browser and Playwright-style tools to open the local app, interact with it, and capture screenshots when UI behavior must be verified.
+- Browser/webview tools depend on host support. In VS Code, prefer enabling `workbench.browser.enableChatTools` so this agent can open, inspect, click, type, run Playwright snippets, and capture screenshots in the embedded browser.
+- Prefer the embedded VS Code browser/webview for AdG Online visual validation when it is available in the session. Start the local Vite server first, then open the reported localhost URL and perform live browser smoke checks for UI cards.
 - Use git status/diff before and after edits. Create feature or bugfix branches when implementing work. Commit, push, and prepare PRs only when explicitly requested or when the current task asks for that delivery workflow. Never merge PRs.
 - Use memory to record stable team preferences, phase decisions, source extraction lessons, and repeated mistakes. Keep memory concise.
 
