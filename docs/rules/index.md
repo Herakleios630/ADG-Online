@@ -48,6 +48,7 @@ Use these labels consistently in rule docs and extraction notes:
 - `units-and-bases.md`
 - `command.md`
 - `terrain-and-setup.md`
+- `setup-source-notes.md`
 - `hidden-info.md`
 - `movement.md`
 - `zoc.md`
@@ -92,3 +93,11 @@ Minimum rule-entry fields:
 4. Record source reference, status label, and errata interaction.
 5. If anything remains unclear, add it to `open-verification.md` instead of silently guessing.
 6. Only after that may later phases treat the extract as planning input.
+
+## P2 Geometry Assumptions
+
+- P2 fundamental geometry may proceed without waiting for the current P3+ setup, terrain, disclosure, or phase-order open verification items.
+- P2 may derive front/flank/rear-style geometric relationships from rotated rectangles and base dimensions as planning and debug outputs.
+- These geometry outputs are not authoritative rule verdicts for charge legality, ZOC, conformation, contact, combat, or terrain interaction.
+- P2 debug overlays are developer tooling and must stay distinct from user-facing rule claims.
+- If a future implementation step needs official rules to resolve a boundary or ambiguity, that rule question must be checked against the authoritative source set or kept open in `open-verification.md`.

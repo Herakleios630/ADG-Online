@@ -58,17 +58,52 @@ Use this compact entry format for new items:
 
 ## P1-00 Source Inventory Snapshot
 
-- Available authoritative sources in `Konzepte/`: `Errata_ADG_V4_English.pdf`, `Rules.pdf`, `ArmyLists1-82.pdf`, `Army_list_spreadsheet_V4 (1).xlsx`, `Reglettes.pdf`, `Konzept.pdf`.
+- Available authoritative sources in `Konzepte/`: `Errata_ADG_V4_English.pdf`, `Rules.pdf`, `ArmyLists1-82.pdf`, `Army_list_spreadsheet_V4 (1).xlsx`, `Reglettes.pdf`, `Konzept.pdf`, `Reference_Sheet_V4.pdf`.
 - Available OCR helper in `Konzepte/`: `merged.pdf`.
 - Current practical reading status:
 	- `Errata_ADG_V4_English.pdf`: text-readable.
 	- `Konzept.pdf`: text-readable.
 	- `Army_list_spreadsheet_V4 (1).xlsx`: spreadsheet-readable.
 	- `Reglettes.pdf`: partially text-readable.
+	- `Reference_Sheet_V4.pdf`: tournament quick-reference source, currently not text-readable through the available local tools; use as a manual cross-check, not as an override over errata or the full rulebook.
 	- `Rules.pdf`: effectively image-based for normal extraction.
 	- `ArmyLists1-82.pdf`: effectively image-based for normal extraction.
 	- `merged.pdf`: OCR-searchable helper with wrong section order and imperfect accuracy.
 - No source file is missing, but OCR uncertainty remains an open verification concern rather than a blocker.
+
+## P3-00 Reference Sheet And Tournament Setup Notes
+
+- ID: setup.reference-sheet-v4-cross-check
+	Status: open
+	Area: setup
+	Sources: `Reference_Sheet_V4.pdf`, `Rules.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: which setup, terrain, deployment, ambush, flank-march, and battle-plan details from the tournament reference sheet should be used as quick-reference confirmations for P3?
+	Why it matters: the reference sheet is used in tournament practice, but it must cross-check rather than override the full rules and errata.
+	Next check: manually compare the reference sheet against the setup and terrain sections before implementing any official setup validator.
+
+- ID: setup.tournament-battle-plan-board
+	Status: open
+	Area: hidden-info
+	Sources: `Rules.pdf`, `Reference_Sheet_V4.pdf`, tournament practice note from user
+	Question: what exact official meaning and timing attach to the tournament battle-plan sheet, including left/center/right corps assignment, flank march assignment, and ambush marker contents?
+	Why it matters: P3 should model the practical battle-plan UI as private setup data without confusing its three sectors with battlefield terrain/deployment sectors.
+	Next check: verify battle-plan, ambush, and flank-march wording against the rulebook, errata, and reference sheet.
+
+- ID: setup.deployment-corps-relative-and-overlap
+	Status: open
+	Area: setup
+	Sources: `Rules.pdf`, `Reference_Sheet_V4.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: what exact constraints govern corps relative deployment, unit overlap prevention, ambush/off-table exceptions, commander placement, and legal zone membership during deployment?
+	Why it matters: P3 can add placeholder non-overlap and footprint hooks, but official deployment validators need exact source wording before claiming legality.
+	Next check: verify deployment and battle-plan sections directly against source PDFs and errata.
+
+- ID: hidden-info.multiplayer-secret-battle-plan
+	Status: open
+	Area: hidden-info
+	Sources: `Rules.pdf`, `Reference_Sheet_V4.pdf`, future multiplayer visibility policy
+	Question: exactly which battle-plan, flank-march, ambush, fake-marker, and off-table facts must remain secret in player views and multiplayer payloads, and when do they become public?
+	Why it matters: future multiplayer must not accidentally serialize private setup truth to the opponent.
+	Next check: verify setup disclosure, reveal, ambush, and flank-march wording, then map each hidden data class to a visibility rule.
 
 ## P1-02 Standard 200 Notes
 
@@ -188,3 +223,9 @@ Use this compact entry format for new items:
 - Geometry readiness note: the current open verification set does not block P2 pure geometry work for rotated rectangles, facing, and front or flank or rear relationships.
 - Geometry boundary note: P2 should depend on `BaseProfile` dimensions and orientation conventions from the P1 planning docs, not on terrain, setup, movement allowance, or hidden-info rule confirmation.
 - Carry-forward warning: setup, terrain, disclosure, and phase-order open items remain blockers for P3+ and must stay in this tracker until checked against authoritative sources.
+
+## P2-01 Geometry Assumptions Note
+
+- P2 documentation boundary: geometry labels such as `front`, `leftFlank`, `rightFlank`, `rear`, `boundary`, and `ambiguous` are accepted as pure geometry/debug outputs for this phase.
+- P2 non-claim reminder: these labels do not by themselves establish official AdG legality for movement, charge, ZOC, conformation, contact, combat, setup, or terrain interaction.
+- P2 dependency reminder: base dimensions and pose are sufficient for current geometry work; unresolved setup, terrain, disclosure, and phase-order questions remain carried forward for P3+.
