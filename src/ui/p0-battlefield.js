@@ -1,11 +1,14 @@
-import { convertUdToCm, getBattlefieldProfile } from '../data/battlefield-profiles.js';
-import { classifyFacingRelationship, getFacingBoundaries } from '../engine/geometry/index.js';
+import { getBattlefieldProfile } from '../data/battlefield-profiles.js';
+import { classifyFacingRelationship, getFacingBoundaries, localPointToWorldPoint } from '../engine/geometry/index.js';
+import { getCommittedMovementPreviewSegments, getMovementPreviewEndPose } from '../engine/movement/index.js';
 import { getPublicAmbushMarkerShell } from '../engine/setup/ambush-markers.js';
 import { BATTLE_PLAN_FIELD_IDS } from '../engine/setup/battle-plan.js';
-import { getSetupViewModeLabel, projectSetupForViewer, SETUP_VIEW_MODES } from '../engine/visibility/setup-view.js';
+import { projectSetupForViewer } from '../engine/visibility/setup-view.js';
 import { TERRAIN_SHAPE_MODELS, TERRAIN_SOURCE_STATUSES } from '../engine/setup/terrain-placeholders.js';
 import { SETUP_OBJECT_FAMILIES } from '../engine/setup/setup-objects.js';
-import { BATTLE_PHASE_DEFINITIONS, SETUP_STEP_DEFINITIONS } from '../state/p0-state.js';
+import { SETUP_STEP_DEFINITIONS } from '../state/p0-state.js';
+import { getAdvancePreviewPresentation, renderAdvanceCommandPanel } from './battlefield-command-panel.js';
+import { renderBattlefieldRightPanel } from './battlefield-side-panel.js';
 
 const TERRAIN_PALETTE_ENTRIES = [
   {
@@ -67,12 +70,25 @@ const SETUP_OBJECT_PALETTE_ENTRIES = [
   },
 ];
 
-function formatBindingValue(value) {
-  return value || 'Nicht belegt';
-}
-
 function formatLengthUd(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function createWheelHandleStyle(point, battlefieldProfile) {
+  return [
+    `left:${(point.x / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(point.y / battlefieldProfile.heightUd) * 100}%`,
+  ].join(';');
+}
+
+function createPreviewGhostStyle(pose, unit, battlefieldProfile) {
+  return [
+    `left:${(pose.xUd / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(pose.yUd / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(unit.widthUd / battlefieldProfile.widthUd) * 100}%`,
+    `height:${(unit.depthUd / battlefieldProfile.heightUd) * 100}%`,
+    `--unit-rotation:${pose.rotationRadians}rad`,
+  ].join(';');
 }
 
 function escapeHtml(value) {
@@ -81,11 +97,6 @@ function escapeHtml(value) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
-}
-
-function formatRotationDegrees(radians) {
-  const degrees = (radians * 180) / Math.PI;
-  return `${Math.round(degrees)} Grad`;
 }
 
 function formatRelationshipLabel(label) {
@@ -107,61 +118,6 @@ function formatRelationshipLabel(label) {
     default:
       return 'Unklar';
   }
-}
-
-function renderPhaseTracker(state) {
-  const isSetupActive = state.game.setup.isActive;
-  const currentSetupStepId = state.game.setup.currentStepId;
-  const currentBattlePhaseId = state.game.phaseTracker.currentBattlePhaseId;
-  const isReadyStep = currentSetupStepId === SETUP_STEP_DEFINITIONS[SETUP_STEP_DEFINITIONS.length - 1].id;
-
-  return `
-    <div class="battlefield-placeholder-card battlefield-phase-tracker-card ${isSetupActive ? 'is-setup-active' : ''}">
-      <div class="battlefield-phase-tracker-header">
-        <strong>Phasenliste</strong>
-        <span>${isSetupActive ? 'Pre Battle' : 'Während der Schlacht'}</span>
-      </div>
-      ${isSetupActive ? `
-        <div class="battlefield-phase-tracker-section">
-          <span class="battlefield-phase-tracker-title">Setup</span>
-          <ol class="battlefield-phase-list" aria-label="Setup-Phasen">
-            ${SETUP_STEP_DEFINITIONS.map((step) => {
-              const isCurrent = currentSetupStepId === step.id;
-              const isLocked = state.game.setup.lockedStepIds.includes(step.id);
-              return `
-                <li class="battlefield-phase-item ${isCurrent ? 'is-current' : ''} ${isLocked ? 'is-locked' : ''}">
-                  <span class="battlefield-phase-item-label">${step.label}</span>
-                  <span class="battlefield-phase-item-state">${isLocked ? 'fixiert' : isCurrent ? 'aktiv' : 'offen'}</span>
-                </li>
-              `;
-            }).join('')}
-          </ol>
-        </div>
-      ` : `
-        <div class="battlefield-phase-tracker-section">
-          <span class="battlefield-phase-tracker-title">Battle</span>
-          <ol class="battlefield-phase-list battlefield-phase-list-battle" aria-label="Battle-Phasen">
-            ${BATTLE_PHASE_DEFINITIONS.map((phase) => `
-              <li class="battlefield-phase-item ${currentBattlePhaseId === phase.id ? 'is-current' : ''}">
-                <span class="battlefield-phase-item-label">${phase.label}</span>
-                <span class="battlefield-phase-item-state">${currentBattlePhaseId === phase.id ? 'aktiv' : 'spaeter'}</span>
-              </li>
-            `).join('')}
-          </ol>
-        </div>
-      `}
-      ${isSetupActive ? `
-        <div class="battlefield-inline-actions battlefield-phase-tracker-actions">
-          <button class="ghost-button" type="button" data-action="setup-previous" ${currentSetupStepId === SETUP_STEP_DEFINITIONS[0].id ? 'disabled' : ''}>Zurueck</button>
-          <button class="ghost-button" type="button" data-action="setup-lock">Schritt fixieren</button>
-          ${isReadyStep
-            ? '<button class="shell-button is-active" type="button" data-action="complete-setup">In die Schlacht</button>'
-            : '<button class="shell-button is-active" type="button" data-action="setup-next">Weiter</button>'}
-        </div>
-      ` : ''}
-      <span class="muted-copy">P3-02 bildet nur Reihenfolge und Sperrstatus ab. Offizielle Setup-Validierung folgt spaeter pro Schritt.</span>
-    </div>
-  `;
 }
 
 function renderFacingGeometryOverlay(relationship) {
@@ -445,45 +401,6 @@ function renderAmbushMarkersPanel(state) {
   `;
 }
 
-function renderCollapsibleCard({ title, summary, body, className = '', isOpen = true, persistId = '' }) {
-  return `
-    <details class="battlefield-collapsible-card ${className}" ${isOpen ? 'open' : ''} ${persistId ? `data-persist-id="${persistId}"` : ''}>
-      <summary class="battlefield-collapsible-summary">
-        <strong>${title}</strong>
-        <span>${summary}</span>
-      </summary>
-      <div class="battlefield-collapsible-body">
-        ${body}
-      </div>
-    </details>
-  `;
-}
-
-function renderSetupViewModeCard(state) {
-  const currentMode = state.game.setupViewMode;
-
-  return renderCollapsibleCard({
-    title: 'Privacy View',
-    summary: getSetupViewModeLabel(currentMode),
-    className: 'battlefield-placeholder-card battlefield-setup-view-card',
-    isOpen: false,
-    persistId: 'setup-view-card',
-    body: `
-      <span class="muted-copy">P3-10 rendert denselben kanonischen Setup-State als Viewer-Projektion statt private Daten direkt in jede Ansicht zu schreiben.</span>
-      <div class="battlefield-setup-view-grid">
-        ${Object.values(SETUP_VIEW_MODES).map((viewMode) => `
-          <button
-            class="shell-button battlefield-setup-view-button ${currentMode === viewMode ? 'is-active' : ''}"
-            type="button"
-            data-action="set-setup-view-mode"
-            data-view-mode="${viewMode}"
-          >${getSetupViewModeLabel(viewMode)}</button>
-        `).join('')}
-      </div>
-    `,
-  });
-}
-
 function renderDeploymentSetupCard(state) {
   const currentStepIndex = SETUP_STEP_DEFINITIONS.findIndex((step) => step.id === state.game.setup.currentStepId);
   const deploymentStepIndex = SETUP_STEP_DEFINITIONS.findIndex((step) => step.id === 'deployment');
@@ -725,7 +642,7 @@ export function renderBattlefieldScreen(state) {
     },
   };
   const battlefieldProfile = getBattlefieldProfile(state.game.battlefieldProfileId);
-  const overlayHotkey = formatBindingValue(state.shell.settings.keyBindings.overlayCycle.primary);
+  const overlayHotkey = state.shell.settings.keyBindings.overlayCycle.primary || 'Nicht belegt';
   const showScaleOverlay = state.shell.settings.showScaleOverlay;
   const viewport = state.game.viewport;
   const testUnit = state.game.units[0];
@@ -737,16 +654,67 @@ export function renderBattlefieldScreen(state) {
   const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
   const canDragUnitsInSetup = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
-  const advanceModeActive = state.game.advanceModeActive && Boolean(selectedUnit);
-  const advancePreviewUd = selectedUnit ? state.game.advancePreviewUd : 0;
-  const remainingAdvanceBudgetUd = selectedUnit ? Math.max(0, 4 - (selectedUnit.advanceUsedUd ?? 0)) : 4;
-  const maxAdvanceUd = selectedUnit ? Math.min(remainingAdvanceBudgetUd, selectedUnit.yUd) : 4;
-  const previewUnitYUd = selectedUnit ? Math.max(0, selectedUnit.yUd - advancePreviewUd) : 0;
-  const selectedUnitFrontYUd = selectedUnit ? Math.max(0, selectedUnit.yUd - selectedUnit.depthUd / 2) : 0;
+  const {
+    advanceModeActive,
+    slideModeActive,
+    wheelModeActive,
+    wheelPivotSide,
+    advancePreviewUd,
+    slidePreviewUd,
+    wheelPreviewAngleRadians,
+    wheelDistanceUd,
+    previewDistanceUd,
+    slideAvailable,
+    remainingAdvanceBudgetUd,
+    maxAdvanceUd,
+    previewUnitStyle,
+    advanceReachStyle,
+    helperCopy,
+    diagnostics,
+    canCancelMovement,
+    canConfirmMovement,
+  } = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive,
+    canDragUnitsInSetup,
+    battlefieldProfile,
+  });
   const showDeploymentOverlay = isDeploymentSetupStep
     || state.game.overlayMode === 'Aufstellungszonen'
     || state.game.overlayMode === 'Beides';
   const showSectorOverlay = state.game.overlayMode === 'Sektoren' || state.game.overlayMode === 'Beides';
+  const committedPreviewSegments = getCommittedMovementPreviewSegments(state.game.movement.preview);
+  const committedPreviewTrailSegments = committedPreviewSegments.slice(0, -1);
+  const wheelDisplayPose = wheelModeActive && selectedUnit
+    ? getMovementPreviewEndPose(state.game.movement.preview, {
+        xUd: selectedUnit.xUd,
+        yUd: selectedUnit.yUd,
+        rotationRadians: selectedUnit.rotationRadians ?? 0,
+      })
+    : null;
+  const leftWheelHandlePoint = wheelDisplayPose && selectedUnit
+    ? localPointToWorldPoint(
+        {
+          center: { x: wheelDisplayPose.xUd, y: wheelDisplayPose.yUd },
+          widthUd: selectedUnit.widthUd,
+          depthUd: selectedUnit.depthUd,
+          rotationRadians: wheelDisplayPose.rotationRadians,
+        },
+        { x: -(selectedUnit.widthUd / 2), y: selectedUnit.depthUd / 2 },
+      )
+    : null;
+  const rightWheelHandlePoint = wheelDisplayPose && selectedUnit
+    ? localPointToWorldPoint(
+        {
+          center: { x: wheelDisplayPose.xUd, y: wheelDisplayPose.yUd },
+          widthUd: selectedUnit.widthUd,
+          depthUd: selectedUnit.depthUd,
+          rotationRadians: wheelDisplayPose.rotationRadians,
+        },
+        { x: selectedUnit.widthUd / 2, y: selectedUnit.depthUd / 2 },
+      )
+    : null;
   const selectedUnitRotationRadians = selectedUnit?.rotationRadians ?? 0;
   const facingRelationship = state.game.debug.isActive && selectedUnit
     ? classifyFacingRelationship(
@@ -790,23 +758,6 @@ export function renderBattlefieldScreen(state) {
     `--viewport-pan-x:${viewport.panX}px`,
     `--viewport-pan-y:${viewport.panY}px`,
   ].join(';');
-  const previewUnitStyle = selectedUnit
-    ? [
-        `left:${(selectedUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
-        `top:${(previewUnitYUd / battlefieldProfile.heightUd) * 100}%`,
-        `width:${(selectedUnit.widthUd / battlefieldProfile.widthUd) * 100}%`,
-        `height:${(selectedUnit.depthUd / battlefieldProfile.heightUd) * 100}%`,
-      ].join(';')
-    : '';
-  const advanceReachStyle = selectedUnit
-    ? [
-        `left:${(selectedUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
-        `top:${((selectedUnitFrontYUd - maxAdvanceUd) / battlefieldProfile.heightUd) * 100}%`,
-        `width:${(selectedUnit.widthUd / battlefieldProfile.widthUd) * 100}%`,
-        `height:${(maxAdvanceUd / battlefieldProfile.heightUd) * 100}%`,
-      ].join(';')
-    : '';
-
   return `
     <section class="battlefield-shell">
       <div class="battlefield-stage">
@@ -818,32 +769,26 @@ export function renderBattlefieldScreen(state) {
           ${renderBattlePlanBoard(renderState)}
           ${renderAmbushMarkersPanel(renderState)}
           ${renderDeploymentSetupCard(renderState)}
-          <div class="battlefield-placeholder-card">
-            <strong>Befehle</strong>
-            ${selectedUnit ? `
-              <span>Distanz: ${formatLengthUd(advancePreviewUd)} UD / ${formatLengthUd(advancePreviewUd * 4)} cm</span>
-              <span>Restbudget: ${formatLengthUd(remainingAdvanceBudgetUd)} UD / ${formatLengthUd(remainingAdvanceBudgetUd * 4)} cm</span>
-              <span class="muted-copy">${canDragUnitsInSetup ? 'Im Aufstellungsbereich kann die ausgewaehlte Einheit frei gezogen werden. Advance bleibt bis Kampfbeginn gesperrt.' : isSetupActive ? 'Während des Setups bleiben Advance-Befehle gesperrt.' : `Advance zieht die Einheit frei vorwaerts innerhalb des verbleibenden P0-Budgets von maximal ${formatLengthUd(maxAdvanceUd)} UD.`}</span>
-            ` : `
-              <span>Waehle zuerst die Testeinheit aus.</span>
-            `}
-          </div>
-          <div class="battlefield-command-grid">
-            <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" ${!isSetupActive && selectedUnit && maxAdvanceUd > 0 ? '' : 'disabled'}>Advance</button>
-            <span class="battlefield-command-slot"></span>
-            <span class="battlefield-command-slot"></span>
-            <span class="battlefield-command-slot"></span>
-            <span class="battlefield-command-slot"></span>
-            <span class="battlefield-command-slot"></span>
-          </div>
-          <div class="battlefield-command-actions">
-            <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="confirm-advance" aria-label="Bestaetigen" title="Bestaetigen" ${isSetupActive || !advanceModeActive || advancePreviewUd <= 0 ? 'disabled' : ''}>
-              <span aria-hidden="true">&#10003;</span>
-            </button>
-            <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="reset-test-units" aria-label="Zuruecksetzen" title="Zuruecksetzen" ${isSetupActive || !advanceModeActive ? 'disabled' : ''}>
-              <span aria-hidden="true">&#10005;</span>
-            </button>
-          </div>
+          ${renderAdvanceCommandPanel({
+            selectedUnit,
+            isSetupActive,
+            advanceModeActive,
+            slideModeActive,
+            wheelModeActive,
+            wheelPivotSide,
+            advancePreviewUd,
+            slidePreviewUd,
+            wheelPreviewAngleRadians,
+            wheelDistanceUd,
+            previewDistanceUd,
+            slideAvailable,
+            remainingAdvanceBudgetUd,
+            maxAdvanceUd,
+            helperCopy,
+            diagnostics,
+            canCancelMovement,
+            canConfirmMovement,
+          })}
         </aside>
         <div class="battlefield-center-column">
           <div class="battlefield-surface" data-battlefield-surface>
@@ -854,7 +799,43 @@ export function renderBattlefieldScreen(state) {
               ${renderAmbushMarkerShells(renderState, battlefieldProfile)}
               ${renderTerrainPlaceholders(renderState, battlefieldProfile)}
               ${advanceModeActive ? `<div class="battlefield-advance-reach" aria-hidden="true" style="${advanceReachStyle}"></div>` : ''}
-              ${selectedUnit && advancePreviewUd > 0 ? `<div class="battlefield-unit-preview" aria-hidden="true" style="${previewUnitStyle}"></div>` : ''}
+              ${selectedUnit && committedPreviewTrailSegments.length > 0 ? committedPreviewTrailSegments.map((segment) => `
+                <div
+                  class="battlefield-unit-preview is-trail"
+                  aria-hidden="true"
+                  style="${createPreviewGhostStyle(segment.endPose, selectedUnit, battlefieldProfile)}"
+                ></div>
+              `).join('') : ''}
+              ${selectedUnit && state.game.movement.preview.status === 'accepted' && state.game.movement.preview.segments.length > 0 ? `
+                <div
+                  class="battlefield-unit-preview"
+                  aria-hidden="true"
+                  ${advanceModeActive ? 'data-advance-preview-handle' : ''}
+                  ${slideModeActive ? 'data-slide-preview-handle' : ''}
+                  data-unit-id="${selectedUnit.id}"
+                  style="${previewUnitStyle}"
+                ></div>
+              ` : ''}
+              ${wheelModeActive && selectedUnit && leftWheelHandlePoint && rightWheelHandlePoint ? `
+                <button
+                  class="battlefield-wheel-handle ${wheelPivotSide === 'right' ? 'is-active' : ''}"
+                  type="button"
+                  aria-label="Linke vordere Ecke ziehen"
+                  data-wheel-handle
+                  data-unit-id="${selectedUnit.id}"
+                  data-corner-side="left"
+                  style="${createWheelHandleStyle(leftWheelHandlePoint, battlefieldProfile)}"
+                ></button>
+                <button
+                  class="battlefield-wheel-handle ${wheelPivotSide === 'left' ? 'is-active' : ''}"
+                  type="button"
+                  aria-label="Rechte vordere Ecke ziehen"
+                  data-wheel-handle
+                  data-unit-id="${selectedUnit.id}"
+                  data-corner-side="right"
+                  style="${createWheelHandleStyle(rightWheelHandlePoint, battlefieldProfile)}"
+                ></button>
+              ` : ''}
               ${state.game.debug.isActive ? `
                 <div
                   class="battlefield-debug-unit"
@@ -867,7 +848,7 @@ export function renderBattlefieldScreen(state) {
               ` : ''}
               ${facingRelationship && state.game.debug.showFacingGeometryOverlay ? renderFacingGeometryOverlay({ ...facingRelationship, battlefieldProfileId: battlefieldProfile.id }) : ''}
               <button
-                class="battlefield-unit-token ${state.game.selectedUnitId === testUnit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === testUnit.id ? 'is-advance-ready' : ''} ${canDragUnitsInSetup && state.game.selectedUnitId === testUnit.id ? 'is-setup-placeable' : ''}"
+                class="battlefield-unit-token ${state.game.selectedUnitId === testUnit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === testUnit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === testUnit.id ? 'is-wheel-ready' : ''} ${canDragUnitsInSetup && state.game.selectedUnitId === testUnit.id ? 'is-setup-placeable' : ''}"
                 type="button"
                 aria-pressed="${state.game.selectedUnitId === testUnit.id}"
                 data-action="select-unit"
@@ -878,77 +859,18 @@ export function renderBattlefieldScreen(state) {
             </div>
           </div>
         </div>
-        <aside class="battlefield-side-panel battlefield-side-panel-right" data-panel-id="right">
-          ${showScaleOverlay ? `
-            ${renderCollapsibleCard({
-              title: 'Minimap',
-              summary: `${battlefieldProfile.widthUd} UD x ${battlefieldProfile.heightUd} UD`,
-              className: 'battlefield-minimap-card',
-              isOpen: true,
-              persistId: 'minimap-card',
-              body: `
-                <div class="battlefield-minimap" data-battlefield-minimap>
-                  <div class="battlefield-minimap-unit" style="${unitStyle}"></div>
-                  <div class="battlefield-minimap-viewport" data-battlefield-minimap-viewport></div>
-                </div>
-                <div class="battlefield-minimap-meta">
-                  <strong>1 UD = ${battlefieldProfile.udInCm} cm</strong>
-                  <span>${battlefieldProfile.widthUd} UD x ${battlefieldProfile.heightUd} UD</span>
-                  <span>${battlefieldProfile.widthCm} cm x ${battlefieldProfile.heightCm} cm</span>
-                  <span>Setup Overlay: ${isDeploymentSetupStep ? `${state.game.overlayMode} + Deployment-Zonen` : state.game.overlayMode}</span>
-                  <span>Overlay-Taste ${overlayHotkey}</span>
-                  <span>Marker ${formatLengthUd(testUnit.widthUd)} UD x ${formatLengthUd(testUnit.depthUd)} UD / ${formatLengthUd(convertUdToCm(testUnit.widthUd, battlefieldProfile))} cm x ${formatLengthUd(convertUdToCm(testUnit.depthUd, battlefieldProfile))} cm</span>
-                </div>
-              `,
-            })}
-          ` : ''}
-          ${renderSetupViewModeCard(state)}
-          ${renderPhaseTracker(state)}
-          ${renderCollapsibleCard({
-            title: 'Debug Status',
-            summary: state.game.debug.isActive ? 'an' : 'aus',
-            className: `battlefield-placeholder-card battlefield-debug-card ${state.game.debug.isActive ? 'is-selected' : ''}`,
-            isOpen: false,
-            persistId: 'debug-card',
-            body: `
-              <span>Debug-Modus: ${state.game.debug.isActive ? 'an (H)' : 'aus (H)'}</span>
-              <span>Facing-Overlay: ${state.game.debug.showFacingGeometryOverlay ? 'an (F)' : 'aus (F)'}</span>
-              <span>Referenz: ${selectedUnit ? selectedUnit.id : 'keine Einheit ausgewaehlt'}</span>
-              ${state.game.debug.isActive ? `
-                <span>Debug-Position: ${formatLengthUd(state.game.debug.unitPose.xUd)} / ${formatLengthUd(state.game.debug.unitPose.yUd)} UD</span>
-                <span>Debug-Rotation: ${formatRotationDegrees(state.game.debug.unitPose.rotationRadians)}</span>
-                <span>Referenz-Rotation: ${formatRotationDegrees(selectedUnitRotationRadians)}</span>
-                <span class="muted-copy">Ctrl + Mausrad dreht Debug, Ctrl + Shift + Mausrad dreht die Referenz.</span>
-                ${facingRelationship ? `<span>Beziehung: ${formatRelationshipLabel(facingRelationship.primaryLabel)}</span>` : ''}
-              ` : ''}
-              <span class="muted-copy">Facing-Linien und Label sind reine Geometrie-Ausgaben, keine offiziellen Regelurteile.</span>
-            `,
-          })}
-          ${renderCollapsibleCard({
-            title: 'Ausgewaehlte Einheit',
-            summary: selectedUnit ? selectedUnit.id : 'keine Auswahl',
-            className: `battlefield-placeholder-card battlefield-unit-info-card ${selectedUnit ? 'is-selected' : ''}`,
-            isOpen: false,
-            persistId: 'selected-unit-card',
-            body: selectedUnit ? `
-              <span>ID: ${selectedUnit.id}</span>
-              <span>Typ: Medium Infantry Teststand</span>
-              <span>Front: ${selectedUnit.facing}</span>
-              <span>Groesse: ${formatLengthUd(selectedUnit.widthUd)} UD x ${formatLengthUd(selectedUnit.depthUd)} UD</span>
-            ` : `
-              <span>Keine Einheit ausgewaehlt</span>
-              <span>Klicke den Teststand auf dem Schlachtfeld an.</span>
-            `,
-          })}
-          ${renderCollapsibleCard({
-            title: 'Kampfprotokoll / Wuerfel',
-            summary: 'spaeter',
-            className: 'battlefield-placeholder-card battlefield-placeholder-card-log',
-            isOpen: false,
-            persistId: 'battle-log-card',
-            body: '<span>spaeter</span>',
-          })}
-        </aside>
+        ${renderBattlefieldRightPanel({
+          state,
+          battlefieldProfile,
+          showScaleOverlay,
+          unitStyle,
+          isDeploymentSetupStep,
+          overlayHotkey,
+          testUnit,
+          selectedUnit,
+          selectedUnitRotationRadians,
+          facingRelationship,
+        })}
       </div>
     </section>
   `;

@@ -48,6 +48,11 @@ Use this compact entry format for new items:
 - Rout, pursuit, rally, army cohesion, victory, and end-game conditions.
 - Army list data conversion from printed lists and spreadsheet formulas.
 
+## P4 Handoff Note
+
+- P4 is accepted complete as a movement-command foundation only.
+- Remaining post-P4 rule blockers stay open here and must not be described as already implemented or source-verified: movement allowances by troop type, terrain movement effects, wheel/slide/turn edge cases beyond the approved P4 subset, ZOC legality, group movement, difficult maneuvers, special troop exceptions, owner/active-player movement restrictions, strict phase legality, charge, and conformation.
+
 ## Source Extraction Notes
 
 - `Rules.pdf` and `ArmyLists1-82.pdf` produced almost no usable text through normal PDF extraction.
@@ -223,6 +228,64 @@ Use this compact entry format for new items:
 - Geometry readiness note: the current open verification set does not block P2 pure geometry work for rotated rectangles, facing, and front or flank or rear relationships.
 - Geometry boundary note: P2 should depend on `BaseProfile` dimensions and orientation conventions from the P1 planning docs, not on terrain, setup, movement allowance, or hidden-info rule confirmation.
 - Carry-forward warning: setup, terrain, disclosure, and phase-order open items remain blockers for P3+ and must stay in this tracker until checked against authoritative sources.
+
+## P4-01 Movement Command Notes
+
+- ID: movement.command-context-minimum
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement and command sections, `Errata_ADG_V4_English.pdf`, `Reglettes.pdf` as distance helper only
+	Question: what exact command-context facts must exist before an advance, wheel, or slide can be treated as a legal movement order rather than a geometry preview?
+	Why it matters: P4 must not claim official movement legality without the minimum active player, corps, commander, command range, CP, and in-command facts.
+	Next check: direct phase review of movement-order wording, command prerequisites, and any free-command cases.
+
+- ID: movement.allowances-and-road-terrain
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement section, `Reglettes.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: what are the exact movement allowance tables by troop class, terrain crossed, road case, and special state for the P4 subset?
+	Why it matters: P4 can preview geometry, but cannot validate legal move distance without the authoritative allowance table and terrain interaction.
+	Next check: direct rulebook plus ruler cross-check for movement categories and road exceptions.
+
+- ID: movement.wheel-measurement-and-pivot
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement diagrams or wheel wording, `Reglettes.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: what exact pivot geometry, measurement method, and edge-case restrictions define a legal wheel for units and groups?
+	Why it matters: P4 wants wheel preview and distance accounting, but incorrect pivot or distance measurement would poison later movement and charge logic.
+	Next check: direct page and diagram verification for wheel measurement, especially outer-front-corner distance and pivot side assumptions.
+
+- ID: movement.slide-distance-and-frequency
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` movement section, `Errata_ADG_V4_English.pdf`
+	Question: what exact limits govern slide distance, slide direction, and how many slides a unit or group may perform in one movement phase?
+	Why it matters: P4 intends to include slide as a first movement command, but the cap and allowed repetition must be source-checked before official legality claims.
+	Next check: direct source pass over slide wording plus any errata-sensitive exceptions.
+
+- ID: movement.group-movement-and-reshape
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement section, `Errata_ADG_V4_English.pdf`
+	Question: what exact rules govern starting and ending as a group, temporary splits, extension, contraction, overlap allowances, and re-forming during movement?
+	Why it matters: the first P4 slice intentionally defers full group movement, but the command model must preserve the right hooks for a later complete implementation.
+	Next check: verify group movement and frontage-change wording before any group validator is implemented.
+
+- ID: movement.turns-difficult-maneuvers-and-errata
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` movement section, `Errata_ADG_V4_English.pdf`
+	Question: what exact costs and restrictions apply to quarter-turns, half-turns, difficult maneuvers, and multi-turn combinations, especially for light troops?
+	Why it matters: P4 may defer these moves, but the source split must be explicit because they constrain the later movement-command family.
+	Next check: direct errata-led review of turn restrictions and difficult-maneuver cases.
+
+- ID: movement.special-troops-and-interpenetration
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` troop movement exceptions, `Errata_ADG_V4_English.pdf`
+	Question: which special troop classes and interpenetration cases alter the standard movement-command assumptions for the P4 subset?
+	Why it matters: P4 must not make a generic movement engine look rules-complete if major troop-class exceptions and interpenetration permissions are still unresolved.
+	Next check: verify movement exceptions for light troops, war wagons, heavy artillery, cataphracts, pikemen, elephants, scythed chariots, and interpenetration cases.
 
 ## P2-01 Geometry Assumptions Note
 

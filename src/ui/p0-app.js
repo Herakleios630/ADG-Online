@@ -1,6 +1,22 @@
+﻿import { bindAdvanceActionButtons, stopBattlefieldAdvanceDragSession, tryStartBattlefieldAdvanceDrag } from './p0-advance-controls.js';
 import { getBattlefieldProfile } from '../data/battlefield-profiles.js';
-import { getRotatedRectangleBounds } from '../engine/geometry/index.js';
-import { ACTION_TYPES, SCREEN_IDS } from '../state/p0-state.js';
+import { bindSlideActionButtons, stopBattlefieldSlideDragSession, tryStartBattlefieldSlideDrag } from './p0-slide-controls.js';
+import {
+  ACTION_TYPES,
+  SCREEN_IDS,
+} from '../state/p0-state.js';
+import { getRemainingAdvanceBudgetUd } from '../state/p0-advance.js';
+import { bindWheelActionButtons, stopBattlefieldWheelDragSession, tryStartBattlefieldWheelDrag } from './p0-wheel-controls.js';
+import {
+  clampBattlefieldCenterToFootprint,
+} from './battlefield-coordinate.js';
+import {
+  startBattlefieldAmbushMarkerDrag,
+  startBattlefieldDebugDrag,
+  startBattlefieldSetupObjectDrag,
+  startBattlefieldTerrainDrag,
+  startBattlefieldUnitDrag,
+} from './battlefield-drag-controls.js';
 import { renderBattlefieldScreen } from './p0-battlefield.js';
 
 const KEY_BINDING_ROWS = [
@@ -51,74 +67,6 @@ const battlefieldPanSession = {
   startPanY: 0,
   currentPanX: 0,
   currentPanY: 0,
-};
-
-const battlefieldAdvanceDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  startMouseY: 0,
-  startPreviewUd: 0,
-  maxAdvanceUd: 4,
-  battlefieldProfile: null,
-};
-
-const battlefieldDebugDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  footprint: null,
-  battlefieldProfile: null,
-};
-
-const battlefieldUnitDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  battlefieldProfile: null,
-  unitId: null,
-  footprint: null,
-};
-
-const battlefieldTerrainDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  battlefieldProfile: null,
-  placeholderId: null,
-  footprint: null,
-};
-
-const battlefieldSetupObjectDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  battlefieldProfile: null,
-  setupObjectId: null,
-};
-
-const battlefieldAmbushMarkerDragSession = {
-  active: false,
-  dispatch: null,
-  surfaceRect: null,
-  zoom: 1,
-  panX: 0,
-  panY: 0,
-  battlefieldProfile: null,
-  markerId: null,
 };
 
 let suppressNextBattlefieldSurfaceClick = false;
@@ -265,358 +213,8 @@ function handleBattlefieldPanEnd() {
   stopBattlefieldPanSession();
 }
 
-function stopBattlefieldAdvanceDragSession() {
-  battlefieldAdvanceDragSession.active = false;
-  battlefieldAdvanceDragSession.dispatch = null;
-  battlefieldAdvanceDragSession.surfaceRect = null;
-  battlefieldAdvanceDragSession.battlefieldProfile = null;
-}
-
-function clampBattlefieldPointUd(surfaceRect, zoom, panX, panY, clientX, clientY, battlefieldProfile, footprint = null) {
-  const worldX = clientX - surfaceRect.left + panX;
-  const worldY = clientY - surfaceRect.top + panY;
-  const rawXUd = (worldX / (surfaceRect.width * zoom)) * battlefieldProfile.widthUd;
-  const rawYUd = (worldY / (surfaceRect.height * zoom)) * battlefieldProfile.heightUd;
-
-  if (!footprint) {
-    return {
-      xUd: clamp(rawXUd, 0, battlefieldProfile.widthUd),
-      yUd: clamp(rawYUd, 0, battlefieldProfile.heightUd),
-    };
-  }
-
-  const footprintBounds = getRotatedRectangleBounds({
-    center: { x: 0, y: 0 },
-    widthUd: footprint.widthUd,
-    depthUd: footprint.depthUd,
-    rotationRadians: footprint.rotationRadians,
-  });
-  const minCenterX = -footprintBounds.minX;
-  const maxCenterX = battlefieldProfile.widthUd - footprintBounds.maxX;
-  const minCenterY = -footprintBounds.minY;
-  const maxCenterY = battlefieldProfile.heightUd - footprintBounds.maxY;
-
-  return {
-    xUd: clamp(rawXUd, minCenterX, maxCenterX),
-    yUd: clamp(rawYUd, minCenterY, maxCenterY),
-  };
-}
-
-function getBattlefieldPointUd(surfaceRect, zoom, panX, panY, clientX, clientY, battlefieldProfile) {
-  const worldX = clientX - surfaceRect.left + panX;
-  const worldY = clientY - surfaceRect.top + panY;
-
-  return {
-    xUd: (worldX / (surfaceRect.width * zoom)) * battlefieldProfile.widthUd,
-    yUd: (worldY / (surfaceRect.height * zoom)) * battlefieldProfile.heightUd,
-  };
-}
-
-function clampBattlefieldCenterToFootprint(xUd, yUd, battlefieldProfile, footprint) {
-  if (!footprint) {
-    return {
-      xUd: clamp(xUd, 0, battlefieldProfile.widthUd),
-      yUd: clamp(yUd, 0, battlefieldProfile.heightUd),
-    };
-  }
-
-  const footprintBounds = getRotatedRectangleBounds({
-    center: { x: 0, y: 0 },
-    widthUd: footprint.widthUd,
-    depthUd: footprint.depthUd,
-    rotationRadians: footprint.rotationRadians,
-  });
-
-  return {
-    xUd: clamp(xUd, -footprintBounds.minX, battlefieldProfile.widthUd - footprintBounds.maxX),
-    yUd: clamp(yUd, -footprintBounds.minY, battlefieldProfile.heightUd - footprintBounds.maxY),
-  };
-}
-
-function stopBattlefieldDebugDragSession() {
-  battlefieldDebugDragSession.active = false;
-  battlefieldDebugDragSession.dispatch = null;
-  battlefieldDebugDragSession.surfaceRect = null;
-  battlefieldDebugDragSession.footprint = null;
-  battlefieldDebugDragSession.battlefieldProfile = null;
-}
-
-function stopBattlefieldUnitDragSession() {
-  battlefieldUnitDragSession.active = false;
-  battlefieldUnitDragSession.dispatch = null;
-  battlefieldUnitDragSession.surfaceRect = null;
-  battlefieldUnitDragSession.battlefieldProfile = null;
-  battlefieldUnitDragSession.unitId = null;
-  battlefieldUnitDragSession.footprint = null;
-}
-
-function stopBattlefieldTerrainDragSession() {
-  battlefieldTerrainDragSession.active = false;
-  battlefieldTerrainDragSession.dispatch = null;
-  battlefieldTerrainDragSession.surfaceRect = null;
-  battlefieldTerrainDragSession.battlefieldProfile = null;
-  battlefieldTerrainDragSession.placeholderId = null;
-  battlefieldTerrainDragSession.footprint = null;
-}
-
-function stopBattlefieldSetupObjectDragSession() {
-  battlefieldSetupObjectDragSession.active = false;
-  battlefieldSetupObjectDragSession.dispatch = null;
-  battlefieldSetupObjectDragSession.surfaceRect = null;
-  battlefieldSetupObjectDragSession.battlefieldProfile = null;
-  battlefieldSetupObjectDragSession.setupObjectId = null;
-}
-
-function stopBattlefieldAmbushMarkerDragSession() {
-  battlefieldAmbushMarkerDragSession.active = false;
-  battlefieldAmbushMarkerDragSession.dispatch = null;
-  battlefieldAmbushMarkerDragSession.surfaceRect = null;
-  battlefieldAmbushMarkerDragSession.battlefieldProfile = null;
-  battlefieldAmbushMarkerDragSession.markerId = null;
-}
-
-function handleBattlefieldDebugDragMove(event) {
-  if (
-    !battlefieldDebugDragSession.active
-    || !battlefieldDebugDragSession.dispatch
-    || !battlefieldDebugDragSession.surfaceRect
-  ) {
-    return;
-  }
-
-  const pointUd = clampBattlefieldPointUd(
-    battlefieldDebugDragSession.surfaceRect,
-    battlefieldDebugDragSession.zoom,
-    battlefieldDebugDragSession.panX,
-    battlefieldDebugDragSession.panY,
-    event.clientX,
-    event.clientY,
-    battlefieldDebugDragSession.battlefieldProfile,
-    battlefieldDebugDragSession.footprint,
-  );
-
-  battlefieldDebugDragSession.dispatch({
-    type: ACTION_TYPES.SET_DEBUG_UNIT_POSITION,
-    xUd: Number(pointUd.xUd.toFixed(3)),
-    yUd: Number(pointUd.yUd.toFixed(3)),
-  });
-}
-
-function handleBattlefieldUnitDragMove(event) {
-  if (
-    !battlefieldUnitDragSession.active
-    || !battlefieldUnitDragSession.dispatch
-    || !battlefieldUnitDragSession.surfaceRect
-    || !battlefieldUnitDragSession.unitId
-  ) {
-    return;
-  }
-
-  const pointUd = clampBattlefieldPointUd(
-    battlefieldUnitDragSession.surfaceRect,
-    battlefieldUnitDragSession.zoom,
-    battlefieldUnitDragSession.panX,
-    battlefieldUnitDragSession.panY,
-    event.clientX,
-    event.clientY,
-    battlefieldUnitDragSession.battlefieldProfile,
-    battlefieldUnitDragSession.footprint,
-  );
-
-  battlefieldUnitDragSession.dispatch({
-    type: ACTION_TYPES.SET_UNIT_POSITION,
-    unitId: battlefieldUnitDragSession.unitId,
-    xUd: Number(pointUd.xUd.toFixed(3)),
-    yUd: Number(pointUd.yUd.toFixed(3)),
-  });
-}
-
-function handleBattlefieldTerrainDragMove(event) {
-  if (
-    !battlefieldTerrainDragSession.active
-    || !battlefieldTerrainDragSession.dispatch
-    || !battlefieldTerrainDragSession.surfaceRect
-    || !battlefieldTerrainDragSession.placeholderId
-  ) {
-    return;
-  }
-
-  const pointUd = getBattlefieldPointUd(
-    battlefieldTerrainDragSession.surfaceRect,
-    battlefieldTerrainDragSession.zoom,
-    battlefieldTerrainDragSession.panX,
-    battlefieldTerrainDragSession.panY,
-    event.clientX,
-    event.clientY,
-    battlefieldTerrainDragSession.battlefieldProfile,
-  );
-
-  battlefieldTerrainDragSession.dispatch({
-    type: ACTION_TYPES.UPDATE_TERRAIN_PLACEHOLDER,
-    placeholderId: battlefieldTerrainDragSession.placeholderId,
-    patch: {
-      pose: {
-        xUd: Number(pointUd.xUd.toFixed(3)),
-        yUd: Number(pointUd.yUd.toFixed(3)),
-      },
-    },
-  });
-}
-
-function handleBattlefieldSetupObjectDragMove(event) {
-  if (
-    !battlefieldSetupObjectDragSession.active
-    || !battlefieldSetupObjectDragSession.dispatch
-    || !battlefieldSetupObjectDragSession.surfaceRect
-    || !battlefieldSetupObjectDragSession.setupObjectId
-  ) {
-    return;
-  }
-
-  const pointUd = getBattlefieldPointUd(
-    battlefieldSetupObjectDragSession.surfaceRect,
-    battlefieldSetupObjectDragSession.zoom,
-    battlefieldSetupObjectDragSession.panX,
-    battlefieldSetupObjectDragSession.panY,
-    event.clientX,
-    event.clientY,
-    battlefieldSetupObjectDragSession.battlefieldProfile,
-  );
-
-  battlefieldSetupObjectDragSession.dispatch({
-    type: ACTION_TYPES.UPDATE_SETUP_OBJECT,
-    setupObjectId: battlefieldSetupObjectDragSession.setupObjectId,
-    patch: {
-      pose: {
-        xUd: Number(pointUd.xUd.toFixed(3)),
-        yUd: Number(pointUd.yUd.toFixed(3)),
-      },
-    },
-  });
-}
-
-function handleBattlefieldAmbushMarkerDragMove(event) {
-  if (
-    !battlefieldAmbushMarkerDragSession.active
-    || !battlefieldAmbushMarkerDragSession.dispatch
-    || !battlefieldAmbushMarkerDragSession.surfaceRect
-    || !battlefieldAmbushMarkerDragSession.markerId
-  ) {
-    return;
-  }
-
-  const pointUd = getBattlefieldPointUd(
-    battlefieldAmbushMarkerDragSession.surfaceRect,
-    battlefieldAmbushMarkerDragSession.zoom,
-    battlefieldAmbushMarkerDragSession.panX,
-    battlefieldAmbushMarkerDragSession.panY,
-    event.clientX,
-    event.clientY,
-    battlefieldAmbushMarkerDragSession.battlefieldProfile,
-  );
-
-  battlefieldAmbushMarkerDragSession.dispatch({
-    type: ACTION_TYPES.UPDATE_AMBUSH_MARKER,
-    markerId: battlefieldAmbushMarkerDragSession.markerId,
-    patch: {
-      pose: {
-        xUd: Number(pointUd.xUd.toFixed(3)),
-        yUd: Number(pointUd.yUd.toFixed(3)),
-      },
-    },
-  });
-}
-
-function handleBattlefieldDebugDragEnd() {
-  if (!battlefieldDebugDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldDebugDragSession();
-}
-
-function handleBattlefieldUnitDragEnd() {
-  if (!battlefieldUnitDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldUnitDragSession();
-}
-
-function handleBattlefieldTerrainDragEnd() {
-  if (!battlefieldTerrainDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldTerrainDragSession();
-}
-
-function handleBattlefieldSetupObjectDragEnd() {
-  if (!battlefieldSetupObjectDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldSetupObjectDragSession();
-}
-
-function handleBattlefieldAmbushMarkerDragEnd() {
-  if (!battlefieldAmbushMarkerDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldAmbushMarkerDragSession();
-}
-
-function handleBattlefieldAdvanceDragMove(event) {
-  if (!battlefieldAdvanceDragSession.active || !battlefieldAdvanceDragSession.dispatch || !battlefieldAdvanceDragSession.surfaceRect) {
-    return;
-  }
-
-  const pixelsPerUd = (battlefieldAdvanceDragSession.surfaceRect.height * battlefieldAdvanceDragSession.zoom)
-    / battlefieldAdvanceDragSession.battlefieldProfile.heightUd;
-  if (!pixelsPerUd) {
-    return;
-  }
-
-  const deltaUd = -(event.clientY - battlefieldAdvanceDragSession.startMouseY) / pixelsPerUd;
-  battlefieldAdvanceDragSession.dispatch({
-    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
-    distanceUd: clamp(
-      battlefieldAdvanceDragSession.startPreviewUd + deltaUd,
-      0,
-      battlefieldAdvanceDragSession.maxAdvanceUd,
-    ),
-  });
-}
-
-function handleBattlefieldAdvanceDragEnd() {
-  if (!battlefieldAdvanceDragSession.active) {
-    return;
-  }
-
-  suppressNextBattlefieldSurfaceClick = true;
-  stopBattlefieldAdvanceDragSession();
-}
-
 window.addEventListener('mousemove', handleBattlefieldPanMove);
 window.addEventListener('mouseup', handleBattlefieldPanEnd);
-window.addEventListener('mousemove', handleBattlefieldAdvanceDragMove);
-window.addEventListener('mouseup', handleBattlefieldAdvanceDragEnd);
-window.addEventListener('mousemove', handleBattlefieldDebugDragMove);
-window.addEventListener('mouseup', handleBattlefieldDebugDragEnd);
-window.addEventListener('mousemove', handleBattlefieldUnitDragMove);
-window.addEventListener('mouseup', handleBattlefieldUnitDragEnd);
-window.addEventListener('mousemove', handleBattlefieldTerrainDragMove);
-window.addEventListener('mouseup', handleBattlefieldTerrainDragEnd);
-window.addEventListener('mousemove', handleBattlefieldSetupObjectDragMove);
-window.addEventListener('mouseup', handleBattlefieldSetupObjectDragEnd);
-window.addEventListener('mousemove', handleBattlefieldAmbushMarkerDragMove);
-window.addEventListener('mouseup', handleBattlefieldAmbushMarkerDragEnd);
 window.addEventListener('keydown', (event) => {
   if (
     event.repeat
@@ -1098,7 +696,7 @@ export function renderApp(container, state, dispatch) {
   const selectedSetupObject = state.game.setup.setupObjects.placeholders.find(
     (setupObject) => setupObject.id === state.game.setup.setupObjects.selectedObjectId,
   ) || null;
-  const remainingAdvanceBudgetUd = selectedUnit ? Math.max(0, 4 - (selectedUnit.advanceUsedUd ?? 0)) : 4;
+  const remainingAdvanceBudgetUd = selectedUnit ? getRemainingAdvanceBudgetUd(selectedUnit) : 4;
   const maxAdvanceUd = selectedUnit ? Math.min(remainingAdvanceBudgetUd, selectedUnit.yUd) : 4;
   const canDragUnitsInSetup = state.game.setup.isActive
     && (state.game.setup.currentStepId === 'deployment' || state.game.setup.currentStepId === 'ready');
@@ -1113,6 +711,43 @@ export function renderApp(container, state, dispatch) {
       dispatch({
         type: ACTION_TYPES.SET_SETUP_VIEW_MODE,
         viewMode: button.dataset.viewMode,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="set-active-player"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.SET_ACTIVE_PLAYER,
+        playerId: button.dataset.playerId,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="set-active-battle-phase"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+        phaseId: button.dataset.phaseId,
+      });
+    });
+  });
+
+  const cancelMovementPreviewButton = container.querySelector('[data-action="cancel-movement-preview"]');
+  if (cancelMovementPreviewButton) {
+    cancelMovementPreviewButton.addEventListener('click', () => {
+      stopBattlefieldAdvanceDragSession();
+      stopBattlefieldSlideDragSession();
+      stopBattlefieldWheelDragSession();
+      dispatch({ type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
+    });
+  }
+
+  container.querySelectorAll('[data-action="select-active-corps"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+        corpsId: button.dataset.corpsId,
       });
     });
   });
@@ -1193,19 +828,16 @@ export function renderApp(container, state, dispatch) {
       event.preventDefault();
       event.stopPropagation();
       suppressNextBattlefieldSurfaceClick = true;
-      battlefieldTerrainDragSession.active = true;
-      battlefieldTerrainDragSession.dispatch = dispatch;
-      battlefieldTerrainDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-      battlefieldTerrainDragSession.zoom = state.game.viewport.zoom;
-      battlefieldTerrainDragSession.panX = state.game.viewport.panX;
-      battlefieldTerrainDragSession.panY = state.game.viewport.panY;
-      battlefieldTerrainDragSession.battlefieldProfile = battlefieldProfile;
-      battlefieldTerrainDragSession.placeholderId = placeholderId;
-      battlefieldTerrainDragSession.footprint = {
-        widthUd: placeholder.footprint.widthUd,
-        depthUd: placeholder.footprint.depthUd,
-        rotationRadians: placeholder.footprint.rotationRadians,
-      };
+      startBattlefieldTerrainDrag({
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        placeholderId,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      });
       dispatch({ type: ACTION_TYPES.SELECT_TERRAIN_PLACEHOLDER, placeholderId });
     });
   });
@@ -1229,14 +861,16 @@ export function renderApp(container, state, dispatch) {
       event.preventDefault();
       event.stopPropagation();
       suppressNextBattlefieldSurfaceClick = true;
-      battlefieldSetupObjectDragSession.active = true;
-      battlefieldSetupObjectDragSession.dispatch = dispatch;
-      battlefieldSetupObjectDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-      battlefieldSetupObjectDragSession.zoom = state.game.viewport.zoom;
-      battlefieldSetupObjectDragSession.panX = state.game.viewport.panX;
-      battlefieldSetupObjectDragSession.panY = state.game.viewport.panY;
-      battlefieldSetupObjectDragSession.battlefieldProfile = battlefieldProfile;
-      battlefieldSetupObjectDragSession.setupObjectId = setupObjectId;
+      startBattlefieldSetupObjectDrag({
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        setupObjectId,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      });
       dispatch({ type: ACTION_TYPES.SELECT_SETUP_OBJECT, setupObjectId });
     });
   });
@@ -1280,14 +914,16 @@ export function renderApp(container, state, dispatch) {
       event.preventDefault();
       event.stopPropagation();
       suppressNextBattlefieldSurfaceClick = true;
-      battlefieldAmbushMarkerDragSession.active = true;
-      battlefieldAmbushMarkerDragSession.dispatch = dispatch;
-      battlefieldAmbushMarkerDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-      battlefieldAmbushMarkerDragSession.zoom = state.game.viewport.zoom;
-      battlefieldAmbushMarkerDragSession.panX = state.game.viewport.panX;
-      battlefieldAmbushMarkerDragSession.panY = state.game.viewport.panY;
-      battlefieldAmbushMarkerDragSession.battlefieldProfile = battlefieldProfile;
-      battlefieldAmbushMarkerDragSession.markerId = markerId;
+      startBattlefieldAmbushMarkerDrag({
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        markerId,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      });
       dispatch({ type: ACTION_TYPES.SELECT_AMBUSH_MARKER, markerId });
     });
   });
@@ -1304,13 +940,9 @@ export function renderApp(container, state, dispatch) {
     });
   });
 
-  const toggleAdvanceModeButton = container.querySelector('[data-action="toggle-advance-mode"]');
-  if (toggleAdvanceModeButton) {
-    toggleAdvanceModeButton.addEventListener('click', () => {
-      stopBattlefieldAdvanceDragSession();
-      dispatch({ type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: !state.game.advanceModeActive });
-    });
-  }
+  bindAdvanceActionButtons({ container, dispatch, state });
+  bindSlideActionButtons({ container, dispatch, state });
+  bindWheelActionButtons({ container, dispatch, state });
 
   container.querySelectorAll('[data-action="select-unit"]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1325,41 +957,119 @@ export function renderApp(container, state, dispatch) {
       if (canDragUnitsInSetup && state.game.selectedUnitId === button.dataset.unitId) {
         event.preventDefault();
         suppressNextBattlefieldSurfaceClick = true;
-        battlefieldUnitDragSession.active = true;
-        battlefieldUnitDragSession.dispatch = dispatch;
-        battlefieldUnitDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-        battlefieldUnitDragSession.zoom = state.game.viewport.zoom;
-        battlefieldUnitDragSession.panX = state.game.viewport.panX;
-        battlefieldUnitDragSession.panY = state.game.viewport.panY;
-        battlefieldUnitDragSession.battlefieldProfile = battlefieldProfile;
-        battlefieldUnitDragSession.unitId = button.dataset.unitId;
-        battlefieldUnitDragSession.footprint = selectedUnit
-          ? {
-              widthUd: selectedUnit.widthUd,
-              depthUd: selectedUnit.depthUd,
-              rotationRadians: selectedUnit.rotationRadians ?? 0,
-            }
-          : null;
+        startBattlefieldUnitDrag({
+          battlefieldSurface,
+          state,
+          dispatch,
+          battlefieldProfile,
+          unitId: button.dataset.unitId,
+          unit: selectedUnit,
+          onSuppressNextSurfaceClick: () => {
+            suppressNextBattlefieldSurfaceClick = true;
+          },
+        });
         return;
       }
 
-      if (
-        !state.game.advanceModeActive
-        || state.game.selectedUnitId !== button.dataset.unitId
-      ) {
+      if (tryStartBattlefieldAdvanceDrag({
+        event,
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        unitId: button.dataset.unitId,
+        maxAdvanceUd,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      })) {
         return;
       }
 
-      event.preventDefault();
-      suppressNextBattlefieldSurfaceClick = true;
-      battlefieldAdvanceDragSession.active = true;
-      battlefieldAdvanceDragSession.dispatch = dispatch;
-      battlefieldAdvanceDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-      battlefieldAdvanceDragSession.zoom = state.game.viewport.zoom;
-      battlefieldAdvanceDragSession.battlefieldProfile = battlefieldProfile;
-      battlefieldAdvanceDragSession.startMouseY = event.clientY;
-      battlefieldAdvanceDragSession.startPreviewUd = state.game.advancePreviewUd;
-      battlefieldAdvanceDragSession.maxAdvanceUd = maxAdvanceUd;
+      if (tryStartBattlefieldSlideDrag({
+        event,
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        unitId: button.dataset.unitId,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      })) {
+        return;
+      }
+
+    });
+  });
+
+  container.querySelectorAll('[data-advance-preview-handle]').forEach((previewHandle) => {
+    previewHandle.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !battlefieldSurface) {
+        return;
+      }
+
+      if (tryStartBattlefieldAdvanceDrag({
+        event,
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        unitId: previewHandle.dataset.unitId,
+        maxAdvanceUd,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      })) {
+        return;
+      }
+
+    });
+  });
+
+  container.querySelectorAll('[data-slide-preview-handle]').forEach((previewHandle) => {
+    previewHandle.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !battlefieldSurface) {
+        return;
+      }
+
+      if (tryStartBattlefieldSlideDrag({
+        event,
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        unitId: previewHandle.dataset.unitId,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      })) {
+        return;
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-wheel-handle]').forEach((wheelHandle) => {
+    wheelHandle.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || !battlefieldSurface) {
+        return;
+      }
+
+      if (tryStartBattlefieldWheelDrag({
+        event,
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        unitId: wheelHandle.dataset.unitId,
+        selectedUnit,
+        cornerSide: wheelHandle.dataset.cornerSide,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      })) {
+        return;
+      }
     });
   });
 
@@ -1372,18 +1082,15 @@ export function renderApp(container, state, dispatch) {
       event.preventDefault();
       event.stopPropagation();
       suppressNextBattlefieldSurfaceClick = true;
-      battlefieldDebugDragSession.active = true;
-      battlefieldDebugDragSession.dispatch = dispatch;
-      battlefieldDebugDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
-      battlefieldDebugDragSession.zoom = state.game.viewport.zoom;
-      battlefieldDebugDragSession.panX = state.game.viewport.panX;
-      battlefieldDebugDragSession.panY = state.game.viewport.panY;
-      battlefieldDebugDragSession.battlefieldProfile = battlefieldProfile;
-      battlefieldDebugDragSession.footprint = {
-        widthUd: state.game.debug.unitDimensions.widthUd,
-        depthUd: state.game.debug.unitDimensions.depthUd,
-        rotationRadians: state.game.debug.unitPose.rotationRadians,
-      };
+      startBattlefieldDebugDrag({
+        battlefieldSurface,
+        state,
+        dispatch,
+        battlefieldProfile,
+        onSuppressNextSurfaceClick: () => {
+          suppressNextBattlefieldSurfaceClick = true;
+        },
+      });
     });
   });
 
@@ -1396,6 +1103,9 @@ export function renderApp(container, state, dispatch) {
 
       if (
         event.target.closest('[data-action="select-unit"]')
+        || event.target.closest('[data-advance-preview-handle]')
+        || event.target.closest('[data-slide-preview-handle]')
+        || event.target.closest('[data-wheel-handle]')
         || event.target.closest('[data-debug-unit]')
         || event.target.closest('[data-action="select-terrain-placeholder"]')
         || event.target.closest('[data-action="select-setup-object"]')
@@ -1412,22 +1122,6 @@ export function renderApp(container, state, dispatch) {
       }
     });
   }
-
-  const confirmAdvanceButton = container.querySelector('[data-action="confirm-advance"]');
-  if (confirmAdvanceButton) {
-    confirmAdvanceButton.addEventListener('click', () => {
-      stopBattlefieldAdvanceDragSession();
-      dispatch({ type: ACTION_TYPES.CONFIRM_ADVANCE });
-    });
-  }
-
-  const resetTestUnitsButton = container.querySelector('[data-action="reset-test-units"]');
-  if (resetTestUnitsButton) {
-    resetTestUnitsButton.addEventListener('click', () => {
-      stopBattlefieldAdvanceDragSession();
-      dispatch({ type: ACTION_TYPES.RESET_TEST_UNITS });
-    });
-  }
-
   attachBattlefieldViewportControls(container, state, dispatch);
 }
+
