@@ -11,6 +11,7 @@ import {
 import {
   buildMovementValidationSnapshot,
   createMovementValidationSnapshot,
+  MOVEMENT_VALIDATION_STATUSES,
 } from '../engine/movement/validation.js';
 
 export {
@@ -80,14 +81,52 @@ export function buildGameMovementValidationSnapshot(gameState, movementState = g
     selectedCommandId: movementState.selectedCommandId,
     preview: movementState.preview,
     commandContext: gameState.commandContext,
+    units: gameState.units,
+  });
+}
+
+function applyValidationToConfirmation(confirmation, validationSnapshot) {
+  if (validationSnapshot.status !== MOVEMENT_VALIDATION_STATUSES.INVALID) {
+    return confirmation;
+  }
+
+  return createMovementConfirmation({
+    status: MOVEMENT_CONFIRMATION_STATUSES.BLOCKED,
+    readyCommandId: null,
   });
 }
 
 export function withMovementValidationSnapshot(gameState, movementState) {
+  const validationSnapshot = buildGameMovementValidationSnapshot(gameState, movementState);
+
   return {
     ...movementState,
-    validationSnapshot: buildGameMovementValidationSnapshot(gameState, movementState),
+    validationSnapshot,
+    confirmation: applyValidationToConfirmation(movementState.confirmation, validationSnapshot),
   };
+}
+
+/**
+ * Returns true only when the active player owns the selected unit and the active
+ * phase is Movement. This is the P5-06 gate: movement commands from the wrong
+ * player or in the wrong phase are silently rejected.
+ */
+export function isMovementCommandAllowed(gameState) {
+  if (gameState.setup.isActive) {
+    return false;
+  }
+
+  if (gameState.commandContext.currentPhaseId !== 'movement') {
+    return false;
+  }
+
+  const selectedUnit = gameState.units.find((u) => u.id === gameState.selectedUnitId) ?? null;
+
+  if (!selectedUnit) {
+    return false;
+  }
+
+  return selectedUnit.owner === gameState.commandContext.activePlayerId;
 }
 
 export function reduceSelectMovementCommand(gameState, commandId) {
@@ -96,6 +135,10 @@ export function reduceSelectMovementCommand(gameState, commandId) {
       ...gameState,
       movement: createInitialMovementState(),
     };
+  }
+
+  if (!isMovementCommandAllowed(gameState)) {
+    return gameState;
   }
 
   return {
@@ -116,6 +159,10 @@ export function reduceSetMovementDraft(gameState, draft) {
     return gameState;
   }
 
+  if (!isMovementCommandAllowed(gameState)) {
+    return gameState;
+  }
+
   const normalizedDraft = createMovementDraft(draft);
 
   return {
@@ -132,6 +179,10 @@ export function reduceSetMovementDraft(gameState, draft) {
 
 export function reduceSetMovementPreview(gameState, preview) {
   if (gameState.setup.isActive) {
+    return gameState;
+  }
+
+  if (!isMovementCommandAllowed(gameState)) {
     return gameState;
   }
 

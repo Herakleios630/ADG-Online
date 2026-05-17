@@ -5,10 +5,12 @@ const battlefieldAdvanceDragSession = {
   dispatch: null,
   surfaceRect: null,
   zoom: 1,
+  startMouseX: 0,
   startMouseY: 0,
   startPreviewUd: 0,
   maxAdvanceUd: 4,
   battlefieldProfile: null,
+  forwardAxis: { x: 0, y: -1 },
   onSuppressNextSurfaceClick: null,
 };
 
@@ -29,13 +31,22 @@ function handleBattlefieldAdvanceDragMove(event) {
     return;
   }
 
-  const pixelsPerUd = (battlefieldAdvanceDragSession.surfaceRect.height * battlefieldAdvanceDragSession.zoom)
+  const zoom = battlefieldAdvanceDragSession.zoom;
+  const pixelsPerUdX = (battlefieldAdvanceDragSession.surfaceRect.width * zoom)
+    / battlefieldAdvanceDragSession.battlefieldProfile.widthUd;
+  const pixelsPerUdY = (battlefieldAdvanceDragSession.surfaceRect.height * zoom)
     / battlefieldAdvanceDragSession.battlefieldProfile.heightUd;
-  if (!pixelsPerUd) {
+
+  if (!pixelsPerUdX || !pixelsPerUdY) {
     return;
   }
 
-  const deltaUd = -(event.clientY - battlefieldAdvanceDragSession.startMouseY) / pixelsPerUd;
+  const deltaWorldXUd = (event.clientX - battlefieldAdvanceDragSession.startMouseX) / pixelsPerUdX;
+  const deltaWorldYUd = (event.clientY - battlefieldAdvanceDragSession.startMouseY) / pixelsPerUdY;
+  const deltaUd =
+    deltaWorldXUd * battlefieldAdvanceDragSession.forwardAxis.x
+    + deltaWorldYUd * battlefieldAdvanceDragSession.forwardAxis.y;
+
   battlefieldAdvanceDragSession.dispatch({
     type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
     distanceUd: clamp(
@@ -78,6 +89,13 @@ export function tryStartBattlefieldAdvanceDrag({
     return false;
   }
 
+  const selectedUnit = state.game.units.find((unit) => unit.id === unitId);
+  if (!selectedUnit) {
+    return false;
+  }
+
+  const rotation = selectedUnit.rotationRadians ?? 0;
+
   event.preventDefault();
   onSuppressNextSurfaceClick();
   battlefieldAdvanceDragSession.active = true;
@@ -85,9 +103,14 @@ export function tryStartBattlefieldAdvanceDrag({
   battlefieldAdvanceDragSession.surfaceRect = battlefieldSurface.getBoundingClientRect();
   battlefieldAdvanceDragSession.zoom = state.game.viewport.zoom;
   battlefieldAdvanceDragSession.battlefieldProfile = battlefieldProfile;
+  battlefieldAdvanceDragSession.startMouseX = event.clientX;
   battlefieldAdvanceDragSession.startMouseY = event.clientY;
   battlefieldAdvanceDragSession.startPreviewUd = state.game.advancePreviewUd;
   battlefieldAdvanceDragSession.maxAdvanceUd = maxAdvanceUd;
+  battlefieldAdvanceDragSession.forwardAxis = {
+    x: Math.sin(rotation),
+    y: -Math.cos(rotation),
+  };
   battlefieldAdvanceDragSession.onSuppressNextSurfaceClick = onSuppressNextSurfaceClick;
   return true;
 }

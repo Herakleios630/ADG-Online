@@ -9,6 +9,7 @@ import {
   getMovementPreviewEndPose,
   getMovementPreviewSpentBudgetUd,
   MOVEMENT_COMMAND_IDS,
+  MOVEMENT_CONFIRMATION_STATUSES,
   MOVEMENT_PREVIEW_STATUSES,
   MOVEMENT_SLIDE_SIDES,
   MOVEMENT_SOURCE_STATUSES,
@@ -206,6 +207,7 @@ export function reduceConfirmSlide(gameState, selectedUnit) {
   if (
     gameState.setup.isActive
     || !selectedUnit
+    || gameState.movement.confirmation.status !== MOVEMENT_CONFIRMATION_STATUSES.READY
     || gameState.movement.preview.status !== MOVEMENT_PREVIEW_STATUSES.ACCEPTED
     || gameState.movement.preview.segments.length === 0
     || getSlideQualifiedMovementDistanceUd(gameState.movement.preview) < 1

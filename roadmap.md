@@ -10,7 +10,7 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [x] P2 - Fundamental Geometry
 - [x] P3 - Tournament Setup + Terrain + Deployment Foundation
 - [x] P4 - Movement Commands
-- [ ] P5 - ZOC + Movement Validation
+- [x] P5 - ZOC + Movement Validation
 - [ ] P6 - Corps + Command System
 - [ ] P7 - Charge + Conformation
 - [ ] P8 - Shooting System
@@ -265,7 +265,7 @@ Final P4 handoff state:
 
 ## P5 - ZOC + Movement Validation
 
-Status: [ ] In progress - P5-00 branch/scope gate completed on 2026-05-17
+Status: [x] Complete - accepted by user on 2026-05-17
 
 Goals:
 - ZOC detection.
@@ -290,13 +290,25 @@ Success criteria:
 - Tests cover mid-segment ZOC entry, blocked movement, invalid end states, and errata-sensitive ZOC cases.
 - User approves P5 before P6 begins.
 
-Current planning state:
+Final P5 handoff state:
 - P5 planning has been explicitly requested by the user and the dedicated execution board is drafted in `P5_todo.md`.
 - P5 execution board is approved by the user for implementation, and `feature/p5-zoc-movement-validation` is prepared as the active branch.
+- P5-01 source review is completed as planning documentation work: `docs/rules/open-verification.md` now includes explicit ZOC/movement legality blocker IDs for the approved P5 subset.
+- P5-02 is completed as engine foundation work: `src/engine/zoc/` now contains deterministic geometry primitives and tests for front-band bounds, footprint-aware point sampling, and enemy-contact detection without yet deciding most-threatening priority.
+- P5-03 is completed as selector foundation work: `src/engine/zoc/most-threatening.js` adds deterministic subset ranking (front distance, coverage, lateral alignment, deterministic fallback) with explicit `needs-source-check` output when deeper tie-break interpretation remains unresolved.
+- P5-04 is completed as movement-path infrastructure work: `src/engine/movement/path-splitting.js` provides deterministic per-segment path sampling and ZOC transition detection for mid-segment checks.
+- P5-05 is now user-accepted as a conservative subset foundation: movement validation computes entry/remain/exit ZOC transitions with most-threatening context and keeps source-status honesty for unresolved rule-sensitive exceptions.
+- P5-06 is complete and validated: movement actions are now reducer-gated by active player ownership and active movement phase.
+- P5-07 is complete and user-validated for the approved current subset:
+	- display-only overlays include enemy ZOC bands, near-ZOC cue at `0.5 UD`, and a most-threatening line tied to validation snapshots;
+	- baseline enemy fixture now includes a center enemy plus left/right supports for practical most-threatening testing;
+	- conservative source-gated legality opening is implemented for ZOC-constrained `advance`/`wheel`: allowed only when the maneuver closes center-distance to the most-threatening enemy and sampled path remains contact-free; blocked otherwise.
+- P5 automated validation package is green on current branch: `npm run test` (142 pass, 0 fail) and `npm run build` (success).
+- User manually validated the implemented P5 scope and then explicitly approved P5 completion on 2026-05-17.
 - P5 scope includes the two known post-P4 enforcement gaps: active-player ownership gating for movement actions and strict command-vs-movement phase legality gating.
-- P5 should implement engine-first ZOC legality (detection, most-threatening selection, path splitting, legality diagnostics) before UI affordance polish.
-- P5 UI explanation layer is planned as display-only and tied to engine data: toggleable enemy-ZOC overlay, near-ZOC cue at `0.5 UD`, and a most-threatening-enemy line visualization.
-- P5 baseline validation fixtures should include at least one unit for Player 1 and one unit for Player 2 on battlefield so enemy-ZOC interactions are testable from the first card.
+- P5 kept engine-first ZOC legality (detection, most-threatening selection, path splitting, legality diagnostics) with UI as display-only explanation.
+- P5 UI explanation layer is implemented as display-only and tied to engine data: toggleable enemy-ZOC overlay, near-ZOC cue at `0.5 UD`, and a most-threatening-enemy line visualization.
+- P5 validation fixtures now include practical enemy support units for most-threatening checks while preserving setup-placeholder stability.
 - P5 must remain explicit about unresolved source-sensitive areas in `docs/rules/open-verification.md`; no tournament-complete wording is allowed unless those items are verified and implemented.
 
 ## P6 - Corps + Command System

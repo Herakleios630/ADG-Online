@@ -28,6 +28,13 @@ export {
 } from './model.js';
 
 export {
+  evaluateZocTransitionsForMovementPreview,
+  splitMovementPreviewIntoPathSamples,
+  splitMovementSegmentIntoPoseSamples,
+  MOVEMENT_PATH_SAMPLE_SOURCE_STATUSES,
+} from './path-splitting.js';
+
+export {
   buildMovementValidationSnapshot,
   createMovementValidationSnapshot,
   MOVEMENT_VALIDATION_STATUSES,

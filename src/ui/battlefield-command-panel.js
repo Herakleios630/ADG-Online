@@ -143,6 +143,7 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
 export function renderAdvanceCommandPanel({
   selectedUnit,
   isSetupActive,
+  canIssueMovementCommands = false,
   advanceModeActive,
   slideModeActive,
   wheelModeActive,
@@ -181,9 +182,9 @@ export function renderAdvanceCommandPanel({
       `}
     </div>
     <div class="battlefield-command-grid">
-      <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" ${!isSetupActive && selectedUnit && (advanceModeActive || maxAdvanceUd > 0) ? '' : 'disabled'}>Advance</button>
-      <button class="shell-button battlefield-command-button ${wheelModeActive ? 'is-active' : ''}" type="button" data-action="toggle-wheel-mode" ${!isSetupActive && selectedUnit && (wheelModeActive || remainingAdvanceBudgetUd > 0) ? '' : 'disabled'}>Wheel</button>
-      <button class="shell-button battlefield-command-button ${slideModeActive ? 'is-active' : ''}" type="button" data-action="toggle-slide-mode" ${!isSetupActive && selectedUnit && (slideModeActive || slideAvailable) ? '' : 'disabled'}>Slide</button>
+      <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" ${canIssueMovementCommands && (advanceModeActive || maxAdvanceUd > 0) ? '' : 'disabled'}>Advance</button>
+      <button class="shell-button battlefield-command-button ${wheelModeActive ? 'is-active' : ''}" type="button" data-action="toggle-wheel-mode" ${canIssueMovementCommands && (wheelModeActive || remainingAdvanceBudgetUd > 0) ? '' : 'disabled'}>Wheel</button>
+      <button class="shell-button battlefield-command-button ${slideModeActive ? 'is-active' : ''}" type="button" data-action="toggle-slide-mode" ${canIssueMovementCommands && (slideModeActive || slideAvailable) ? '' : 'disabled'}>Slide</button>
       <button class="ghost-button battlefield-command-button" type="button" data-action="reset-test-units" ${isSetupActive ? 'disabled' : ''}>Reset</button>
       <span class="battlefield-command-slot"></span>
     </div>

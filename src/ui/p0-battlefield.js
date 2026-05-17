@@ -1,5 +1,10 @@
 import { getBattlefieldProfile } from '../data/battlefield-profiles.js';
-import { classifyFacingRelationship, getFacingBoundaries, localPointToWorldPoint } from '../engine/geometry/index.js';
+import {
+  classifyFacingRelationship,
+  getFacingBoundaries,
+  localPointToWorldPoint,
+  worldPointToLocalPoint,
+} from '../engine/geometry/index.js';
 import { getCommittedMovementPreviewSegments, getMovementPreviewEndPose } from '../engine/movement/index.js';
 import { getPublicAmbushMarkerShell } from '../engine/setup/ambush-markers.js';
 import { BATTLE_PLAN_FIELD_IDS } from '../engine/setup/battle-plan.js';
@@ -7,6 +12,11 @@ import { projectSetupForViewer } from '../engine/visibility/setup-view.js';
 import { TERRAIN_SHAPE_MODELS, TERRAIN_SOURCE_STATUSES } from '../engine/setup/terrain-placeholders.js';
 import { SETUP_OBJECT_FAMILIES } from '../engine/setup/setup-objects.js';
 import { SETUP_STEP_DEFINITIONS } from '../state/p0-state.js';
+import {
+  getEnemyZocBandLocalBounds,
+  getUnitFootprintSamplePoints,
+  ZOC_DEFAULT_FRONT_RANGE_UD,
+} from '../engine/zoc/geometry.js';
 import { getAdvancePreviewPresentation, renderAdvanceCommandPanel } from './battlefield-command-panel.js';
 import { renderBattlefieldRightPanel } from './battlefield-side-panel.js';
 
@@ -440,6 +450,187 @@ function renderDeploymentSetupCard(state) {
   `;
 }
 
+function renderZocBands(units, selectedUnit, battlefieldProfile) {
+  if (!selectedUnit) {
+    return '';
+  }
+
+  return units
+    .filter((unit) => unit.owner !== selectedUnit.owner)
+    .filter((enemy) => {
+      // Only show band when selected unit is within 0.5 UD of the ZOC near edge.
+      // Threshold = enemy front half-depth + ZOC range + selected unit half-depth + 0.5 UD.
+      const threshold =
+        enemy.depthUd / 2 +
+        ZOC_DEFAULT_FRONT_RANGE_UD +
+        selectedUnit.depthUd / 2 +
+        0.5;
+      const dx = selectedUnit.xUd - enemy.xUd;
+      const dy = selectedUnit.yUd - enemy.yUd;
+      return Math.sqrt(dx * dx + dy * dy) <= threshold;
+    })
+    .map((enemy) => {
+      const rangeUd = ZOC_DEFAULT_FRONT_RANGE_UD;
+      const rot = enemy.rotationRadians ?? 0;
+      // Game forward axis: rotateVector({0,-1}, θ) = {sin(θ), -cos(θ)}
+      const fwdX = Math.sin(rot);
+      const fwdY = -Math.cos(rot);
+      // ZOC band center is halfDepth + rangeUd/2 along the forward axis from the unit center
+      const halfDepth = enemy.depthUd / 2;
+      const distAlongForward = halfDepth + rangeUd / 2;
+      const worldCenterX = enemy.xUd + fwdX * distAlongForward;
+      const worldCenterY = enemy.yUd + fwdY * distAlongForward;
+      const style = [
+        `left:${(worldCenterX / battlefieldProfile.widthUd) * 100}%`,
+        `top:${(worldCenterY / battlefieldProfile.heightUd) * 100}%`,
+        `width:${(enemy.widthUd / battlefieldProfile.widthUd) * 100}%`,
+        `height:${(rangeUd / battlefieldProfile.heightUd) * 100}%`,
+        `--zoc-rotation:${rot}rad`,
+      ].join(';');
+
+      return `<div class="battlefield-zoc-band" aria-hidden="true" data-enemy-id="${enemy.id}" style="${style}"></div>`;
+    })
+    .join('');
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function isLocalPointInZocBand(localPoint, localBounds) {
+  return localPoint.x >= localBounds.minX
+    && localPoint.x <= localBounds.maxX
+    && localPoint.y >= localBounds.minY
+    && localPoint.y <= localBounds.maxY;
+}
+
+function getLocalPointDistanceToZocBand(localPoint, localBounds) {
+  const closestX = clampNumber(localPoint.x, localBounds.minX, localBounds.maxX);
+  const closestY = clampNumber(localPoint.y, localBounds.minY, localBounds.maxY);
+  const dx = localPoint.x - closestX;
+  const dy = localPoint.y - closestY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function getNearZocContacts(units, referenceUnit, thresholdUd = 0.5) {
+  if (!referenceUnit) {
+    return [];
+  }
+
+  return units
+    .filter((enemy) => enemy.owner !== referenceUnit.owner)
+    .map((enemy) => {
+      const zone = getEnemyZocBandLocalBounds(enemy, { rangeUd: ZOC_DEFAULT_FRONT_RANGE_UD });
+      const localPoints = getUnitFootprintSamplePoints(referenceUnit).map((sample) => {
+        const localPoint = worldPointToLocalPoint(
+          {
+            center: { x: enemy.xUd, y: enemy.yUd },
+            widthUd: enemy.widthUd,
+            depthUd: enemy.depthUd,
+            rotationRadians: enemy.rotationRadians ?? 0,
+          },
+          sample.point,
+        );
+
+        return {
+          localPoint,
+          inBand: isLocalPointInZocBand(localPoint, zone.localBounds),
+          distanceUd: getLocalPointDistanceToZocBand(localPoint, zone.localBounds),
+        };
+      });
+
+      if (localPoints.some((point) => point.inBand)) {
+        return null;
+      }
+
+      const nearestDistanceUd = Math.min(...localPoints.map((point) => point.distanceUd));
+      return nearestDistanceUd > 0 && nearestDistanceUd <= thresholdUd
+        ? {
+            enemyId: enemy.id,
+            nearestDistanceUd,
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.nearestDistanceUd - right.nearestDistanceUd);
+}
+
+function renderNearZocCue(units, referenceUnit, battlefieldProfile, thresholdUd = 0.5) {
+  if (!referenceUnit) {
+    return '';
+  }
+
+  const nearContacts = getNearZocContacts(units, referenceUnit, thresholdUd);
+  if (nearContacts.length === 0) {
+    return '';
+  }
+
+  const nearest = nearContacts[0];
+  const style = [
+    `left:${(referenceUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(referenceUnit.yUd / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(referenceUnit.widthUd / battlefieldProfile.widthUd) * 100}%`,
+    `height:${(referenceUnit.depthUd / battlefieldProfile.heightUd) * 100}%`,
+    `--near-zoc-rotation:${referenceUnit.rotationRadians ?? 0}rad`,
+  ].join(';');
+
+  return `<div class="battlefield-zoc-near-cue" aria-hidden="true" data-near-zoc-enemy="${nearest.enemyId}" style="${style}"></div>`;
+}
+
+function createMovementReferenceUnit(selectedUnit, movementPreview) {
+  if (!selectedUnit) {
+    return null;
+  }
+
+  if (movementPreview?.status !== 'accepted' || !Array.isArray(movementPreview.segments) || movementPreview.segments.length === 0) {
+    return selectedUnit;
+  }
+
+  const endPose = getMovementPreviewEndPose(movementPreview, {
+    xUd: selectedUnit.xUd,
+    yUd: selectedUnit.yUd,
+    rotationRadians: selectedUnit.rotationRadians ?? 0,
+  });
+
+  return {
+    ...selectedUnit,
+    xUd: endPose.xUd,
+    yUd: endPose.yUd,
+    rotationRadians: endPose.rotationRadians,
+  };
+}
+
+function renderMostThreateningLine(units, referenceUnit, validationSnapshot, battlefieldProfile) {
+  if (!referenceUnit || !validationSnapshot?.zoc?.mostThreateningEnemyId) {
+    return '';
+  }
+
+  const threatEnemy = units.find((unit) => unit.id === validationSnapshot.zoc.mostThreateningEnemyId) || null;
+  if (!threatEnemy) {
+    return '';
+  }
+
+  const dx = threatEnemy.xUd - referenceUnit.xUd;
+  const dy = threatEnemy.yUd - referenceUnit.yUd;
+  const lengthUd = Math.sqrt(dx * dx + dy * dy);
+  if (lengthUd <= 0) {
+    return '';
+  }
+
+  const centerX = (referenceUnit.xUd + threatEnemy.xUd) / 2;
+  const centerY = (referenceUnit.yUd + threatEnemy.yUd) / 2;
+  const angleRadians = Math.atan2(dy, dx);
+
+  const style = [
+    `left:${(centerX / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(centerY / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(lengthUd / battlefieldProfile.widthUd) * 100}%`,
+    `--threat-line-rotation:${angleRadians}rad`,
+  ].join(';');
+
+  return `<div class="battlefield-zoc-threat-line" aria-hidden="true" data-enemy-id="${threatEnemy.id}" style="${style}"></div>`;
+}
+
 function renderTerrainPlaceholders(state, battlefieldProfile) {
   return state.game.setup.terrain.placeholders.map((placeholder) => {
     const style = [
@@ -652,6 +843,11 @@ export function renderBattlefieldScreen(state) {
   const isDeploymentSetupStep = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
   const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
+  const canIssueMovementCommands =
+    !isSetupActive &&
+    selectedUnit !== null &&
+    state.game.commandContext.currentPhaseId === 'movement' &&
+    selectedUnit.owner === state.game.commandContext.activePlayerId;
   const canDragUnitsInSetup = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
   const {
@@ -686,6 +882,7 @@ export function renderBattlefieldScreen(state) {
   const showSectorOverlay = state.game.overlayMode === 'Sektoren' || state.game.overlayMode === 'Beides';
   const committedPreviewSegments = getCommittedMovementPreviewSegments(state.game.movement.preview);
   const committedPreviewTrailSegments = committedPreviewSegments.slice(0, -1);
+  const movementReferenceUnit = createMovementReferenceUnit(selectedUnit, state.game.movement.preview);
   const wheelDisplayPose = wheelModeActive && selectedUnit
     ? getMovementPreviewEndPose(state.game.movement.preview, {
         xUd: selectedUnit.xUd,
@@ -746,13 +943,16 @@ export function renderBattlefieldScreen(state) {
         `--debug-rotation:${state.game.debug.unitPose.rotationRadians}rad`,
       ].join(';')
     : '';
-  const unitStyle = [
-    `left:${(testUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
-    `top:${(testUnit.yUd / battlefieldProfile.heightUd) * 100}%`,
-    `width:${(testUnit.widthUd / battlefieldProfile.widthUd) * 100}%`,
-    `height:${(testUnit.depthUd / battlefieldProfile.heightUd) * 100}%`,
-    `--unit-rotation:${testUnit.rotationRadians ?? 0}rad`,
+  
+  const createUnitTokenStyle = (unit) => [
+    `left:${(unit.xUd / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(unit.yUd / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(unit.widthUd / battlefieldProfile.widthUd) * 100}%`,
+    `height:${(unit.depthUd / battlefieldProfile.heightUd) * 100}%`,
+    `--unit-rotation:${unit.rotationRadians ?? 0}rad`,
   ].join(';');
+  
+  const unitStyle = createUnitTokenStyle(testUnit);
   const worldStyle = [
     `--viewport-zoom:${viewport.zoom}`,
     `--viewport-pan-x:${viewport.panX}px`,
@@ -772,6 +972,7 @@ export function renderBattlefieldScreen(state) {
           ${renderAdvanceCommandPanel({
             selectedUnit,
             isSetupActive,
+            canIssueMovementCommands,
             advanceModeActive,
             slideModeActive,
             wheelModeActive,
@@ -798,6 +999,9 @@ export function renderBattlefieldScreen(state) {
               ${renderSetupObjects(renderState, battlefieldProfile)}
               ${renderAmbushMarkerShells(renderState, battlefieldProfile)}
               ${renderTerrainPlaceholders(renderState, battlefieldProfile)}
+              ${!isSetupActive ? renderZocBands(state.game.units, movementReferenceUnit, battlefieldProfile) : ''}
+              ${!isSetupActive ? renderNearZocCue(state.game.units, movementReferenceUnit, battlefieldProfile, 0.5) : ''}
+              ${!isSetupActive ? renderMostThreateningLine(state.game.units, movementReferenceUnit, state.game.movement.validationSnapshot, battlefieldProfile) : ''}
               ${advanceModeActive ? `<div class="battlefield-advance-reach" aria-hidden="true" style="${advanceReachStyle}"></div>` : ''}
               ${selectedUnit && committedPreviewTrailSegments.length > 0 ? committedPreviewTrailSegments.map((segment) => `
                 <div
@@ -847,15 +1051,17 @@ export function renderBattlefieldScreen(state) {
                 </div>
               ` : ''}
               ${facingRelationship && state.game.debug.showFacingGeometryOverlay ? renderFacingGeometryOverlay({ ...facingRelationship, battlefieldProfileId: battlefieldProfile.id }) : ''}
-              <button
-                class="battlefield-unit-token ${state.game.selectedUnitId === testUnit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === testUnit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === testUnit.id ? 'is-wheel-ready' : ''} ${canDragUnitsInSetup && state.game.selectedUnitId === testUnit.id ? 'is-setup-placeable' : ''}"
-                type="button"
-                aria-pressed="${state.game.selectedUnitId === testUnit.id}"
-                data-action="select-unit"
-                data-unit-id="${testUnit.id}"
-                title="${isTerrainStep ? 'Testeinheit auswaehlen' : canDragUnitsInSetup && state.game.selectedUnitId === testUnit.id ? 'Testeinheit ziehen' : 'Testeinheit auswaehlen'}"
-                style="--token-color:${state.shell.settings.playerColor};${unitStyle}"
-              ></button>
+              ${state.game.units.map((unit) => `
+                <button
+                  class="battlefield-unit-token ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
+                  type="button"
+                  aria-pressed="${state.game.selectedUnitId === unit.id}"
+                  data-action="select-unit"
+                  data-unit-id="${unit.id}"
+                  title="${isTerrainStep ? 'Unit auswaehlen' : canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'Unit ziehen' : 'Unit auswaehlen'}"
+                  style="--token-color:${unit.owner === 'player-1' ? state.shell.settings.playerColor : '#a8a8a8'};${createUnitTokenStyle(unit)}"
+                ></button>
+              `).join('')}
             </div>
           </div>
         </div>

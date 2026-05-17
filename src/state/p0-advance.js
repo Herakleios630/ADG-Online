@@ -9,6 +9,7 @@ import {
   getMovementPreviewEndPose,
   getMovementPreviewSpentBudgetUd,
   MOVEMENT_COMMAND_IDS,
+  MOVEMENT_CONFIRMATION_STATUSES,
   MOVEMENT_PREVIEW_STATUSES,
   MOVEMENT_SOURCE_STATUSES,
 } from '../engine/movement/index.js';
@@ -198,6 +199,7 @@ export function reduceConfirmAdvance(gameState, selectedUnit) {
 
   if (
     !selectedUnit
+    || gameState.movement.confirmation.status !== MOVEMENT_CONFIRMATION_STATUSES.READY
     || gameState.movement.preview.status !== MOVEMENT_PREVIEW_STATUSES.ACCEPTED
     || gameState.movement.preview.segments.length === 0
   ) {
