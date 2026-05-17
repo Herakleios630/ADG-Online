@@ -1,0 +1,43 @@
+@media (max-width: 720px) {
+  .app-shell {
+    width: min(100vw - 20px, 1120px);
+    padding-top: 18px;
+  }
+
+  .shell-card {
+    padding: 18px;
+  }
+
+  .battlefield-surface {
+    width: min(calc(100vw - 12px), calc((100vh - 12px) * 1.5));
+    max-height: calc(100vh - 12px);
+  }
+
+  .battlefield-stage {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0 8px 8px;
+  }
+
+  .battlefield-side-panel-left {
+    order: 2;
+  }
+
+  .battlefield-center-column {
+    order: 1;
+  }
+
+  .battlefield-side-panel-right {
+    order: 3;
+  }
+
+  .battlefield-surface {
+    width: 100%;
+    max-height: none;
+  }
+
+  .battlefield-minimap-meta,
+  .battlefield-placeholder-card {
+    font-size: 0.84rem;
+  }
+}

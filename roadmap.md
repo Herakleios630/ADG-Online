@@ -8,8 +8,8 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [x] P0 - Product Shell Feasibility
 - [x] P1 - Rule Knowledge + Data Foundation
 - [x] P2 - Fundamental Geometry
-- [ ] P3 - Tournament Setup + Terrain + Deployment Foundation
-- [ ] P4 - Movement Commands
+- [x] P3 - Tournament Setup + Terrain + Deployment Foundation
+- [x] P4 - Movement Commands
 - [ ] P5 - ZOC + Movement Validation
 - [ ] P6 - Corps + Command System
 - [ ] P7 - Charge + Conformation
@@ -22,6 +22,16 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [ ] P14 - Multiplayer Preparation
 - [ ] P15 - Visual Asset System + Player Colors
 - [ ] P16 - QA, Packaging + Release Candidate
+
+## Release Target Framing
+
+The current P0-P16 roadmap should be treated as the first core playable beta / release-candidate track, not as a promise of tournament-complete AdG V4 coverage.
+
+By P16, the target is a coherent local game loop for the implemented rules subset: setup, core command/movement, ZOC, charge/conformation, shooting, melee, rout/victory, army creation, replay, multiplayer preparation, visual assets, and QA packaging. That milestone can be a beta candidate only if the release notes clearly identify implemented, verified, placeholder, and open rule areas.
+
+After P16, plan a dedicated rules-completeness pass for the remaining details that are too large or source-sensitive for the first beta track. Likely post-P16 work includes full group movement, extension/contraction, difficult maneuvers, special troop exceptions, deeper terrain effects, full deployment legality, hidden reveal edge cases, advanced multiplayer privacy, AI fairness, and tournament polish.
+
+Do not describe the P16 output as tournament-complete unless the rule coverage matrix proves those details are implemented, source-verified, tested, and accepted.
 
 ## Global Rules
 
@@ -197,7 +207,8 @@ Current planning state:
 
 ## P4 - Movement Commands
 
-Status: [ ] Not started
+Status: [x] Complete - accepted by user on 2026-05-17
+Active task list: see `P4_todo.md`.
 
 Goals:
 - Advance.
@@ -223,9 +234,38 @@ Success criteria:
 - UI offers only current-phase movement command proposals.
 - User approves P4 before P5 begins.
 
+Current planning state:
+- P4 should build a movement-command spine, not the entire movement ruleset.
+- Command context is mandatory before official movement wording: active player, active corps, commander hook, CP placeholder, in-command facts, and source status.
+- P4 should implement advance, wheel, and slide as declarative preview-and-confirm commands.
+- Movement must continue the P2/P3 full-footprint invariant rather than checking only unit centers.
+- Full group movement is intentionally deferred from the first P4 implementation slice, but P4 command data must preserve hooks so group movement can be added later without redesigning the movement action model.
+- Terrain movement, ZOC restrictions, difficult maneuvers, special troop exceptions, extension/contraction, evade, disengage, charge movement, pursuit, and rout movement remain later phases or post-beta detail-pass work unless explicitly pulled forward by user approval.
+- P4-00 confirmed that PR #3 is merged and that the implementation branch should be created from updated `main` as `feature/p4-movement-commands` before engine work begins.
+- P4-01 added a focused movement source-status note and concrete open-verification IDs for command context, allowances, wheel measurement, slide limits, group movement, turn restrictions, and special troop exceptions.
+- P4-02 completed the file-size/refactor preflight: movement-adjacent UI drag/command/card helpers were extracted, setup reducer logic moved into `src/state/p0-setup.js`, and the oversized stylesheet was split into smaller partials.
+- After P4-02, the current pre-movement implementation surfaces are back under the guardrails: `src/state/p0-state.js` 559 lines, `src/ui/p0-app.js` 882 lines, `src/ui/p0-battlefield.js` 722 lines, and the former oversized `src/styles/p0.css` is now a 4-line import aggregator.
+- P4-03 has agent-side implementation and validation for the command-context skeleton: serializable active player/corps/phase placeholder state exists, a right-panel command-context card is rendered, and focused/full tests plus build are green.
+- P4-03 still awaits user manual acceptance before the phase can advance to the movement-command data model.
+- P4-04 is complete: a dedicated movement data spine now exists in engine/state code with declarative command ids (`advance`, `wheel`, `slide`), normalized segments, preview results, diagnostics, and confirmation state, all kept serializable and UI-free.
+- P4-04 intentionally does not implement geometry or legality yet; it prepares P4-05 to move the existing advance prototype onto the new movement preview/apply pipeline.
+- P4-05 now has agent-side implementation and validation: advance preview uses a movement-engine path, respects unit rotation, rejects full-footprint battlefield overflow, and applies only on confirmation through reducer state.
+- P4-05 has user manual acceptance and is complete; the preview ghost can also be dragged directly for a more intuitive advance interaction.
+- P4-06 is user-accepted: the final wheel UX uses one wheel mode, front-corner drag handles, chained preview segments, shared budget handling, and trail ghosts for earlier committed preview steps before the final confirm.
+- P4-07 is user-accepted: slide can begin the chain, remains free laterally under the current user-approved P4 assumption, stays confirm-blocked until the chain contains at least `1 UD` of qualifying non-slide movement, and is limited to one slide per unit per movement phase.
+- P4-08 is user-accepted: the battlefield movement card exposes advance, wheel, and slide through the shared preview pipeline, preview cancel is reducer-owned and separate from test reset, and the card-level diagnostics presentation is acceptable for current P4 scope.
+- P4-09 is user-accepted: diagnostics are visible and acceptable for current P4 scope, while the user correctly identified that stricter active-player and movement-phase legality still belongs to later rule-conform phases.
+- P4-10 delivered the final validation package: full repository tests and build are green, the local Vite app serves successfully, and the remaining practical interaction smoke was completed through user-side manual acceptance for current P4 scope.
+- P4-11 closed the phase handoff: P4 is complete, documentation is aligned, residual rule-conformance gaps are documented for later phases, and P5 remains explicitly gated until the user starts it.
+
+Final P4 handoff state:
+- P4 established a deterministic movement-command foundation with command-context skeleton state, declarative advance/wheel/slide segments, chained previews, confirmation gating, cancel/reset separation, and serializable diagnostics snapshots.
+- P4 remains intentionally short of full rule-conform movement legality. Still-open work for later phases includes ZOC, terrain movement effects, movement allowances by troop type, group movement, difficult maneuvers, special troop exceptions, active-player/ownership enforcement, strict phase legality, charge, and conformation.
+- The completed P4 output should be described as a validated movement-command foundation, not as tournament-complete movement rules.
+
 ## P5 - ZOC + Movement Validation
 
-Status: [ ] Not started
+Status: [ ] In progress - P5-00 branch/scope gate completed on 2026-05-17
 
 Goals:
 - ZOC detection.
@@ -249,6 +289,15 @@ Success criteria:
 - Illegal movement produces rule-based explanations and legal alternatives where possible.
 - Tests cover mid-segment ZOC entry, blocked movement, invalid end states, and errata-sensitive ZOC cases.
 - User approves P5 before P6 begins.
+
+Current planning state:
+- P5 planning has been explicitly requested by the user and the dedicated execution board is drafted in `P5_todo.md`.
+- P5 execution board is approved by the user for implementation, and `feature/p5-zoc-movement-validation` is prepared as the active branch.
+- P5 scope includes the two known post-P4 enforcement gaps: active-player ownership gating for movement actions and strict command-vs-movement phase legality gating.
+- P5 should implement engine-first ZOC legality (detection, most-threatening selection, path splitting, legality diagnostics) before UI affordance polish.
+- P5 UI explanation layer is planned as display-only and tied to engine data: toggleable enemy-ZOC overlay, near-ZOC cue at `0.5 UD`, and a most-threatening-enemy line visualization.
+- P5 baseline validation fixtures should include at least one unit for Player 1 and one unit for Player 2 on battlefield so enemy-ZOC interactions are testable from the first card.
+- P5 must remain explicit about unresolved source-sensitive areas in `docs/rules/open-verification.md`; no tournament-complete wording is allowed unless those items are verified and implemented.
 
 ## P6 - Corps + Command System
 

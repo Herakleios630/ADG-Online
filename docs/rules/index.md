@@ -49,6 +49,7 @@ Use these labels consistently in rule docs and extraction notes:
 - `command.md`
 - `terrain-and-setup.md`
 - `setup-source-notes.md`
+- `movement-source-notes.md`
 - `hidden-info.md`
 - `movement.md`
 - `zoc.md`
@@ -68,7 +69,7 @@ Use these labels consistently in rule docs and extraction notes:
 - OCR helper: `merged.pdf` exists and is useful for text search, but it has wrong document order and may contain OCR inaccuracies.
 - Errata: text extraction available and should be summarized early.
 - Spreadsheet: readable and useful for army index, points formats, and calculator cross-checks.
-- Initial planning extracts now exist for standard-200, sequence of play, terrain/setup, hidden information, and errata. They are not complete implementation sources until verified.
+- Initial planning extracts now exist for standard-200, sequence of play, terrain/setup, hidden information, errata, and a focused P4 movement source-status note. They are not complete implementation sources until verified.
 - A focused planning blueprint now exists for units, bases, roster boundaries, and shared rule-table separation in `units-and-bases.md`.
 
 ## Rule Extraction Format
