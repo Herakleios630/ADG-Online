@@ -51,7 +51,12 @@ Use this compact entry format for new items:
 ## P4 Handoff Note
 
 - P4 is accepted complete as a movement-command foundation only.
-- Remaining post-P4 rule blockers stay open here and must not be described as already implemented or source-verified: movement allowances by troop type, terrain movement effects, wheel/slide/turn edge cases beyond the approved P4 subset, ZOC legality, group movement, difficult maneuvers, special troop exceptions, owner/active-player movement restrictions, strict phase legality, charge, and conformation.
+- Remaining post-P4 rule blockers were carried into later phases and must stay source-explicit here until verified: movement allowances by troop type, terrain movement effects, wheel/slide/turn edge cases beyond the approved subset, broader ZOC legality interpretation, group movement, difficult maneuvers, special troop exceptions, charge, and conformation.
+
+## P5 Handoff Note
+
+- P5 is accepted complete as a conservative ZOC + movement-legality foundation, including implemented active-player ownership and movement-phase gating plus display-only diagnostics overlays.
+- Unresolved source-sensitive ZOC/movement interpretation items in this file remain open by design and must continue to surface as `needs-source-check` rather than being treated as tournament-complete coverage.
 
 ## Source Extraction Notes
 
@@ -286,6 +291,67 @@ Use this compact entry format for new items:
 	Question: which special troop classes and interpenetration cases alter the standard movement-command assumptions for the P4 subset?
 	Why it matters: P4 must not make a generic movement engine look rules-complete if major troop-class exceptions and interpenetration permissions are still unresolved.
 	Next check: verify movement exceptions for light troops, war wagons, heavy artillery, cataphracts, pikemen, elephants, scythed chariots, and interpenetration cases.
+
+## P5-01 ZOC And Movement-Legality Notes
+
+- P5 source-review status: ZOC and strict movement legality remain source-sensitive; this section lists the concrete blocker IDs that must stay explicit during P5 implementation.
+- P5 implementation reminder: unresolved items below must be surfaced as `needs-source-check` diagnostics rather than silently treated as full official legality.
+
+- ID: zoc.definition-front-geometry-and-range
+	Status: open
+	Area: zoc
+	Sources: `Rules.pdf` movement/ZOC sections, `Errata_ADG_V4_English.pdf`
+	Question: what exact geometric condition defines being in enemy ZOC, including front orientation constraints and distance threshold details?
+	Why it matters: P5 ZOC detection must be deterministic and rule-conform; a wrong zone definition invalidates all downstream movement legality.
+	Next check: direct source pass over base ZOC wording/diagrams and any errata wording that changes geometry or threshold interpretation.
+
+- ID: zoc.most-threatening-priority-and-tie-breaks
+	Status: errata-check
+	Area: zoc
+	Sources: `Rules.pdf` ZOC and conformation-related sections, `Errata_ADG_V4_English.pdf`
+	Question: what is the exact priority order and tie-break logic for selecting the most threatening enemy when multiple ZOCs apply?
+	Why it matters: P5 movement legality and later conformation/charge behavior depend on one deterministic controlling enemy selection.
+	Next check: direct source and errata cross-check of nearest/front/flank-rear priority and tie handling.
+
+- ID: zoc.allowed-movement-while-constrained
+	Status: errata-check
+	Area: zoc
+	Sources: `Rules.pdf` movement/ZOC sections, `Errata_ADG_V4_English.pdf`
+	Question: which exact movement options are legal while constrained by the most threatening enemy ZOC (including facing/aligning/closing/charge-related allowances)?
+	Why it matters: P5 cannot enforce entry/stay/exit legality without a source-backed action set for units currently in ZOC.
+	Next check: direct errata-led pass on clarified ZOC permissions and movement prohibitions.
+
+- ID: zoc.mid-segment-entry-exit-detection
+	Status: open
+	Area: zoc
+	Sources: `Rules.pdf` movement procedure context, `Errata_ADG_V4_English.pdf`
+	Question: which transitions during a movement segment must be treated as immediate legality checkpoints when a path enters or exits ZOC between start and end poses?
+	Why it matters: P5 path splitting/sampling must know when legality changes during a segment instead of checking only endpoints.
+	Next check: validate whether the rule wording requires point-in-time transition checks and any immediate restrictions once ZOC is entered.
+
+- ID: zoc.terrain-suppression-and-non-exerting-cases
+	Status: errata-check
+	Area: zoc
+	Sources: `Rules.pdf` terrain/ZOC interactions, `Errata_ADG_V4_English.pdf`
+	Question: which terrain states and unit categories suppress exerting or receiving ZOC, and what exact exceptions apply?
+	Why it matters: false-positive ZOC enforcement is likely unless terrain and non-exerting exceptions are codified from source.
+	Next check: errata-first review of terrain-penalized-combat ZOC suppression and unit-type exceptions.
+
+- ID: movement.active-player-and-phase-legality
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` sequence/command/movement sections, `Errata_ADG_V4_English.pdf`
+	Question: what exact lifecycle conditions gate legal movement proposals (active player ownership, active corps context, legal battle phase)?
+	Why it matters: P4 intentionally left this incomplete; P5 must add strict gating for ownership and phase legality without guessing lifecycle details.
+	Next check: verify sequence and command context wording against phase-order source checks and movement-order prerequisites.
+
+- ID: movement.zoc-turn-slide-wheel-interactions
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` movement/ZOC sections, `Errata_ADG_V4_English.pdf`
+	Question: how do turn, wheel, and slide permissions/restrictions change when a unit starts in ZOC, enters ZOC mid-move, or faces rear/flank ZOC cases?
+	Why it matters: P5 legality for segmented `advance`/`wheel`/`slide` previews depends on these interaction rules and errata clarifications.
+	Next check: errata-led source check for in-place turning allowances, alignment-before-charge allowances, and blocked lateral movement cases under ZOC.
 
 ## P2-01 Geometry Assumptions Note
 

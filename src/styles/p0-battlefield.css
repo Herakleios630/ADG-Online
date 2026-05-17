@@ -385,6 +385,39 @@
   pointer-events: none;
 }
 
+.battlefield-zoc-band {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%) rotate(var(--zoc-rotation, 0rad));
+  transform-origin: center;
+  border: 1px dashed rgba(220, 60, 60, 0.75);
+  background: rgba(220, 60, 60, 0.12);
+  pointer-events: none;
+}
+
+.battlefield-zoc-near-cue {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%) rotate(var(--near-zoc-rotation, 0rad));
+  transform-origin: center;
+  border: 2px dashed rgba(238, 181, 63, 0.88);
+  background: rgba(240, 194, 92, 0.12);
+  box-shadow: 0 0 0 1px rgba(65, 43, 8, 0.2), 0 0 16px rgba(238, 181, 63, 0.28);
+  pointer-events: none;
+}
+
+.battlefield-zoc-threat-line {
+  position: absolute;
+  z-index: 3;
+  height: 0;
+  transform: translate(-50%, -50%) rotate(var(--threat-line-rotation, 0rad));
+  transform-origin: center;
+  border-top: 2px solid rgba(214, 52, 52, 0.82);
+  box-shadow: 0 0 0 1px rgba(255, 240, 240, 0.35);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 .battlefield-sector-line {
   position: absolute;
   background: rgba(123, 126, 130, 0.55);

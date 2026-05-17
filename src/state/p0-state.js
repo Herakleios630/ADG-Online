@@ -23,6 +23,7 @@ import {
 } from './p0-command-context.js';
 import {
   createInitialMovementState,
+  isMovementCommandAllowed,
   reduceClearMovementDraft,
   reduceSelectMovementCommand,
   reduceSetMovementDraft,
@@ -257,6 +258,12 @@ function cloneSettings(settings) {
   };
 }
 
+const DEPLOYMENT_SEED_UNIT_IDS = ['test-unit-1', 'test-unit-2'];
+
+function getDeploymentSeedUnits(units) {
+  return units.filter((unit) => DEPLOYMENT_SEED_UNIT_IDS.includes(unit.id));
+}
+
 export function createInitialAppState() {
   const initialSettings = createInitialSettings();
   const initialUnits = [
@@ -269,6 +276,42 @@ export function createInitialAppState() {
       widthUd: 1,
       depthUd: 1,
       rotationRadians: 0,
+      advanceUsedUd: 0,
+      slideUsedThisMovementPhase: false,
+    },
+    {
+      id: 'test-unit-2',
+      owner: 'player-2',
+      xUd: 10,
+      yUd: 3,
+      facing: 'south',
+      widthUd: 1,
+      depthUd: 1,
+      rotationRadians: Math.PI,
+      advanceUsedUd: 0,
+      slideUsedThisMovementPhase: false,
+    },
+    {
+      id: 'test-unit-3',
+      owner: 'player-2',
+      xUd: 9,
+      yUd: 3,
+      facing: 'south',
+      widthUd: 1,
+      depthUd: 1,
+      rotationRadians: Math.PI,
+      advanceUsedUd: 0,
+      slideUsedThisMovementPhase: false,
+    },
+    {
+      id: 'test-unit-4',
+      owner: 'player-2',
+      xUd: 11,
+      yUd: 3,
+      facing: 'south',
+      widthUd: 1,
+      depthUd: 1,
+      rotationRadians: Math.PI,
       advanceUsedUd: 0,
       slideUsedThisMovementPhase: false,
     },
@@ -288,7 +331,11 @@ export function createInitialAppState() {
       formatId: 'standard-200',
       battlefieldProfileId: BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM,
       phaseTracker: createInitialPhaseTracker(),
-      setup: createInitialSetupState(false, initialUnits, getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM)),
+      setup: createInitialSetupState(
+        false,
+        getDeploymentSeedUnits(initialUnits),
+        getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM),
+      ),
       setupViewMode: SETUP_VIEW_MODES.CANONICAL,
       overlayMode: 'Aus',
       viewport: createInitialViewport(),
@@ -302,6 +349,21 @@ export function createInitialAppState() {
           xUd: 10,
           yUd: 10,
           rotationRadians: 0,
+        },
+        'test-unit-2': {
+          xUd: 10,
+          yUd: 3,
+          rotationRadians: Math.PI,
+        },
+        'test-unit-3': {
+          xUd: 9,
+          yUd: 3,
+          rotationRadians: Math.PI,
+        },
+        'test-unit-4': {
+          xUd: 11,
+          yUd: 3,
+          rotationRadians: Math.PI,
         },
       },
       selectedUnitId: null,
@@ -425,7 +487,11 @@ export function reduceAppState(state, action) {
           mode: state.shell.newGame.mode,
           formatId: state.shell.newGame.points === 200 ? 'standard-200' : `p0-${state.shell.newGame.points}`,
           phaseTracker: createInitialPhaseTracker(),
-          setup: createInitialSetupState(true, nextUnits, getBattlefieldProfile(state.game.battlefieldProfileId)),
+          setup: createInitialSetupState(
+            true,
+            getDeploymentSeedUnits(nextUnits),
+            getBattlefieldProfile(state.game.battlefieldProfileId),
+          ),
           setupViewMode: SETUP_VIEW_MODES.CANONICAL,
           viewport: createInitialViewport(),
           commandContext: createInitialCommandContextState(BATTLE_PHASE_IDS.COMMAND),
@@ -696,7 +762,9 @@ export function reduceAppState(state, action) {
       };
 
     case ACTION_TYPES.SET_ADVANCE_MODE:
-      {
+      if (action.isActive && !isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       return {
         ...state,
         game: {
@@ -704,9 +772,11 @@ export function reduceAppState(state, action) {
           ...createInitialSlideState(),
         },
       };
-      }
 
     case ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,
@@ -720,6 +790,9 @@ export function reduceAppState(state, action) {
     }
 
     case ACTION_TYPES.CONFIRM_ADVANCE: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,
@@ -728,6 +801,9 @@ export function reduceAppState(state, action) {
     }
 
     case ACTION_TYPES.SET_WHEEL_MODE:
+      if (action.isActive && !isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       return {
         ...state,
         game: {
@@ -738,6 +814,9 @@ export function reduceAppState(state, action) {
       };
 
     case ACTION_TYPES.SET_SLIDE_MODE:
+      if (action.isActive && !isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       return {
         ...state,
         game: {
@@ -748,6 +827,9 @@ export function reduceAppState(state, action) {
       };
 
     case ACTION_TYPES.SET_SLIDE_PREVIEW_DISTANCE: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,
@@ -762,6 +844,9 @@ export function reduceAppState(state, action) {
     }
 
     case ACTION_TYPES.CONFIRM_SLIDE: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,
@@ -770,6 +855,9 @@ export function reduceAppState(state, action) {
     }
 
     case ACTION_TYPES.SET_WHEEL_PREVIEW_ANGLE: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,
@@ -784,6 +872,9 @@ export function reduceAppState(state, action) {
     }
 
     case ACTION_TYPES.CONFIRM_WHEEL: {
+      if (!isMovementCommandAllowed(state.game)) {
+        return state;
+      }
       const selectedUnit = getSelectedUnit(state);
       return {
         ...state,

@@ -40,6 +40,11 @@ function advanceToBattlefield(state = createInitialAppState()) {
         ...nextState.game.setup,
         isActive: false,
       },
+      commandContext: {
+        ...nextState.game.commandContext,
+        currentPhaseId: BATTLE_PHASE_IDS.MOVEMENT,
+        activePlayerId: COMMAND_PLAYER_IDS.PLAYER_ONE,
+      },
     },
   };
 }
@@ -110,6 +115,9 @@ test('movement state initializes as a serializable placeholder spine', () => {
 
 test('movement draft and preview store declarative serializable command data after setup', () => {
   let state = selectTestUnit(completeSetupToBattle());
+
+  // P5-06: movement commands require active phase = movement.
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.MOVEMENT });
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SELECT_MOVEMENT_COMMAND,
@@ -794,8 +802,11 @@ test('starting a new game creates explicit deployment zones and visible deployme
   const state = startNewGame();
 
   assert.equal(state.game.setup.deployment.zones.length, 2);
-  assert.equal(state.game.setup.deployment.visiblePlaceholders.length, 1);
-  assert.equal(state.game.setup.deployment.visiblePlaceholders[0].unitId, 'test-unit-1');
+  assert.equal(state.game.setup.deployment.visiblePlaceholders.length, 2);
+  assert.deepEqual(
+    state.game.setup.deployment.visiblePlaceholders.map((placeholder) => placeholder.unitId),
+    ['test-unit-1', 'test-unit-2'],
+  );
   assert.equal(state.game.setup.deployment.sourceStatus, 'needs-source-check');
 });
 
@@ -977,6 +988,21 @@ test('remaining budget limits later advance previews after a partial move', () =
 
 test('wheel preview clamps to the remaining shared movement budget', () => {
   let state = selectTestUnit(advanceToBattlefield());
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) =>
+        unit.id === 'test-unit-2'
+          ? {
+              ...unit,
+              yUd: 1,
+            }
+          : unit,
+      ),
+    },
+  };
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
@@ -1257,6 +1283,100 @@ test('a unit can only use one slide per movement phase', () => {
   assert.equal(state.game.slideModeActive, true);
 });
 
+test('zoc subset legality allows confirmation when advance closes on most-threatening enemy without contact', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-2') {
+          return { ...unit, xUd: 10, yUd: 7, rotationRadians: Math.PI };
+        }
+
+        if (unit.id === 'test-unit-3') {
+          return { ...unit, xUd: 9, yUd: 7, rotationRadians: Math.PI };
+        }
+
+        if (unit.id === 'test-unit-4') {
+          return { ...unit, xUd: 11, yUd: 7, rotationRadians: Math.PI };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1.9,
+  });
+
+  const zocDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'zoc-subset-legality');
+  assert.ok(zocDiagnostic);
+  assert.equal(zocDiagnostic.status, 'verified');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.READY);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(unit);
+  assert.equal(unit.yUd, 8.1);
+  assert.equal(unit.advanceUsedUd, 1.9);
+});
+
+test('zoc subset legality still blocks confirmation when path would create contact with most-threatening enemy', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-2') {
+          return { ...unit, xUd: 10, yUd: 7, rotationRadians: Math.PI };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 2.4,
+  });
+
+  const zocDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'zoc-subset-legality');
+  assert.ok(zocDiagnostic);
+  assert.equal(zocDiagnostic.status, 'blocked');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(unit);
+  assert.equal(unit.yUd, 10);
+  assert.equal(unit.advanceUsedUd, 0);
+});
+
 test('debug mode requires a selected unit and initializes a debug unit pose', () => {
   let state = advanceToBattlefield();
 
@@ -1340,4 +1460,110 @@ test('selected unit rotation is debug-only and normalized for overlay inspection
   });
 
   assert.equal(state.game.units[0].rotationRadians, Math.PI * 1.5);
+});
+
+// P5-06: Owner and phase enforcement for movement commands
+
+test('advance mode is blocked when the active player does not own the selected unit', () => {
+  // Player-1 owns test-unit-1; player-2 is set as active player → advance must be blocked.
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_PLAYER,
+    playerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+
+  assert.equal(state.game.advanceModeActive, false);
+});
+
+test('advance preview distance is blocked when the active player does not own the selected unit', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  // Activate advance while player-1 is active (allowed).
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+  assert.equal(state.game.advanceModeActive, true);
+
+  // Switch to player-2 (wrong owner) and attempt to set a preview distance.
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
+
+  // State should be unchanged (unit not moved, preview stays at 0).
+  assert.equal(state.game.advancePreviewUd, 0);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+});
+
+test('confirm advance is blocked when the active player does not own the selected unit', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
+  assert.equal(state.game.advancePreviewUd, 2);
+
+  // Switch to player-2 and attempt to confirm.
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  // Unit must not have moved.
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').advanceUsedUd, 0);
+});
+
+test('advance mode is blocked when the active phase is not movement', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  // Switch to command phase (wrong phase).
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.COMMAND });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+
+  assert.equal(state.game.advanceModeActive, false);
+});
+
+test('confirm advance is blocked when the active phase is not movement', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
+
+  // Switch to command phase and try to confirm.
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.COMMAND });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').advanceUsedUd, 0);
+});
+
+test('player-2 can advance their own unit when active player is player-2 and phase is movement', () => {
+  // Select test-unit-2 (player-2) and set up correct context.
+  let state = advanceToBattlefield();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-2' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  const unit2 = state.game.units.find((u) => u.id === 'test-unit-2');
+  assert.ok(unit2.advanceUsedUd > 0, 'player-2 unit should have moved');
+});
+
+test('wheel mode is blocked when the active player does not own the selected unit', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_WHEEL_MODE, isActive: true });
+
+  assert.equal(state.game.wheelModeActive, false);
+});
+
+test('slide mode is blocked when the active player does not own the selected unit', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SLIDE_MODE, isActive: true });
+
+  assert.equal(state.game.slideModeActive, false);
 });

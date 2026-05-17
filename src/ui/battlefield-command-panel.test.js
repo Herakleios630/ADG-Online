@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { getBattlefieldProfile, BATTLEFIELD_PROFILE_IDS } from '../data/battlefield-profiles.js';
 import { getAdvancePreviewPresentation, renderAdvanceCommandPanel } from './battlefield-command-panel.js';
-import { ACTION_TYPES, createInitialAppState, reduceAppState } from '../state/p0-state.js';
+import { ACTION_TYPES, BATTLE_PHASE_IDS, createInitialAppState, reduceAppState } from '../state/p0-state.js';
 import { MOVEMENT_SLIDE_SIDES } from '../state/p0-slide.js';
 
 function advanceToBattlefield(state = createInitialAppState()) {
@@ -16,6 +16,10 @@ function advanceToBattlefield(state = createInitialAppState()) {
       setup: {
         ...nextState.game.setup,
         isActive: false,
+      },
+      commandContext: {
+        ...nextState.game.commandContext,
+        currentPhaseId: BATTLE_PHASE_IDS.MOVEMENT,
       },
     },
   };

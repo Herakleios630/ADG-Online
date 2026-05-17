@@ -1,6 +1,6 @@
 # P5 TODO - ZOC + Movement Validation
 
-Status: In progress - P5-00 completed on 2026-05-17; next card is P5-01
+Status: Complete - user approved P5 complete on 2026-05-17; handoff docs aligned
 Date drafted: 2026-05-17
 Planner: GPT-5.5 preferred planner, drafted here by GPT-5.3-Codex per user request for immediate continuation
 Future executor: GPT-5.4 preferred executor after explicit user approval
@@ -125,31 +125,31 @@ Hard rules:
 - [x] P5 execution board drafted
 - [x] P5 execution board approved by user for implementation
 - [x] P5 implementation branch prepared
-- [ ] P5 source review and verification updates completed
-- [ ] ZOC engine primitives implemented
-- [ ] Most-threatening-enemy selector implemented
-- [ ] Movement path splitting for ZOC transitions implemented
-- [ ] ZOC movement legality rules implemented for approved subset
-- [ ] Active-player/phase enforcement completed for movement actions
-- [ ] P5 diagnostics and overlays implemented
-- [ ] P5 automated and browser validation completed
-- [ ] P5 demonstrated to user
-- [ ] P5 approved complete by user
+- [x] P5 source review and verification updates completed
+- [x] ZOC engine primitives implemented
+- [x] Most-threatening-enemy selector implemented
+- [x] Movement path splitting for ZOC transitions implemented
+- [x] ZOC movement legality rules implemented for approved subset (manual acceptance reported by user on 2026-05-17)
+- [x] Active-player/phase enforcement completed for movement actions
+- [x] P5 diagnostics and overlays implemented
+- [x] P5 automated and browser validation completed
+- [x] P5 demonstrated to user
+- [x] P5 approved complete by user
 
 ## Definition Of Done
 
 P5 is done when:
 
-- [ ] Enemy ZOC computation is deterministic and footprint-aware for the approved subset.
-- [ ] Most-threatening-enemy selection is deterministic and tested for tie-breakers in the approved subset.
-- [ ] Movement preview validation detects entry/stay/exit of ZOC along the path, not only at start/end.
-- [ ] Movement commands are blocked when ownership or active-phase constraints are violated.
-- [ ] Diagnostics provide clear allowed/blocked reasons and preserve `needs-source-check` honesty.
-- [ ] Overlay cues (ZOC toggle, near-ZOC cue, most-threatening line) reflect engine data and do not decide legality.
-- [ ] Automated tests cover core and edge cases for P5 scope.
-- [ ] Browser smoke confirms command-panel and overlay behavior for P5 scope.
-- [ ] `roadmap.md`, `P5_todo.md`, and `docs/rules/open-verification.md` are aligned with final P5 status.
-- [ ] User explicitly approves readiness to proceed toward P6.
+- [x] Enemy ZOC computation is deterministic and footprint-aware for the approved subset.
+- [x] Most-threatening-enemy selection is deterministic and tested for tie-breakers in the approved subset.
+- [x] Movement preview validation detects entry/stay/exit of ZOC along the path, not only at start/end.
+- [x] Movement commands are blocked when ownership or active-phase constraints are violated.
+- [x] Diagnostics provide clear allowed/blocked reasons and preserve `needs-source-check` honesty.
+- [x] Overlay cues (ZOC toggle, near-ZOC cue, most-threatening line) reflect engine data and do not decide legality.
+- [x] Automated tests cover core and edge cases for P5 scope.
+- [x] Browser smoke confirms command-panel and overlay behavior for P5 scope.
+- [x] `roadmap.md`, `P5_todo.md`, and `docs/rules/open-verification.md` are aligned with final P5 status.
+- [x] User explicitly approves readiness to proceed toward P6.
 
 ## Execution Cards
 
@@ -210,7 +210,7 @@ Manual acceptance:
 Still open:
 - Next card is `P5-01 - Source Review And Open Verification Refresh`.
 
-### [ ] P5-01 - Source Review And Open Verification Refresh
+### [x] P5-01 - Source Review And Open Verification Refresh
 
 Goal: confirm exact P5 subset rules and explicitly track unresolved ZOC/movement blockers.
 
@@ -245,7 +245,34 @@ Stop condition:
 
 Expected result: P5 implementation proceeds with explicit rule-confidence boundaries.
 
-### [ ] P5-02 - ZOC Geometry Primitives
+Completed 2026-05-17:
+- Re-checked current P5 source boundary against `docs/rules/movement-source-notes.md`, `docs/rules/errata.md`, and architecture/governance constraints.
+- Added explicit P5 ZOC/movement legality blocker IDs to `docs/rules/open-verification.md` for:
+	- ZOC definition geometry/range
+	- most-threatening priority and tie-breaks
+	- legal movement options while ZOC-constrained
+	- mid-segment ZOC entry/exit checkpoints
+	- terrain/non-exerting ZOC exceptions
+	- active-player/phase movement legality gating
+	- turn/wheel/slide interactions under ZOC
+- Extended `docs/rules/movement-source-notes.md` with a P5 source-split update that links these new blockers and preserves honest `needs-source-check` handling for unresolved source-sensitive behavior.
+- Kept this card documentation-only with no engine/state/UI implementation.
+
+Files touched:
+- `docs/rules/open-verification.md`
+- `docs/rules/movement-source-notes.md`
+- `P5_todo.md`
+
+Validation:
+- open verification now contains concrete P5 blocker IDs aligned to planned P5 cards.
+
+Manual acceptance:
+- user reviews whether the source split is strict enough for starting `P5-02` without silent assumptions.
+
+Still open:
+- Next card is `P5-02 - ZOC Geometry Primitives`.
+
+### [x] P5-02 - ZOC Geometry Primitives
 
 Goal: implement pure, testable enemy ZOC detection primitives for the approved subset.
 
@@ -282,7 +309,32 @@ Stop condition:
 
 Expected result: reusable ZOC primitives exist with deterministic test coverage.
 
-### [ ] P5-03 - Most-Threatening Enemy Selector
+Completed 2026-05-17:
+- Added a dedicated `src/engine/zoc/` foundation module with deterministic ZOC geometry primitives:
+	- enemy front-band local bounds derivation from footprint and range
+	- point-in-ZOC evaluation in enemy local space
+	- footprint-aware unit sampling (center + corners) for ZOC checks
+	- enemy-contact aggregation that filters same-owner units and returns deterministic ordering
+- Added explicit source-status and exception-hook metadata surfaces so unresolved terrain/non-exerting exception rules stay visible as `needs-source-check` hooks rather than hidden assumptions.
+- Kept this card engine-only: no reducer/UI wiring and no most-threatening selector yet.
+
+Files touched:
+- `src/engine/zoc/geometry.js`
+- `src/engine/zoc/index.js`
+- `src/engine/zoc/geometry.test.js`
+- `P5_todo.md`
+
+Validation:
+- `npm run test -- src/engine/zoc/geometry.test.js`
+- `npm run test`
+
+Manual acceptance:
+- none (pure engine card)
+
+Still open:
+- Next card is `P5-03 - Most-Threatening Enemy Selector`.
+
+### [x] P5-03 - Most-Threatening Enemy Selector
 
 Goal: implement deterministic selection logic for controlling enemy when multiple ZOCs overlap.
 
@@ -318,7 +370,35 @@ Stop condition:
 
 Expected result: movement validation can identify one controlling enemy deterministically.
 
-### [ ] P5-04 - Movement Path Splitting For ZOC Transitions
+Completed 2026-05-17:
+- Added `src/engine/zoc/most-threatening.js` with deterministic P5 subset ranking:
+	- nearest front-distance to the enemy front ZOC boundary
+	- then higher footprint coverage inside ZOC
+	- then smaller lateral offset
+	- then deterministic enemy id fallback
+- Added structured selector outputs with ranking explanation, candidate list, and explicit `needs-source-check` unresolved references when top candidates remain tied on implemented metrics.
+- Added integration helper that derives contacts from current ZOC geometry primitives and selects most threatening enemy for a target unit.
+- Extended `src/engine/zoc/geometry.js` result payload with local-band bounds needed by ranking metrics.
+- Added focused tests for nearest-front, coverage tie-break, lateral tie-break, unresolved tie handling, geometry-backed integration, and no-contact case.
+
+Files touched:
+- `src/engine/zoc/geometry.js`
+- `src/engine/zoc/index.js`
+- `src/engine/zoc/most-threatening.js`
+- `src/engine/zoc/most-threatening.test.js`
+- `P5_todo.md`
+
+Validation:
+- `npm run test -- src/engine/zoc/most-threatening.test.js src/engine/zoc/geometry.test.js`
+- `npm run test`
+
+Manual acceptance:
+- none (pure engine card)
+
+Still open:
+- Next card is `P5-04 - Movement Path Splitting For ZOC Transitions`.
+
+### [x] P5-04 - Movement Path Splitting For ZOC Transitions
 
 Goal: detect path events where movement enters/exits/stays within ZOC mid-segment.
 
@@ -353,6 +433,30 @@ Stop condition:
 - stop if numeric precision causes unstable transition decisions without robust tolerances
 
 Expected result: validator receives robust path-event data rather than only start/end poses.
+
+Completed 2026-05-17:
+- Added `src/engine/movement/path-splitting.js` with deterministic path sampling utilities:
+	- segment pose interpolation with UD-scaled sampling density
+	- chained preview splitting without duplicate segment-start samples
+	- ZOC transition analysis across sampled path checkpoints
+- Added transition analysis outputs that record in/out ZOC changes and most-threatening-id changes per checkpoint.
+- Added focused tests in `src/engine/movement/path-splitting.test.js` for deterministic interpolation, chained segment handling, and mid-segment ZOC entry detection.
+- Exported path-splitting functions through `src/engine/movement/index.js` for validator integration.
+
+Files touched:
+- `src/engine/movement/path-splitting.js`
+- `src/engine/movement/path-splitting.test.js`
+- `src/engine/movement/index.js`
+
+Validation:
+- `npm run test -- src/engine/movement/path-splitting.test.js`
+- `npm run test`
+
+Manual acceptance:
+- none (pure engine card)
+
+Still open:
+- Next card is `P5-05 - ZOC Movement Legality Rules (Approved Subset)`.
 
 ### [ ] P5-05 - ZOC Movement Legality Rules (Approved Subset)
 
@@ -390,42 +494,85 @@ Stop condition:
 
 Expected result: movement preview/confirm reflects first rule-conform ZOC legality layer.
 
-### [ ] P5-06 - Owner And Phase Enforcement For Movement Commands
+Agent implementation + validation completed 2026-05-17 (manual acceptance pending):
+- Integrated P5 path-splitting/ZOC transition analysis into movement validation.
+- Added `zoc-subset-legality` diagnostics that block accepted previews when sampled paths enter or remain in enemy ZOC under the approved current subset.
+- Added explicit `zoc-mid-segment-checks` diagnostics to surface checkpoint sampling and source-status transparency.
+- Updated confirmation gating so invalid validation snapshots force confirmation state to `blocked`.
+- Enforced confirmation readiness checks in `confirm advance/wheel/slide` reducers so blocked confirmations cannot apply movement.
+- Added reducer and validation tests for ZOC-blocked confirmation paths.
+- Added a second baseline battlefield fixture unit (`test-unit-2`, player-2) to support enemy-ZOC interactions in state-level testing.
+
+Files touched:
+- `src/engine/movement/validation.js`
+- `src/engine/movement/validation.test.js`
+- `src/state/p0-movement.js`
+- `src/state/p0-advance.js`
+- `src/state/p0-wheel.js`
+- `src/state/p0-slide.js`
+- `src/state/p0-state.js`
+- `src/state/p0-state.test.js`
+
+Agent validated:
+- `npm run test -- src/engine/movement/path-splitting.test.js src/engine/movement/validation.test.js src/state/p0-state.test.js`
+- `npm run test`
+
+Manual acceptance (pending user):
+- Run the P5-05 manual battlefield checklist before this card is marked complete.
+
+Still open:
+- Next card after manual acceptance is `P5-06 - Owner And Phase Enforcement For Movement Commands`.
+
+### [x] P5-06 - Owner And Phase Enforcement For Movement Commands
 
 Goal: close known P4 carry-over gaps by enforcing active-player ownership and strict movement-phase legality.
 
 Planned files:
 
-- `src/state/p0-state.js`
 - `src/state/p0-movement.js`
-- `src/ui/` command-card affordance wiring as needed
+- `src/state/p0-state.js`
+- `src/ui/p0-battlefield.js`
+- `src/ui/battlefield-command-panel.js`
 - `src/state/p0-state.test.js`
+- `src/ui/battlefield-command-panel.test.js`
 
 Implementation steps:
-1. Reject movement command proposals for units not owned by active player.
-2. Reject movement command proposals outside legal active battle phase context.
-3. Keep preview reset/cancel behavior intact for legal cases.
-4. Surface explicit diagnostics for blocked ownership/phase attempts.
+1. Added `isMovementCommandAllowed(gameState)` guard to `p0-movement.js`.
+2. Applied guard to `reduceSelectMovementCommand`, `reduceSetMovementDraft`, `reduceSetMovementPreview`.
+3. Added `isMovementCommandAllowed` import to `p0-state.js` and applied guard to all 9 movement action cases: `SET_ADVANCE_MODE` (activate only), `SET_ADVANCE_PREVIEW_DISTANCE`, `CONFIRM_ADVANCE`, `SET_WHEEL_MODE` (activate only), `SET_WHEEL_PREVIEW_ANGLE`, `CONFIRM_WHEEL`, `SET_SLIDE_MODE` (activate only), `SET_SLIDE_PREVIEW_DISTANCE`, `CONFIRM_SLIDE`.
+4. Computed `canIssueMovementCommands` in `p0-battlefield.js` and passed to `renderAdvanceCommandPanel`.
+5. Updated button `disabled` logic in `battlefield-command-panel.js` to use `canIssueMovementCommands`.
+6. Updated `advanceToBattlefield` helper in both test files to set `currentPhaseId: 'movement'`.
+7. Updated `completeSetupToBattle`-based test to explicitly switch to movement phase.
+8. Added 8 new P5-06 reducer tests covering wrong-player and wrong-phase blocking, plus player-2 positive case.
 
-Non-goals:
+Non-goals achieved:
 
-- no full CP economy;
-- no corps activation sequence automation beyond current scope.
+- no CP economy;
+- no corps activation sequence.
 
 Validation:
 
-- focused reducer tests
-- `npm run test`
+- `npm run test` → 139 pass, 0 fail
 
-Manual acceptance:
+Manual acceptance (pending user):
 
-- user verifies enemy-side units are not moveable during wrong active-player state and wrong phase
+- Select unit-1 with active player = player-2 → Advance/Wheel/Slide buttons disabled, advance rejected by reducer.
+- Switch to player-1, phase = command → buttons still disabled.
+- Switch to player-1, phase = movement → buttons enabled, advance works.
+- Switch active player to player-2, select unit-2 → buttons enabled, unit-2 can advance.
 
-Stop condition:
+Files touched:
+- `src/state/p0-movement.js`
+- `src/state/p0-state.js`
+- `src/ui/p0-battlefield.js`
+- `src/ui/battlefield-command-panel.js`
+- `src/state/p0-state.test.js`
+- `src/ui/battlefield-command-panel.test.js`
+- `P5_todo.md`
 
-- stop if enforcement would silently invalidate existing legal flows without explanatory diagnostics
-
-Expected result: movement command interaction is gated by correct side and phase context.
+Still open:
+- Next card is `P5-07 - P5 Diagnostics And Learning Overlays`.
 
 ### [ ] P5-07 - P5 Diagnostics And Learning Overlays
 
@@ -465,7 +612,40 @@ Stop condition:
 
 Expected result: player gets actionable, honest ZOC feedback during movement previews.
 
-### [ ] P5-08 - Validation Package And Handoff
+Progress update 2026-05-17 (in progress):
+- Added structured ZOC facts to movement validation snapshots in `src/engine/movement/validation.js`:
+	- `contactMode`: `none | enters | remains | exits | transient`
+	- `startsInEnemyZoc`, `endsInEnemyZoc`, `encountersEnemyZoc`, `transitionCount`
+	- `mostThreateningEnemyId` for UI projection without UI-side rule logic.
+- Sharpened `zoc-subset-legality` diagnostic wording to distinguish path contact mode (`enters`, `remains`, `exits`, `transient`) while keeping current approved conservative subset gating.
+- Added a display-only most-threatening line overlay in `src/ui/p0-battlefield.js` + `src/styles/p0-battlefield.css` tied to validation snapshot data.
+- Updated ZOC overlay reference to use movement preview endpoint pose (when an accepted preview exists), improving near-contact visual relevance during previews.
+- Added a near-ZOC cue overlay at the `0.5 UD` threshold in `src/ui/p0-battlefield.js` + `src/styles/p0-battlefield.css`, based on footprint sample-point distance to enemy ZOC band geometry.
+- Added a source-gated ZOC relaxation candidate hook in `src/engine/movement/validation.js`:
+	- no legality relaxation applied yet,
+	- explicit `needs-source-check` diagnostic (`zoc-relaxation-candidate`) when most-threatening + advance path context indicates a plausible future subset opening.
+- Added three-enemy support fixture shape for practical most-threatening checks in live movement validation:
+	- player-2 center enemy `test-unit-2`, plus left/right supporters `test-unit-3` and `test-unit-4` in `src/state/p0-state.js`.
+	- deployment placeholders remain intentionally scoped to `test-unit-1` and `test-unit-2` to keep setup-card assumptions stable.
+- Implemented conservative source-gated legality opening in `src/engine/movement/validation.js` for ZOC-constrained movement:
+	- `advance`/`wheel` can be accepted while ZOC-constrained only when movement closes center-distance to the most-threatening enemy and sampled path stays contact-free against that enemy footprint,
+	- blocked outcome is retained when no closing trend is present or contact would be created,
+	- explicit `needs-source-check` diagnostic remains for this relaxation as non-final rule coverage.
+- Added/updated tests:
+	- `src/engine/movement/validation.test.js` now covers allowed close-without-contact and blocked contact scenarios,
+	- `src/engine/zoc/most-threatening.test.js` adds a left-center-right support-cluster selector check,
+	- `src/state/p0-state.test.js` adds reducer-level allow/block confirmation checks for the new conservative subset.
+- Added focused assertion coverage in `src/engine/movement/validation.test.js` for structured ZOC facts.
+- Automated validation: `npm run test` -> 139 pass, 0 fail (after each sharpening step).
+- Automated validation after conservative subset opening + support fixtures: `npm run test` -> 142 pass, 0 fail.
+- Added final P5-08 validation package run:
+	- `npm run test` -> 142 pass, 0 fail
+	- `npm run build` -> success
+- User manual validation report: "getestet und klappt" for the new ZOC-sharpened behavior and fixtures.
+- Still open inside P5-07:
+	- none inside P5-07 card scope.
+
+### [x] P5-08 - Validation Package And Handoff
 
 Goal: run full validation for P5 scope and close phase documentation consistently.
 
@@ -501,3 +681,29 @@ Stop condition:
 - stop if any P5 success criterion is not met or is unverifiable
 
 Expected result: P5 closes as an honest, tested ZOC + movement-legality foundation.
+
+Completed 2026-05-17:
+- Ran full validation package on current branch:
+	- `npm run test` -> 142 pass, 0 fail
+	- `npm run build` -> success
+- User reported manual acceptance for P5 scope: "getestet und klappt" and explicitly approved P5 as complete.
+- Aligned phase governance docs for handoff consistency:
+	- `P5_todo.md`
+	- `roadmap.md`
+	- `docs/rules/open-verification.md`
+- Kept unresolved source-sensitive movement/ZOC interpretation explicitly open in verification tracking to avoid tournament-complete claims.
+
+Files touched:
+- `P5_todo.md`
+- `roadmap.md`
+- `docs/rules/open-verification.md`
+
+Validation:
+- `npm run test`
+- `npm run build`
+
+Manual acceptance:
+- user confirmed P5 behavior and phase completion.
+
+Still open:
+- P6 is not implemented yet and remains phase-gated pending approved P6 execution scope.

@@ -63,3 +63,23 @@ Open verification:
 - `movement.group-movement-and-reshape`
 - `movement.turns-difficult-maneuvers-and-errata`
 - `movement.special-troops-and-interpenetration`
+
+## P5-01 Source Split Update
+
+P5 planning keeps the P4 movement-source split and extends it with explicit ZOC and strict-legality blockers.
+
+Planning-safe boundary for P5:
+
+- build deterministic ZOC/movement validator scaffolding;
+- keep unresolved rule-sensitive behavior explicit as `needs-source-check` until source verification is complete;
+- enforce active-player and active-phase movement gating as explicit legality checks instead of UI affordances.
+
+Added P5 blocker IDs in `open-verification.md`:
+
+- `zoc.definition-front-geometry-and-range`
+- `zoc.most-threatening-priority-and-tie-breaks`
+- `zoc.allowed-movement-while-constrained`
+- `zoc.mid-segment-entry-exit-detection`
+- `zoc.terrain-suppression-and-non-exerting-cases`
+- `movement.active-player-and-phase-legality`
+- `movement.zoc-turn-slide-wheel-interactions`
