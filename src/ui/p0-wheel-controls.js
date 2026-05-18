@@ -200,6 +200,12 @@ export function bindWheelActionButtons({ container, dispatch, state }) {
   if (confirmMovementButton) {
     confirmMovementButton.addEventListener('click', () => {
       stopBattlefieldWheelDragSession();
+
+      if (state.game.commanderFreeMovePreview?.status === 'ready') {
+        dispatch({ type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE });
+        return;
+      }
+
       if (state.game.movement.selectedCommandId === 'wheel') {
         dispatch({ type: ACTION_TYPES.CONFIRM_WHEEL });
         return;

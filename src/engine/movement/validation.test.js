@@ -231,3 +231,272 @@ test('movement validation keeps zoc subset legality verified when no enemy zoc c
   assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.VALID);
   assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'zoc-subset-legality').status, 'verified');
 });
+
+test('movement validation surfaces the conservative difficult manoeuvre note without blocking the current subset', () => {
+  const preview = createMovementPreview({
+    status: MOVEMENT_PREVIEW_STATUSES.ACCEPTED,
+    segments: [createMovementSegment({
+      commandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+      unitId: 'test-unit-1',
+      startPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+      endPose: { xUd: 10, yUd: 9, rotationRadians: 0 },
+      distance: { requestedUd: 1, resolvedUd: 1, measurementMode: 'front-edge' },
+    })],
+  });
+
+  const snapshot = buildMovementValidationSnapshot({
+    selectedUnit: {
+      id: 'test-unit-1',
+      owner: 'player-1',
+      troopType: 'cavalry',
+      xUd: 10,
+      yUd: 10,
+      widthUd: 1,
+      depthUd: 1,
+      rotationRadians: 0,
+    },
+    selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+    preview,
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'movement',
+      activeCorpsId: 'corps-1',
+    },
+    units: [
+      {
+        id: 'test-unit-1',
+        owner: 'player-1',
+        troopType: 'cavalry',
+        xUd: 10,
+        yUd: 10,
+        widthUd: 1,
+        depthUd: 1,
+        rotationRadians: 0,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.VALID);
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'difficult-manoeuvre').status, 'verified');
+  assert.match(snapshot.diagnostics.find((entry) => entry.id === 'difficult-manoeuvre').text, /does not classify this preview as a difficult manoeuvre/i);
+});
+
+test('movement validation blocks source-sensitive difficult manoeuvre cases for the current P6 subset', () => {
+  const preview = createMovementPreview({
+    status: MOVEMENT_PREVIEW_STATUSES.ACCEPTED,
+    segments: [createMovementSegment({
+      commandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+      unitId: 'test-unit-1',
+      startPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+      endPose: { xUd: 10, yUd: 9, rotationRadians: 0 },
+      distance: { requestedUd: 1, resolvedUd: 1, measurementMode: 'front-edge' },
+    })],
+  });
+
+  const snapshot = buildMovementValidationSnapshot({
+    selectedUnit: {
+      id: 'test-unit-1',
+      owner: 'player-1',
+      troopType: 'cavalry',
+      isCataphract: true,
+      xUd: 10,
+      yUd: 10,
+      widthUd: 1,
+      depthUd: 1,
+      rotationRadians: 0,
+    },
+    selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+    preview,
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'movement',
+      activeCorpsId: 'corps-1',
+    },
+    units: [
+      {
+        id: 'test-unit-1',
+        owner: 'player-1',
+        troopType: 'cavalry',
+        isCataphract: true,
+        xUd: 10,
+        yUd: 10,
+        widthUd: 1,
+        depthUd: 1,
+        rotationRadians: 0,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.INVALID);
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'difficult-manoeuvre').status, 'blocked');
+  assert.match(snapshot.diagnostics.find((entry) => entry.id === 'difficult-manoeuvre').text, /source-closed in P6/i);
+});
+
+test('movement validation blocks medium infantry previews that exceed the approved P6 subset budget', () => {
+  const preview = createMovementPreview({
+    status: MOVEMENT_PREVIEW_STATUSES.ACCEPTED,
+    segments: [createMovementSegment({
+      commandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+      unitId: 'test-unit-1',
+      startPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+      endPose: { xUd: 10, yUd: 6.75, rotationRadians: 0 },
+      distance: { requestedUd: 3.25, resolvedUd: 3.25, measurementMode: 'front-edge' },
+    })],
+  });
+
+  const snapshot = buildMovementValidationSnapshot({
+    selectedUnit: {
+      id: 'test-unit-1',
+      owner: 'player-1',
+      troopType: 'medium-infantry',
+      widthUd: 1,
+      depthUd: 1,
+      xUd: 10,
+      yUd: 10,
+      rotationRadians: 0,
+    },
+    selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+    preview,
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'movement',
+      activeCorpsId: 'corps-1',
+    },
+    units: [
+      {
+        id: 'test-unit-1',
+        owner: 'player-1',
+        troopType: 'medium-infantry',
+        widthUd: 1,
+        depthUd: 1,
+        xUd: 10,
+        yUd: 10,
+        rotationRadians: 0,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.INVALID);
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'movement-allowances').status, 'blocked');
+  assert.match(snapshot.diagnostics.find((entry) => entry.id === 'movement-allowances').text, /exceeds the approved P6 subset budget of 3\.000 UD/i);
+});
+
+test('movement validation grants heavy infantry the operational-zone budget when it starts more than 4 UD from enemies', () => {
+  const preview = createMovementPreview({
+    status: MOVEMENT_PREVIEW_STATUSES.ACCEPTED,
+    segments: [createMovementSegment({
+      commandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+      unitId: 'test-unit-1',
+      startPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+      endPose: { xUd: 10, yUd: 7.5, rotationRadians: 0 },
+      distance: { requestedUd: 2.5, resolvedUd: 2.5, measurementMode: 'front-edge' },
+    })],
+  });
+
+  const snapshot = buildMovementValidationSnapshot({
+    selectedUnit: {
+      id: 'test-unit-1',
+      owner: 'player-1',
+      troopType: 'heavy-infantry',
+      widthUd: 1,
+      depthUd: 0.75,
+      xUd: 10,
+      yUd: 10,
+      rotationRadians: 0,
+    },
+    selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+    preview,
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'movement',
+      activeCorpsId: 'corps-1',
+    },
+    units: [
+      {
+        id: 'test-unit-1',
+        owner: 'player-1',
+        troopType: 'heavy-infantry',
+        widthUd: 1,
+        depthUd: 0.75,
+        xUd: 10,
+        yUd: 10,
+        rotationRadians: 0,
+      },
+      {
+        id: 'test-unit-2',
+        owner: 'player-2',
+        troopType: 'cavalry',
+        widthUd: 1,
+        depthUd: 0.75,
+        xUd: 10,
+        yUd: 4.5,
+        rotationRadians: 0,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.VALID);
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'movement-allowances').status, 'verified');
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'heavy-infantry-operational-zone').status, 'verified');
+  assert.match(snapshot.diagnostics.find((entry) => entry.id === 'heavy-infantry-operational-zone').text, /grants the 3 UD operational-zone budget/i);
+});
+
+test('movement validation blocks heavy infantry previews beyond 2 UD when an enemy starts within 4 UD', () => {
+  const preview = createMovementPreview({
+    status: MOVEMENT_PREVIEW_STATUSES.ACCEPTED,
+    segments: [createMovementSegment({
+      commandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+      unitId: 'test-unit-1',
+      startPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+      endPose: { xUd: 10, yUd: 7.75, rotationRadians: 0 },
+      distance: { requestedUd: 2.25, resolvedUd: 2.25, measurementMode: 'front-edge' },
+    })],
+  });
+
+  const snapshot = buildMovementValidationSnapshot({
+    selectedUnit: {
+      id: 'test-unit-1',
+      owner: 'player-1',
+      troopType: 'heavy-infantry',
+      widthUd: 1,
+      depthUd: 0.75,
+      xUd: 10,
+      yUd: 10,
+      rotationRadians: 0,
+    },
+    selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+    preview,
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'movement',
+      activeCorpsId: 'corps-1',
+    },
+    units: [
+      {
+        id: 'test-unit-1',
+        owner: 'player-1',
+        troopType: 'heavy-infantry',
+        widthUd: 1,
+        depthUd: 0.75,
+        xUd: 10,
+        yUd: 10,
+        rotationRadians: 0,
+      },
+      {
+        id: 'test-unit-2',
+        owner: 'player-2',
+        troopType: 'medium-infantry',
+        widthUd: 1,
+        depthUd: 1,
+        xUd: 10,
+        yUd: 5.8,
+        rotationRadians: 0,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.status, MOVEMENT_VALIDATION_STATUSES.INVALID);
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'movement-allowances').status, 'blocked');
+  assert.equal(snapshot.diagnostics.find((entry) => entry.id === 'heavy-infantry-operational-zone').status, 'blocked');
+  assert.match(snapshot.diagnostics.find((entry) => entry.id === 'heavy-infantry-operational-zone').text, /keeps the 2 UD budget/i);
+});

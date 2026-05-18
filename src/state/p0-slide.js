@@ -15,9 +15,12 @@ import {
   MOVEMENT_SOURCE_STATUSES,
 } from '../engine/movement/index.js';
 import {
+  createInitialMovementState,
   createConfirmationForPreview,
   doesMovementPreviewContainCommand,
+  getFrozenMovementOrderCommandSnapshot,
   getSlideQualifiedMovementDistanceUd,
+  spendCommandPointsForCurrentOrder,
   withMovementValidationSnapshot,
 } from './p0-movement.js';
 
@@ -86,6 +89,7 @@ export function reduceSetSlideMode(gameState, isActive) {
       movement: {
         ...gameState.movement,
         selectedCommandId: null,
+        orderCommandSnapshot: null,
       },
     };
   }
@@ -118,6 +122,7 @@ export function reduceSetSlideMode(gameState, isActive) {
     movement: {
       ...gameState.movement,
       selectedCommandId: MOVEMENT_COMMAND_IDS.SLIDE,
+      orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
     },
   };
 }
@@ -166,6 +171,7 @@ export function reduceSetSlidePreviewDistance(gameState, distanceUd, side, selec
           : null,
         preview,
         confirmation: createConfirmationForPreview(preview),
+        orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
       }),
     };
   }
@@ -199,6 +205,7 @@ export function reduceSetSlidePreviewDistance(gameState, distanceUd, side, selec
       draft,
       preview,
       confirmation: createConfirmationForPreview(preview),
+      orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
     }),
   };
 }
@@ -215,21 +222,23 @@ export function reduceConfirmSlide(gameState, selectedUnit) {
     return gameState;
   }
 
+  const spentCommandPoints = spendCommandPointsForCurrentOrder(gameState);
+  if (!spentCommandPoints.ok) {
+    return spentCommandPoints.nextGameState;
+  }
+
+  const paidGameState = spentCommandPoints.nextGameState;
+
   return {
-    ...gameState,
+    ...paidGameState,
     ...createInitialSlideState(),
-    movement: {
-      ...gameState.movement,
-      selectedCommandId: null,
-      draft: null,
-      preview: createMovementPreview(),
-      confirmation: createMovementConfirmation(),
-    },
-    units: gameState.units.map((unit) =>
+    movement: createInitialMovementState(),
+    units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applySlidePreview(unit, gameState.movement.preview),
+            ...applySlidePreview(unit, paidGameState.movement.preview),
             slideUsedThisMovementPhase: true,
+            stayedThisMovementPhase: false,
           }
         : unit
     ),
