@@ -13,7 +13,14 @@ import {
   MOVEMENT_PREVIEW_STATUSES,
   MOVEMENT_SOURCE_STATUSES,
 } from '../engine/movement/index.js';
-import { createConfirmationForPreview, withMovementValidationSnapshot } from './p0-movement.js';
+import { getUnitMovementBudgetUd } from '../engine/movement/budget.js';
+import {
+  createInitialMovementState,
+  createConfirmationForPreview,
+  getFrozenMovementOrderCommandSnapshot,
+  spendCommandPointsForCurrentOrder,
+  withMovementValidationSnapshot,
+} from './p0-movement.js';
 
 const P0_ADVANCE_LIMIT_UD = 4;
 
@@ -66,8 +73,9 @@ export function clampAdvanceDistance(value, maxDistance = P0_ADVANCE_LIMIT_UD) {
   return clamp(value, 0, maxDistance);
 }
 
-export function getRemainingAdvanceBudgetUd(unit) {
-  return clamp(P0_ADVANCE_LIMIT_UD - (unit.advanceUsedUd ?? 0), 0, P0_ADVANCE_LIMIT_UD);
+export function getRemainingAdvanceBudgetUd(unit, units = []) {
+  const unitMovementBudgetUd = getUnitMovementBudgetUd({ selectedUnit: unit, units });
+  return clamp(unitMovementBudgetUd - (unit.advanceUsedUd ?? 0), 0, unitMovementBudgetUd);
 }
 
 export function reduceSetAdvanceMode(gameState, isActive) {
@@ -82,6 +90,7 @@ export function reduceSetAdvanceMode(gameState, isActive) {
         draft: null,
         preview: createMovementPreview(),
         confirmation: createMovementConfirmation(),
+        orderCommandSnapshot: null,
       },
     };
   }
@@ -102,6 +111,7 @@ export function reduceSetAdvanceMode(gameState, isActive) {
       ? {
           ...gameState.movement,
           selectedCommandId: MOVEMENT_COMMAND_IDS.ADVANCE,
+          orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
         }
       : {
           ...gameState.movement,
@@ -117,9 +127,9 @@ export function reduceSetAdvancePreviewDistance(gameState, distanceUd, selectedU
 
   const previewBase = selectedUnit ? createAdvanceBaseUnit(selectedUnit, gameState.movement.preview) : null;
   const maxDistance = previewBase
-    ? getRemainingAdvanceBudgetUd(previewBase.baseUnit)
+    ? getRemainingAdvanceBudgetUd(previewBase.baseUnit, gameState.units)
     : selectedUnit
-      ? getRemainingAdvanceBudgetUd(selectedUnit)
+      ? getRemainingAdvanceBudgetUd(selectedUnit, gameState.units)
       : P0_ADVANCE_LIMIT_UD;
   const clampedDistance = clampAdvanceDistance(distanceUd, maxDistance);
 
@@ -158,6 +168,7 @@ export function reduceSetAdvancePreviewDistance(gameState, distanceUd, selectedU
           : null,
         preview,
         confirmation: createConfirmationForPreview(preview),
+        orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
       }),
     };
   }
@@ -188,6 +199,7 @@ export function reduceSetAdvancePreviewDistance(gameState, distanceUd, selectedU
       draft,
       preview,
       confirmation: createConfirmationForPreview(preview),
+      orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
     }),
   };
 }
@@ -206,22 +218,24 @@ export function reduceConfirmAdvance(gameState, selectedUnit) {
     return gameState;
   }
 
+  const spentCommandPoints = spendCommandPointsForCurrentOrder(gameState);
+  if (!spentCommandPoints.ok) {
+    return spentCommandPoints.nextGameState;
+  }
+
+  const paidGameState = spentCommandPoints.nextGameState;
+
   return {
-    ...gameState,
+    ...paidGameState,
     ...createInitialAdvanceState(),
-    movement: {
-      ...gameState.movement,
-      selectedCommandId: null,
-      draft: null,
-      preview: createMovementPreview(),
-      confirmation: createMovementConfirmation(),
-    },
-    units: gameState.units.map((unit) =>
+    movement: createInitialMovementState(),
+    units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applyAdvancePreview(unit, gameState.movement.preview),
+            ...applyAdvancePreview(unit, paidGameState.movement.preview),
             slideUsedThisMovementPhase: unit.slideUsedThisMovementPhase
-              || gameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
+              || paidGameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
+            stayedThisMovementPhase: false,
           }
         : unit,
     ),

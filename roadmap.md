@@ -11,7 +11,7 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [x] P3 - Tournament Setup + Terrain + Deployment Foundation
 - [x] P4 - Movement Commands
 - [x] P5 - ZOC + Movement Validation
-- [ ] P6 - Corps + Command System
+- [x] P6 - Corps + Command System
 - [ ] P7 - Charge + Conformation
 - [ ] P8 - Shooting System
 - [ ] P9 - Melee Combat System
@@ -313,7 +313,40 @@ Final P5 handoff state:
 
 ## P6 - Corps + Command System
 
-Status: [ ] Not started
+Final P6 handoff state:
+- `P6-01` deterministic corps fixture is implemented and user-accepted for readability/spacing.
+- `P6-02` command data model and corps context are implemented and already support the current round/corps flow scaffolding.
+- `P6-03` command-range geometry validator is implemented as pure nearest-point measurement with the user-requested strict `< range` boundary and accepted for the current P6 subset.
+- `P6-04` now includes initial reducer wiring at corps activation: selecting an active corps creates a deterministic placeholder CP snapshot and logs the activation roll for replay/audit, while real spending gates remain open.
+- `P6-05` initial in-command snapshot wiring is now implemented: active-corps selection resolves the commander, selected-unit changes recompute the snapshot, and the command-context card shows the resulting status.
+- Battlefield diagnostics now render a selected-unit command link to the active commander, using green for `in-command` and orange for `out-of-command` as a display-only aid.
+- Movement previews now include CP affordability diagnostics for the current frozen order snapshot, and movement confirms spend the approved base/out-of-command order cost from the active corps CP pool.
+- Movement validation now hard-blocks confirms when the command snapshot is structurally illegal for the approved subset, specifically `no active corps`, `no resolved commander`, or `wrong corps`, instead of leaving those states as non-blocking placeholders.
+- Movement validation now also hard-blocks source-sensitive difficult-manoeuvre cases for the current P6 subset while leaving ordinary current-subset moves confirmable; actual difficult-manoeuvre CP charging still stays deferred until the rule classification is source-closed.
+- P6-06 has started with a first enforced movement-budget subset: movement validation now blocks over-budget previews for cavalry, medium infantry, and heavy infantry, heavy infantry operational-zone allowance is measured deterministically from the nearest enemy footprint, and advance/wheel preview clamps now use the same subset budgets.
+- The main battlefield command card now mirrors that same P6 movement-budget subset in visible helper copy and summary labels, so the player sees the active `3 UD` medium-infantry budget and the heavy-infantry `2 UD` versus `3 UD` operational-zone state directly in the panel.
+- P6-07 has started with a first diagnostics readout slice: the right-side command-context card now shows corps activation progress counts plus per-corps `not-yet-activated` / `active` / `spent` status directly from reducer state.
+- The battlefield itself now mirrors part of that P6-07 progression: active-corps units render pending/done status outlines, selected units keep the stronger selected emphasis, and spent corps remain visibly marked even while disabled.
+- The right-side command-context card now also surfaces a first practical CP readout from reducer state: available, spent, free, last roll, and recent ledger entries are visible without opening debug tooling.
+- The same right-side card now also renders a dedicated activation-roll display block, so the current D6 result plus rolled-CP and free-CP start components are visible as a compact visual snapshot instead of only as summary text.
+- The same right-side card now also shows the live current-order CP preview for confirmable movement orders, including total cost, free-CP usage, and component breakdown, so order pricing is visible before the player commits.
+- The same right-side card now also mirrors current order-level blocked diagnostics from the movement snapshot, so command-legality, commander-engaged, difficult-manoeuvre, and CP-cost blockers are visible on the persistent diagnostics surface instead of only in the left movement panel.
+- The same right-side card now also renders a compact commander profile block with resolved quality and range, so the player can read the active corps command envelope directly from the snapshot instead of only from the longer commander label.
+- Non-included commander movement now consumes the corps free CP when the commander starts moving, and a commander-move reset refunds it, so the CP readout matches the actual general-move state instead of showing the free CP as untouched.
+- Eligible commander-led unit moves now also have an explicit free-CP choice in the command panel: included commanders can spend the corps free CP on their unit's base order, and the same reducer hook is prepared for later attached non-included commander movement without rebinding the CP model again.
+- Setup progression UX is now less fragile during the full setup flow: the left column keeps `Naechster Schritt` / `In die Schlacht` pinned at the top across all setup steps instead of placing it below the terrain/setup helper cards.
+- The battlefield reset action is now explicitly selected-unit scoped and refunds that unit's approved P6 CP usage from the ledger, so restoring a moved unit also restores the corresponding corps CP state instead of leaving the command display underfunded.
+- P6-08 handoff prep is now concrete instead of vague: the board carries an explicit user smoke checklist for setup progression, setup-baseline reset behavior, CP refund consistency, command-range readability, corps progression, subset budgets, and blocked-order diagnostics.
+- The battlefield now also renders the active command envelope more clearly for the approved P6 subset: the active commander gets a persistent visible command-range halo labelled in `UD`, instead of hiding range visualization behind hover-only helper rings.
+- The right-side command-context card now adds a compact `CP Bilanz` visualization and a pip-based D6 face for the activation roll, so CP pool state and the current roll snapshot are easier to read without changing reducer ownership of the numbers.
+- The activation-roll card now also shows the concrete `(Wurf + Generalwert) / 2` formula behind the rolled CP result, so the user can see the die contribution and commander-value contribution directly in the diagnostics surface.
+- The earlier future mandatory-move color hook is now visible on-table as well: active-corps units with unresolved mandatory-move flags render an explicit red badge in addition to the red outline, while the rule path itself remains outside approved P6 scope.
+- A real round-flow bug was also fixed during P6-08 smoke feedback: after player 1 finished all corps and stepped through the placeholder post-movement phases, player 2 could land in an empty corps-selection dialog. The turn-start reducer now resets the corps-activation cycle per entering player turn, and automated state coverage now exercises the full player-switch path.
+- P6-08 smoke now also has a reproducible blocked-order path instead of relying on luck: the battle command panel can temporarily mark the active commander as engaged, which exercises the already-existing blocked diagnostics and reducer gating without claiming any new P7 combat behavior.
+- User smoke feedback on 2026-05-18 also clarified the intended later rule direction for the commander-engaged pricing path: when the commander is in combat and the moved unit is not the commander's own attached or included group, the future source-closed behavior should likely be `+1 CP`; this remains tracked as open pricing closure, not implemented P6 logic.
+- P6 rough-functional command/corps work now also includes user-accepted `P6-09` commander attach skeleton behavior: the selected commander enters an attach-targeting mode with visible remaining-radius preview, eligible host highlighting, click-to-place ghost behind the host, and confirm-to-attach. Voluntary same-turn detach is no longer offered; the temporary relation is cleared automatically on player turn end. Remaining pricing/contact details stay explicit source-checked refinement items rather than hidden assumptions.
+
+Status: [x] Complete - accepted by user on 2026-05-18; PR handoff in progress
 
 Goals:
 - Corps activation.
@@ -337,6 +370,31 @@ Success criteria:
 - P4 command skeleton is replaced or completed by verified CP and command-range rules.
 - Out-of-command and command-range checks produce explanations.
 - User approves P6 before P7 begins.
+
+Current planning state:
+- P6 execution board is drafted in P6_todo.md, approved by user, and active for phased implementation.
+- P6 fixture target is defined for both players: three corps each, commander qualities (`Brilliant`, `Competent`, `Ordinary`), and practical side-by-side deployment-zone placement for command tests.
+- Command range anchor for P6 is fixed by user quote and must be source-locked in P6-00: straight-line distance between nearest points on commander base and selected unit/group base.
+- Movement-phase corps activation in P6 is planned as open-order one-by-one activation with no same-phase re-activation after a corps is finished.
+- P6 CP planning anchor includes roll-on-activation flow and formula cross-check (`CP = ceil((1D6 + commander value) / 2) + 1 free CP`), with unresolved details kept in open verification until source-confirmed.
+- P6 command-cost subset is planned around in-range cost, out-of-range surcharge, and difficult-manoeuvre surcharge for implemented movement actions; charge/rally-dependent costs remain phase-gated hooks until owning phases.
+- P6-00 planning/source-lock card is complete: command-system blockers and source-sensitive ambiguities are explicitly tracked in docs/rules/open-verification.md before engine implementation starts.
+- P6-01 fixture implementation is agent-side complete and validated (`npm run test` green, build green): deterministic two-player three-corps command fixture units are now seeded with requested compositions, commander-quality/range metadata, and base-profile metadata; manual battlefield acceptance is pending.
+- P6-02 command data model and corps context are agent-side complete and validated: the command context now carries serializable corps lifecycle state, CP/commander/in-command skeleton fields, and explicit active-corps completion hooks; manual acceptance is pending.
+- P6-03 pure command range is validated in automated tests with the user-requested strict `< range` boundary; manual acceptance of practical behavior is still pending.
+- P6-04 has moved past pure engine helpers into first reducer wiring: corps activation now seeds a deterministic placeholder roll plus CP state for the active corps, but spending integration and final source-backed commander-value/random plumbing are still open.
+- P6-04 also now debits the approved subset order cost at movement confirm time and blocks previews that would exceed the remaining active-corps CP pool; difficult-manoeuvre and later-phase surcharges remain open.
+- A separate difficult-manoeuvre classifier seam now exists for movement previews, and source-sensitive cases now conservatively block confirmation rather than slipping through as advisory-only diagnostics; CP charging still remains unchanged until the open trigger set is source-closed.
+- The current P6 subset now also conservatively blocks movement confirmation when the active commander snapshot is marked `engaged in combat`, rather than pretending the open commander-engaged surcharge can already be priced correctly.
+- P6-05 initial reducer wiring is in place for command snapshots: the active corps now resolves its commander from the fixture, and selecting a unit updates `in-command` versus `out-of-command` state in the serializable command context and side-panel diagnostics.
+- Movement preview state now preserves a frozen order-start command snapshot across chained move commands. The user later source-closed the timing rule from `Rules.pdf` p.26: command range is evaluated when the order is given, so later second or third moves require a fresh check with a new order.
+- The user also source-closed P6 movement-order atomicity on 2026-05-18 from the `Rules.pdf` order wording: one CP grants one fully resolved move order to one unit or group, so movement steps cannot be interleaved across units. Existing reducer flow already blocks unit switching during a pending preview and clears the preview if corps context changes.
+- The approved P6 subset now also blocks movement confirmation when that frozen/live command snapshot is structurally illegal: no active corps, unresolved active-corps commander, or a selected unit outside the active corps.
+- Battlefield rendering now exposes the same command snapshot visually with a commander link line for the selected unit, reducing ambiguity while command gating is still being built out.
+- Movement-budget subset work has started in engine/state code: validation now reports and blocks approved subset overages for cavalry, medium infantry, and heavy infantry; heavy infantry can reach `3 UD` only when it starts more than `4 UD` from the nearest enemy footprint in the current conservative subset; reducer preview clamps now match that subset for advance and wheel.
+- The remaining move-interleaving question is now better supported by OCR and source-note reads in favor of `one order = one resolved move`, but it is still held open until direct Rules/Errata verification.
+- Free movement drag for non-included generals is now staged as a movement-phase commander path with a `5 UD` cap under active-player plus active-corps gating; this is an implementation bridge pending full command-cost validation.
+- Commander attach command flow is implemented and accepted as late-P6 work (`P6-09`); voluntary same-turn detach is treated as disallowed in the current slice, while combat-lock constraints and exact attach/end-of-turn pricing-timing remain explicitly deferred to later source-closed work.
 
 ## P7 - Charge + Conformation
 

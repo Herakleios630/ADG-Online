@@ -39,3 +39,8 @@ export {
   createMovementValidationSnapshot,
   MOVEMENT_VALIDATION_STATUSES,
 } from './validation.js';
+
+export {
+  classifyCurrentMovementManoeuvre,
+  DIFFICULT_MANOEUVRE_RESULTS,
+} from './manoeuvre-classification.js';

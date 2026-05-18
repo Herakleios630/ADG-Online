@@ -353,6 +353,115 @@ Use this compact entry format for new items:
 	Why it matters: P5 legality for segmented `advance`/`wheel`/`slide` previews depends on these interaction rules and errata clarifications.
 	Next check: errata-led source check for in-place turning allowances, alignment-before-charge allowances, and blocked lateral movement cases under ZOC.
 
+## P6-00 Command-System Source Lock Notes
+
+- P6 source-review status: corps activation order, command points, command-cost modifiers, and command-coupled movement limits are source-sensitive; this section lists concrete blocker IDs for the approved P6 subset.
+- P6 implementation reminder: unresolved items below must be surfaced as `needs-source-check` diagnostics rather than treated as tournament-complete command legality.
+
+- ID: command.corps-activation-order-and-lock
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement/command sequence sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: what exact sequence constraints apply to corps activation choice, completion lock, and re-activation prohibition within one movement phase?
+	Why it matters: P6 must enforce one-by-one corps activation without allowing replay-breaking or rule-breaking re-activation.
+	Next check: direct source pass over movement sequence wording and any errata clarifications.
+
+- ID: command.range-nearest-point-measurement
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` command range wording, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: confirm that command range uses straight-line distance between nearest points on commander base and selected unit/group base in all relevant cases, including grouped movement and boundary-equality cases.
+	Why it matters: P6 command range validator depends on this geometric invariant; ambiguity would create non-deterministic in-command classification at range boundaries.
+	Next check: verify exact wording, group treatment, and inclusive/exclusive boundary handling from authoritative source text.
+
+- ID: command.cp-formula-and-rounding
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` command points section, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: confirm exact CP formula, rounding direction, and free-CP handling, including commander-value mapping and any exceptions.
+	Why it matters: CP generation must be deterministic and auditable; wrong rounding or value mapping invalidates all order costs.
+	Next check: direct command-points source check for formula and examples.
+
+- ID: command.order-cost-components
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` orders section, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: which exact CP components are additive for an order (in-range base cost, out-of-range surcharge, difficult manoeuvre surcharge, commander-engaged surcharge), what is the official resolution order, and does the commander-engaged `+1 CP` apply specifically when the moved unit is not the commander's own attached or included group?
+	Why it matters: P6 command-cost diagnostics and reducer gates need deterministic component accounting.
+	Next check: direct orders wording pass with explicit additive examples, especially the commander-in-combat exception boundary for attached or included groups. Current P6 policy is conservative: unresolved difficult-manoeuvre and commander-engaged cases block movement confirmation instead of being auto-priced from incomplete source closure.
+
+- ID: command.order-timing-in-command-snapshot
+	Status: resolved
+	Area: movement
+	Sources: `Rules.pdf` p.26, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: is out-of-command cost checked when the order is given, so a unit or group that starts in command keeps the normal order cost even if its later movement path ends outside command range?
+	Why it matters: P6 should freeze order-cost command status at order start if that is the official rule, instead of re-pricing later sub-moves in the same declared order.
+	Next check: resolved for timing by the page-26 rule text reported by the user: `Command range is evaluated at the moment the order is given. A commander can give an order, move to get in range and give another order.` Later second or third moves must therefore perform a fresh command-range check when that new order is given.
+
+- ID: command.rally-and-charge-cp-gating
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` orders/charge/rally sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: how should rally and uncontrolled-charge CP entries be represented before full charge/melee lifecycle phases are implemented?
+	Why it matters: P6 must avoid fake completeness while still preserving correct future CP hooks.
+	Next check: define a source-backed placeholder policy for pre-P7/P9 command costs.
+
+- ID: command.attach-detach-cost-and-timing
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` commander movement and orders wording, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: for a non-included commander attaching during movement, what is the exact official cost/timing model: does the attach sequence consume only the commander's movement allowance, also consume the corps free CP or a normal order cost, when exactly does the relation end, and what exact restrictions apply if enemies/contact/combat are involved? Current P6 reading from the user's direct rules summary treats voluntary same-turn detach as not allowed.
+	Why it matters: P6 now exposes a movement-only attach preview skeleton and automatic turn-end release, but exact tournament-legal pricing, release timing, and contact constraints must be source-closed before this path can be claimed rule-complete.
+	Next check: direct source pass over commander movement and attached/included wording, with explicit confirmation of cost examples, end-of-turn release wording, and combat/contact exceptions.
+
+- ID: movement.multiple-move-and-third-move-restrictions
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` movement multiple-movements sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: what exact constraints govern movement counts, 4 UD enemy-distance condition, and third-movement restrictions by troop class and commander presence once order atomicity is assumed?
+	Why it matters: P6 movement budget and command-cost legality can be wrong if repeated movement constraints are omitted or misapplied.
+	Next check: direct source pass over movement-count restrictions and exception classes. Order atomicity itself is now treated as source-closed from the user-supplied `Rules.pdf` quotations: `Each CP allows one move order to be given to a unit or a group of units`, `The player then performs ... all the movement, charges and rally attempts ... up to the CP available`, and `A movement can be performed by a unit or a group of units.` Remaining open work is the exact third-move and exception structure, not whether one order may be paused and interleaved with another.
+
+- ID: movement.order-atomicity-and-no-interleaving
+	Status: resolved
+	Area: movement
+	Sources: `Rules.pdf` command/orders wording as quoted by the user on 2026-05-18, `Errata_ADG_V4_English.pdf`
+	Question: may a unit or group begin a movement order, pause it, activate another unit/group, and then return to finish the first order?
+	Why it matters: reducer movement flow must know whether an order is one atomic action or a pausable sequence.
+	Next check: resolved for P6. Treat one CP as one fully resolved move order for one unit/group, with no interleaving between units. Remaining multiple-move edge cases stay tracked separately under `movement.multiple-move-and-third-move-restrictions`.
+
+- ID: movement.difficult-manoeuvre-classification
+	Status: errata-check
+	Area: movement
+	Sources: `Rules.pdf` difficult manoeuvre sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: which maneuvers are classified as difficult for standard and unmanoeuvrable cases, and how this classification interacts with CP surcharges?
+	Why it matters: P6 uses difficult-manoeuvre as a CP-cost input; misclassification corrupts command legality.
+	Next check: source/errata cross-check for quarter-turn, half-turn, extension/contraction, reduced movement, ZoC-exit cases, special troop exceptions, and third-movement cases. Current policy is conservative: P6 keeps ordinary current-subset moves confirmable with a verified `no difficult trigger detected` result, but source-sensitive or explicitly marked difficult-manoeuvre cases now block confirmation instead of remaining advisory-only. The live reducer still does not auto-charge difficult-manoeuvre CP from the present advance/wheel/slide subset until the trigger set is source-closed.
+
+- ID: movement.commander-movement-budget
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` commander movement sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: confirm commander movement allowance and restrictions, including interactions with corps command effects in the same phase.
+	Why it matters: P6 fixture and command-range expectations depend on correct commander movement behavior.
+	Next check: direct commander movement wording check plus errata cross-reference.
+
+- ID: command.commander-attach-detach-legality
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` commander movement and command sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: confirm exact legality, cost, and placement procedure when a non-included commander attaches to or detaches from a unit, including range limits and whether wheel/turn is involved.
+	Why it matters: P6 commander command-actions must be reducer-deterministic and rule-conform; placement ambiguity would break replay consistency.
+	Next check: direct source pass over commander join/leave wording and diagrams, with errata cross-check.
+
+- ID: command.commander-detach-combat-lock-timing
+	Status: open
+	Area: movement
+	Sources: `Rules.pdf` movement/melee/contact lifecycle sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
+	Question: in which combat/contact states a commander may no longer leave an attached unit, and at what exact timing this lock applies or ends.
+	Why it matters: attach/detach can be staged in P6, but combat-lock behavior must remain correctly phase-gated for P7+ without illegal early assumptions.
+	Next check: verify contact/melee timing language and commander-engagement errata interaction.
+
 ## P2-01 Geometry Assumptions Note
 
 - P2 documentation boundary: geometry labels such as `front`, `leftFlank`, `rightFlank`, `rear`, `boundary`, and `ambiguous` are accepted as pure geometry/debug outputs for this phase.

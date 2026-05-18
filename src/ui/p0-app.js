@@ -55,6 +55,17 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function toCorpsSlotId(corpsId) {
+  const raw = String(corpsId ?? '').toLowerCase();
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw.replaceAll('_', '-');
+  const match = normalized.match(/corps-(\d+)/);
+  return match ? `corps-${match[1]}` : null;
+}
+
 const battlefieldPanSession = {
   active: false,
   dispatch: null,
@@ -427,6 +438,7 @@ function renderNewGame(state) {
       </div>
       <div class="screen-actions">
         <button class="shell-button is-active" type="button" data-action="start-new-game">Zum Setup</button>
+        <button class="shell-button" type="button" data-action="start-direct-battle">Direkt zur Schlacht</button>
         <button class="ghost-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.MAIN_MENU}">Zurueck</button>
       </div>
     </section>
@@ -659,33 +671,72 @@ export function renderApp(container, state, dispatch) {
     });
   }
 
-  const setupPreviousButton = container.querySelector('[data-action="setup-previous"]');
-  if (setupPreviousButton) {
-    setupPreviousButton.addEventListener('click', () => {
+  const startDirectBattleButton = container.querySelector('[data-action="start-direct-battle"]');
+  if (startDirectBattleButton) {
+    startDirectBattleButton.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.START_DIRECT_BATTLE });
+    });
+  }
+
+  container.querySelectorAll('[data-action="setup-previous"]').forEach((button) => {
+    button.addEventListener('click', () => {
       dispatch({ type: ACTION_TYPES.GO_TO_PREVIOUS_SETUP_STEP });
     });
-  }
+  });
 
-  const setupLockButton = container.querySelector('[data-action="setup-lock"]');
-  if (setupLockButton) {
-    setupLockButton.addEventListener('click', () => {
+  container.querySelectorAll('[data-action="setup-lock"]').forEach((button) => {
+    button.addEventListener('click', () => {
       dispatch({ type: ACTION_TYPES.LOCK_CURRENT_SETUP_STEP });
     });
-  }
+  });
 
-  const setupNextButton = container.querySelector('[data-action="setup-next"]');
-  if (setupNextButton) {
-    setupNextButton.addEventListener('click', () => {
+  container.querySelectorAll('[data-action="dismiss-setup-guide"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.DISMISS_CURRENT_SETUP_GUIDE });
+    });
+  });
+
+  container.querySelectorAll('[data-action="setup-next"]').forEach((button) => {
+    button.addEventListener('click', () => {
       dispatch({ type: ACTION_TYPES.ADVANCE_SETUP_STEP });
     });
-  }
+  });
 
-  const completeSetupButton = container.querySelector('[data-action="complete-setup"]');
-  if (completeSetupButton) {
-    completeSetupButton.addEventListener('click', () => {
+  container.querySelectorAll('[data-action="complete-setup"]').forEach((button) => {
+    button.addEventListener('click', () => {
       dispatch({ type: ACTION_TYPES.COMPLETE_SETUP });
     });
-  }
+  });
+
+  container.querySelectorAll('[data-action="round-begin"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.ROUND_BEGIN });
+    });
+  });
+
+  container.querySelectorAll('[data-action="request-next-corps"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+    });
+  });
+
+  container.querySelectorAll('[data-action="confirm-next-corps"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.CONFIRM_NEXT_CORPS });
+    });
+  });
+
+  container.querySelectorAll('[data-action="skip-remaining-corps"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.SKIP_REMAINING_CORPS });
+    });
+  });
+
+  container.querySelectorAll('[data-action="advance-round-phase"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+    });
+  });
 
   const battlefieldSurface = container.querySelector('[data-battlefield-surface]');
   const battlefieldProfile = getBattlefieldProfile(state.game.battlefieldProfileId);
@@ -696,10 +747,34 @@ export function renderApp(container, state, dispatch) {
   const selectedSetupObject = state.game.setup.setupObjects.placeholders.find(
     (setupObject) => setupObject.id === state.game.setup.setupObjects.selectedObjectId,
   ) || null;
-  const remainingAdvanceBudgetUd = selectedUnit ? getRemainingAdvanceBudgetUd(selectedUnit) : 4;
+  const remainingAdvanceBudgetUd = selectedUnit ? getRemainingAdvanceBudgetUd(selectedUnit, state.game.units) : 4;
   const maxAdvanceUd = selectedUnit ? Math.min(remainingAdvanceBudgetUd, selectedUnit.yUd) : 4;
   const canDragUnitsInSetup = state.game.setup.isActive
     && (state.game.setup.currentStepId === 'deployment' || state.game.setup.currentStepId === 'ready');
+  const activeCorpsSlotId = toCorpsSlotId(state.game.commandContext.activeCorpsId);
+  const selectedUnitCorpsSlotId = toCorpsSlotId(selectedUnit?.corpsId);
+  const selectedCommanderPreview = state.game.commanderFreeMovePreview?.status === 'ready'
+    && state.game.commanderFreeMovePreview.mode === 'move'
+    && state.game.commanderFreeMovePreview.unitId === selectedUnit?.id
+    ? state.game.commanderFreeMovePreview
+    : null;
+  const hasPendingCommanderPreview = state.game.commanderFreeMovePreview?.status === 'targeting'
+    || state.game.commanderFreeMovePreview?.status === 'ready';
+  const selectedCommanderSpentUd = Number(selectedCommanderPreview?.nextSpentUd ?? selectedUnit?.advanceUsedUd ?? 0);
+  const selectedCommanderRemainingBudgetUd = Math.max(0, 5 - selectedCommanderSpentUd);
+  const canDragFreeCommanderInBattle = !state.game.setup.isActive
+    && state.game.commandContext.currentPhaseId === 'movement'
+    && selectedUnit !== null
+    && selectedUnit.isCommander
+    && !selectedUnit.hasIncludedCommander
+    && !selectedUnit.attachedUnitId
+    && selectedCommanderRemainingBudgetUd > 0
+    && selectedUnit.owner === state.game.commandContext.activePlayerId
+    && Boolean(activeCorpsSlotId && selectedUnitCorpsSlotId && activeCorpsSlotId === selectedUnitCorpsSlotId)
+    && !hasPendingCommanderPreview
+    && !state.game.advanceModeActive
+    && !state.game.slideModeActive
+    && !state.game.wheelModeActive;
   const isTerrainPlacementStep = state.game.setup.isActive
     && (state.game.setup.currentStepId === 'terrain' || state.game.setup.currentStepId === 'terrain-adjustment');
   const isCampPlacementStep = state.game.setup.isActive && state.game.setup.currentStepId === 'camps';
@@ -736,10 +811,80 @@ export function renderApp(container, state, dispatch) {
   const cancelMovementPreviewButton = container.querySelector('[data-action="cancel-movement-preview"]');
   if (cancelMovementPreviewButton) {
     cancelMovementPreviewButton.addEventListener('click', () => {
+      const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
+      const hasCommanderPreview = Boolean(
+        state.game.commanderFreeMovePreview?.status !== 'idle'
+          && state.game.commanderFreeMovePreview.unitId === selectedUnit?.id,
+      );
+      const canResetCommanderFreeMove = Boolean(
+        selectedUnit
+          && selectedUnit.isCommander
+          && !selectedUnit.hasIncludedCommander
+          && !state.game.setup.isActive
+          && state.game.commandContext.currentPhaseId === 'movement'
+          && Number.isFinite(selectedUnit.commanderMovePhaseStartXUd)
+          && Number.isFinite(selectedUnit.commanderMovePhaseStartYUd)
+          && (selectedUnit.advanceUsedUd ?? 0) > 0,
+      );
+
       stopBattlefieldAdvanceDragSession();
       stopBattlefieldSlideDragSession();
       stopBattlefieldWheelDragSession();
+
+      if (hasCommanderPreview) {
+        dispatch({ type: ACTION_TYPES.CANCEL_COMMANDER_FREE_MOVE_PREVIEW });
+        return;
+      }
+
+      if (canResetCommanderFreeMove) {
+        dispatch({
+          type: ACTION_TYPES.RESET_COMMANDER_FREE_MOVE,
+          unitId: selectedUnit.id,
+        });
+        return;
+      }
+
       dispatch({ type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
+    });
+  }
+
+  const stayButton = container.querySelector('[data-action="mark-unit-stay"]');
+  if (stayButton) {
+    stayButton.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.MARK_UNIT_STAY,
+        unitId: state.game.selectedUnitId,
+      });
+    });
+  }
+
+  const useFreeCommandPointToggle = container.querySelector('[data-action="toggle-use-free-command-point"]');
+  if (useFreeCommandPointToggle) {
+    useFreeCommandPointToggle.addEventListener('change', (event) => {
+      dispatch({
+        type: ACTION_TYPES.SET_USE_FREE_COMMAND_POINT_FOR_ORDER,
+        isActive: event.target.checked,
+      });
+    });
+  }
+
+  const commanderEngagedDiagnosticToggle = container.querySelector('[data-action="toggle-commander-engaged-diagnostic"]');
+  if (commanderEngagedDiagnosticToggle) {
+    commanderEngagedDiagnosticToggle.addEventListener('change', (event) => {
+      dispatch({
+        type: ACTION_TYPES.SET_COMMANDER_ENGAGED_DIAGNOSTIC,
+        isActive: event.target.checked,
+      });
+    });
+  }
+
+  const attachCommanderButton = container.querySelector('[data-action="attach-commander"]');
+  if (attachCommanderButton) {
+    attachCommanderButton.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.ATTACH_COMMANDER,
+        unitId: state.game.selectedUnitId,
+      });
     });
   }
 
@@ -946,6 +1091,14 @@ export function renderApp(container, state, dispatch) {
 
   container.querySelectorAll('[data-action="select-unit"]').forEach((button) => {
     button.addEventListener('click', () => {
+      const attachPreviewActive = state.game.commanderFreeMovePreview?.status === 'targeting'
+        && state.game.commanderFreeMovePreview?.mode === 'attach'
+        && state.game.commanderFreeMovePreview?.unitId === state.game.selectedUnitId;
+      if (attachPreviewActive) {
+        dispatch({ type: ACTION_TYPES.ATTACH_COMMANDER, unitId: button.dataset.unitId });
+        return;
+      }
+
       dispatch({ type: ACTION_TYPES.SELECT_UNIT, unitId: button.dataset.unitId });
     });
 
@@ -954,7 +1107,7 @@ export function renderApp(container, state, dispatch) {
         return;
       }
 
-      if (canDragUnitsInSetup && state.game.selectedUnitId === button.dataset.unitId) {
+      if ((canDragUnitsInSetup || canDragFreeCommanderInBattle) && state.game.selectedUnitId === button.dataset.unitId) {
         event.preventDefault();
         suppressNextBattlefieldSurfaceClick = true;
         startBattlefieldUnitDrag({
@@ -964,6 +1117,14 @@ export function renderApp(container, state, dispatch) {
           battlefieldProfile,
           unitId: button.dataset.unitId,
           unit: selectedUnit,
+          moveBudgetUd: canDragFreeCommanderInBattle ? selectedCommanderRemainingBudgetUd : null,
+          dragSpentUdAtStart: canDragFreeCommanderInBattle ? selectedCommanderSpentUd : null,
+          dragOrigin: canDragFreeCommanderInBattle
+            ? {
+                xUd: selectedCommanderPreview?.xUd ?? selectedUnit.xUd,
+                yUd: selectedCommanderPreview?.yUd ?? selectedUnit.yUd,
+              }
+            : null,
           onSuppressNextSurfaceClick: () => {
             suppressNextBattlefieldSurfaceClick = true;
           },

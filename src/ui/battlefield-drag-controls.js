@@ -23,6 +23,10 @@ const battlefieldUnitDragSession = {
   battlefieldProfile: null,
   unitId: null,
   footprint: null,
+  dragOriginXUd: null,
+  dragOriginYUd: null,
+  maxDistanceUd: null,
+  dragSpentUdAtStart: null,
   suppressSurfaceClick: null,
 };
 
@@ -84,7 +88,34 @@ function stopBattlefieldUnitDragSession() {
   battlefieldUnitDragSession.battlefieldProfile = null;
   battlefieldUnitDragSession.unitId = null;
   battlefieldUnitDragSession.footprint = null;
+  battlefieldUnitDragSession.dragOriginXUd = null;
+  battlefieldUnitDragSession.dragOriginYUd = null;
+  battlefieldUnitDragSession.maxDistanceUd = null;
+  battlefieldUnitDragSession.dragSpentUdAtStart = null;
   battlefieldUnitDragSession.suppressSurfaceClick = null;
+}
+
+function clampPointToMoveBudget(pointUd, dragOriginXUd, dragOriginYUd, maxDistanceUd) {
+  if (!Number.isFinite(maxDistanceUd) || maxDistanceUd <= 0) {
+    return pointUd;
+  }
+
+  if (!Number.isFinite(dragOriginXUd) || !Number.isFinite(dragOriginYUd)) {
+    return pointUd;
+  }
+
+  const deltaX = pointUd.xUd - dragOriginXUd;
+  const deltaY = pointUd.yUd - dragOriginYUd;
+  const distance = Math.hypot(deltaX, deltaY);
+  if (distance <= maxDistanceUd || distance === 0) {
+    return pointUd;
+  }
+
+  const scale = maxDistanceUd / distance;
+  return {
+    xUd: dragOriginXUd + (deltaX * scale),
+    yUd: dragOriginYUd + (deltaY * scale),
+  };
 }
 
 function stopBattlefieldTerrainDragSession() {
@@ -161,12 +192,22 @@ function handleBattlefieldUnitDragMove(event) {
     battlefieldUnitDragSession.battlefieldProfile,
     battlefieldUnitDragSession.footprint,
   );
+  const clampedPointUd = clampPointToMoveBudget(
+    pointUd,
+    battlefieldUnitDragSession.dragOriginXUd,
+    battlefieldUnitDragSession.dragOriginYUd,
+    battlefieldUnitDragSession.maxDistanceUd,
+  );
 
   battlefieldUnitDragSession.dispatch({
     type: ACTION_TYPES.SET_UNIT_POSITION,
     unitId: battlefieldUnitDragSession.unitId,
-    xUd: Number(pointUd.xUd.toFixed(3)),
-    yUd: Number(pointUd.yUd.toFixed(3)),
+    xUd: Number(clampedPointUd.xUd.toFixed(3)),
+    yUd: Number(clampedPointUd.yUd.toFixed(3)),
+    dragOriginXUd: battlefieldUnitDragSession.dragOriginXUd,
+    dragOriginYUd: battlefieldUnitDragSession.dragOriginYUd,
+    maxDistanceUd: battlefieldUnitDragSession.maxDistanceUd,
+    dragSpentUdAtStart: battlefieldUnitDragSession.dragSpentUdAtStart,
   });
 }
 
@@ -392,6 +433,9 @@ export function startBattlefieldUnitDrag({
   battlefieldProfile,
   unitId,
   unit,
+  moveBudgetUd,
+  dragSpentUdAtStart,
+  dragOrigin,
   onSuppressNextSurfaceClick,
 }) {
   battlefieldUnitDragSession.active = true;
@@ -408,6 +452,18 @@ export function startBattlefieldUnitDrag({
         depthUd: unit.depthUd,
         rotationRadians: unit.rotationRadians ?? 0,
       }
+    : null;
+  battlefieldUnitDragSession.dragOriginXUd = Number.isFinite(dragOrigin?.xUd)
+    ? Number(dragOrigin.xUd)
+    : Number(unit?.xUd);
+  battlefieldUnitDragSession.dragOriginYUd = Number.isFinite(dragOrigin?.yUd)
+    ? Number(dragOrigin.yUd)
+    : Number(unit?.yUd);
+  battlefieldUnitDragSession.maxDistanceUd = Number.isFinite(moveBudgetUd)
+    ? Number(moveBudgetUd)
+    : null;
+  battlefieldUnitDragSession.dragSpentUdAtStart = Number.isFinite(dragSpentUdAtStart)
+    ? Number(dragSpentUdAtStart)
     : null;
   battlefieldUnitDragSession.suppressSurfaceClick = onSuppressNextSurfaceClick;
 }

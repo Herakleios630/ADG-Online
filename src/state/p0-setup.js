@@ -151,6 +151,7 @@ export function createInitialSetupState(
     isActive,
     currentStepId: SETUP_STEP_IDS.FORMAT,
     lockedStepIds: [],
+    dismissedGuideStepIds: [],
     terrain: createTerrainSetupState([], null, battlefieldProfile),
     setupObjects: createSetupObjectsState(createMandatoryCampPlaceholders(), null),
     battlePlan: createBattlePlanSetupState(),
@@ -188,6 +189,28 @@ export function reduceAdvanceSetupStep(state) {
       setup: {
         ...state.game.setup,
         currentStepId: getNextSetupStepId(state.game.setup.currentStepId),
+      },
+    },
+  };
+}
+
+export function reduceDismissCurrentSetupGuide(state) {
+  if (!state.game.setup.isActive) {
+    return state;
+  }
+
+  const currentStepId = state.game.setup.currentStepId;
+  if (state.game.setup.dismissedGuideStepIds.includes(currentStepId)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    game: {
+      ...state.game,
+      setup: {
+        ...state.game.setup,
+        dismissedGuideStepIds: [...state.game.setup.dismissedGuideStepIds, currentStepId],
       },
     },
   };

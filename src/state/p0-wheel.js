@@ -16,7 +16,13 @@ import {
   MOVEMENT_SOURCE_STATUSES,
 } from '../engine/movement/index.js';
 import { getRemainingAdvanceBudgetUd } from './p0-advance.js';
-import { createConfirmationForPreview, withMovementValidationSnapshot } from './p0-movement.js';
+import {
+  createInitialMovementState,
+  createConfirmationForPreview,
+  getFrozenMovementOrderCommandSnapshot,
+  spendCommandPointsForCurrentOrder,
+  withMovementValidationSnapshot,
+} from './p0-movement.js';
 
 const MAX_WHEEL_ANGLE_RADIANS = Math.PI / 2;
 
@@ -81,6 +87,7 @@ export function reduceSetWheelMode(gameState, isActive) {
         draft: null,
         preview: createMovementPreview(),
         confirmation: createMovementConfirmation(),
+        orderCommandSnapshot: null,
       },
     };
   }
@@ -106,6 +113,7 @@ export function reduceSetWheelMode(gameState, isActive) {
     movement: {
       ...gameState.movement,
       selectedCommandId: MOVEMENT_COMMAND_IDS.WHEEL,
+      orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
     },
   };
 }
@@ -117,7 +125,7 @@ export function reduceSetWheelPreviewAngle(gameState, angleRadians, pivotSide, s
 
   const previewBase = selectedUnit ? createWheelBaseUnit(selectedUnit, gameState.movement.preview) : null;
   const maxBudgetAngleRadians = previewBase
-    ? getWheelAngleRadiansForDistanceUd(getRemainingAdvanceBudgetUd(previewBase.baseUnit))
+    ? getWheelAngleRadiansForDistanceUd(getRemainingAdvanceBudgetUd(previewBase.baseUnit, gameState.units))
     : MAX_WHEEL_ANGLE_RADIANS;
   const clampedAngleRadians = clampWheelAngleRadians(Math.min(angleRadians, maxBudgetAngleRadians));
 
@@ -158,6 +166,7 @@ export function reduceSetWheelPreviewAngle(gameState, angleRadians, pivotSide, s
           : null,
         preview,
         confirmation: createConfirmationForPreview(preview),
+        orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
       }),
     };
   }
@@ -189,6 +198,7 @@ export function reduceSetWheelPreviewAngle(gameState, angleRadians, pivotSide, s
       draft,
       preview,
       confirmation: createConfirmationForPreview(preview),
+      orderCommandSnapshot: getFrozenMovementOrderCommandSnapshot(gameState),
     }),
   };
 }
@@ -204,22 +214,24 @@ export function reduceConfirmWheel(gameState, selectedUnit) {
     return gameState;
   }
 
+  const spentCommandPoints = spendCommandPointsForCurrentOrder(gameState);
+  if (!spentCommandPoints.ok) {
+    return spentCommandPoints.nextGameState;
+  }
+
+  const paidGameState = spentCommandPoints.nextGameState;
+
   return {
-    ...gameState,
+    ...paidGameState,
     ...createInitialWheelState(),
-    movement: {
-      ...gameState.movement,
-      selectedCommandId: null,
-      draft: null,
-      preview: createMovementPreview(),
-      confirmation: createMovementConfirmation(),
-    },
-    units: gameState.units.map((unit) =>
+    movement: createInitialMovementState(),
+    units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applyWheelPreview(unit, gameState.movement.preview),
+            ...applyWheelPreview(unit, paidGameState.movement.preview),
             slideUsedThisMovementPhase: unit.slideUsedThisMovementPhase
-              || gameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
+              || paidGameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
+            stayedThisMovementPhase: false,
           }
         : unit,
     ),

@@ -11,7 +11,13 @@ import { BATTLE_PLAN_FIELD_IDS } from '../engine/setup/battle-plan.js';
 import { projectSetupForViewer } from '../engine/visibility/setup-view.js';
 import { TERRAIN_SHAPE_MODELS, TERRAIN_SOURCE_STATUSES } from '../engine/setup/terrain-placeholders.js';
 import { SETUP_OBJECT_FAMILIES } from '../engine/setup/setup-objects.js';
-import { SETUP_STEP_DEFINITIONS } from '../state/p0-state.js';
+import {
+  canAttachCommanderToUnit,
+  canStartCommanderAttach,
+  getCommanderAttachRemainingUd,
+  SETUP_STEP_DEFINITIONS,
+} from '../state/p0-state.js';
+import { getAvailableCorpsForPlayer, ROUND_DIALOG_TYPES } from '../state/p0-round.js';
 import {
   getEnemyZocBandLocalBounds,
   getUnitFootprintSamplePoints,
@@ -412,6 +418,10 @@ function renderAmbushMarkersPanel(state) {
 }
 
 function renderDeploymentSetupCard(state) {
+  if (!state.game.setup.isActive) {
+    return '';
+  }
+
   const currentStepIndex = SETUP_STEP_DEFINITIONS.findIndex((step) => step.id === state.game.setup.currentStepId);
   const deploymentStepIndex = SETUP_STEP_DEFINITIONS.findIndex((step) => step.id === 'deployment');
   if (currentStepIndex !== -1 && currentStepIndex < deploymentStepIndex) {
@@ -423,30 +433,35 @@ function renderDeploymentSetupCard(state) {
   ) || null;
 
   return `
-    <div class="battlefield-placeholder-card battlefield-deployment-card">
-      <strong>Deployment Foundation</strong>
-      <span class="muted-copy">P3-11 zeigt explizite Placeholder-Zonen und sichtbare Deployment-Objekte. Das ist bewusst kein offizieller Deployment-Validator.</span>
-      <div class="battlefield-battle-plan-owner-meta">
-        <span><strong>Zonen:</strong> ${state.game.setup.deployment.zones.length}</span>
-        <span>Visible placeholders: ${state.game.setup.deployment.visiblePlaceholders.length}</span>
-        <span>Source: ${state.game.setup.deployment.sourceStatus}</span>
-      </div>
-      ${state.game.setup.deployment.overlapPairs.length ? `
-        <span class="battlefield-validation-badge is-error">Overlap placeholder detected</span>
-      ` : `
-        <span class="battlefield-validation-badge is-valid">No placeholder overlap</span>
-      `}
-      ${selectedPlaceholder ? `
-        <div class="battlefield-terrain-selection-meta">
-          <span><strong>Auswahl:</strong> ${selectedPlaceholder.unitId}</span>
-          <span>Owner: ${selectedPlaceholder.owner}</span>
-          <span>Corps: ${selectedPlaceholder.corpsId}</span>
-          <span>Footprint: ${formatLengthUd(selectedPlaceholder.footprint.widthUd)} UD x ${formatLengthUd(selectedPlaceholder.footprint.depthUd)} UD</span>
+    <details class="battlefield-collapsible-card battlefield-placeholder-card battlefield-deployment-card">
+      <summary class="battlefield-collapsible-summary">
+        <strong>Deployment Foundation</strong>
+        <span>${state.game.setup.deployment.visiblePlaceholders.length} Placeholder</span>
+      </summary>
+      <div class="battlefield-collapsible-body">
+        <span class="muted-copy">P3-11 zeigt explizite Placeholder-Zonen und sichtbare Deployment-Objekte. Das ist bewusst kein offizieller Deployment-Validator.</span>
+        <div class="battlefield-battle-plan-owner-meta">
+          <span><strong>Zonen:</strong> ${state.game.setup.deployment.zones.length}</span>
+          <span>Visible placeholders: ${state.game.setup.deployment.visiblePlaceholders.length}</span>
+          <span>Source: ${state.game.setup.deployment.sourceStatus}</span>
         </div>
-      ` : `
-        <span class="muted-copy">Waehle im Deployment-Schritt einen sichtbaren Unit-Placeholder aus, um seine Setup-Metadaten zu sehen.</span>
-      `}
-    </div>
+        ${state.game.setup.deployment.overlapPairs.length ? `
+          <span class="battlefield-validation-badge is-error">Overlap placeholder detected</span>
+        ` : `
+          <span class="battlefield-validation-badge is-valid">No placeholder overlap</span>
+        `}
+        ${selectedPlaceholder ? `
+          <div class="battlefield-terrain-selection-meta">
+            <span><strong>Auswahl:</strong> ${selectedPlaceholder.unitId}</span>
+            <span>Owner: ${selectedPlaceholder.owner}</span>
+            <span>Corps: ${selectedPlaceholder.corpsId}</span>
+            <span>Footprint: ${formatLengthUd(selectedPlaceholder.footprint.widthUd)} UD x ${formatLengthUd(selectedPlaceholder.footprint.depthUd)} UD</span>
+          </div>
+        ` : `
+          <span class="muted-copy">Waehle im Deployment-Schritt einen sichtbaren Unit-Placeholder aus, um seine Setup-Metadaten zu sehen.</span>
+        `}
+      </div>
+    </details>
   `;
 }
 
@@ -577,9 +592,22 @@ function renderNearZocCue(units, referenceUnit, battlefieldProfile, thresholdUd 
   return `<div class="battlefield-zoc-near-cue" aria-hidden="true" data-near-zoc-enemy="${nearest.enemyId}" style="${style}"></div>`;
 }
 
-function createMovementReferenceUnit(selectedUnit, movementPreview) {
+function createMovementReferenceUnit(selectedUnit, movementPreview, commanderFreeMovePreview) {
   if (!selectedUnit) {
     return null;
+  }
+
+  if (
+    commanderFreeMovePreview?.status === 'ready'
+    && commanderFreeMovePreview.unitId === selectedUnit.id
+    && Number.isFinite(commanderFreeMovePreview.xUd)
+    && Number.isFinite(commanderFreeMovePreview.yUd)
+  ) {
+    return {
+      ...selectedUnit,
+      xUd: commanderFreeMovePreview.xUd,
+      yUd: commanderFreeMovePreview.yUd,
+    };
   }
 
   if (movementPreview?.status !== 'accepted' || !Array.isArray(movementPreview.segments) || movementPreview.segments.length === 0) {
@@ -629,6 +657,112 @@ function renderMostThreateningLine(units, referenceUnit, validationSnapshot, bat
   ].join(';');
 
   return `<div class="battlefield-zoc-threat-line" aria-hidden="true" data-enemy-id="${threatEnemy.id}" style="${style}"></div>`;
+}
+
+function renderCommandStatusLine(state, referenceUnit, battlefieldProfile) {
+  if (state.game.setup.isActive || !referenceUnit) {
+    return '';
+  }
+
+  const commanderId = state.game.commandContext.commander?.unitId ?? null;
+  if (!commanderId || commanderId === referenceUnit.id) {
+    return '';
+  }
+
+  const commanderUnit = state.game.units.find((unit) => unit.id === commanderId) ?? null;
+  if (!commanderUnit) {
+    return '';
+  }
+
+  const commandStatus = state.game.movement.orderCommandSnapshot?.unitId === referenceUnit.id
+    ? state.game.movement.orderCommandSnapshot.status
+    : state.game.commandContext.inCommand?.status;
+
+  if (commandStatus !== 'in-command' && commandStatus !== 'out-of-command') {
+    return '';
+  }
+
+  const dx = commanderUnit.xUd - referenceUnit.xUd;
+  const dy = commanderUnit.yUd - referenceUnit.yUd;
+  const lengthUd = Math.sqrt(dx * dx + dy * dy);
+  if (lengthUd <= 0) {
+    return '';
+  }
+
+  const centerX = (referenceUnit.xUd + commanderUnit.xUd) / 2;
+  const centerY = (referenceUnit.yUd + commanderUnit.yUd) / 2;
+  const angleRadians = Math.atan2(dy, dx);
+  const style = [
+    `left:${(centerX / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(centerY / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(lengthUd / battlefieldProfile.widthUd) * 100}%`,
+    `--command-link-rotation:${angleRadians}rad`,
+  ].join(';');
+
+  return `
+    <div
+      class="battlefield-command-link ${commandStatus === 'in-command' ? 'is-in-command' : 'is-out-of-command'}"
+      aria-hidden="true"
+      data-commander-id="${commanderUnit.id}"
+      data-unit-id="${referenceUnit.id}"
+      style="${style}"
+    ></div>
+  `;
+}
+
+function getActiveCommanderRangeVisualization(state, battlefieldProfile) {
+  if (state.game.setup.isActive || !state.game.commandContext.activeCorpsId) {
+    return '';
+  }
+
+  const commanderId = state.game.commandContext.commander?.unitId ?? null;
+  const rangeUd = Number.isFinite(state.game.commandContext.commander?.rangeUd)
+    ? state.game.commandContext.commander.rangeUd
+    : null;
+  if (!commanderId || rangeUd == null) {
+    return '';
+  }
+
+  const commanderUnit = state.game.units.find((unit) => unit.id === commanderId) ?? null;
+  if (!commanderUnit) {
+    return '';
+  }
+
+  const radiusUd = rangeUd + 0.5;
+  const diameterUd = radiusUd * 2;
+  const style = [
+    `left:${(commanderUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(commanderUnit.yUd / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(diameterUd / battlefieldProfile.widthUd) * 100}%`,
+    `height:${(diameterUd / battlefieldProfile.heightUd) * 100}%`,
+  ].join(';');
+
+  return `
+    <span class="battlefield-command-range-ring has-range is-active-commander-ring" aria-hidden="true" data-range-commander-id="${commanderUnit.id}" style="${style}">
+      <span class="battlefield-command-range-ring-label">${rangeUd} UD</span>
+    </span>
+  `;
+}
+
+function toUnitCssToken(unitId) {
+  return String(unitId)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9_-]/g, '-');
+}
+
+function toCorpsSlotId(corpsId) {
+  const raw = String(corpsId ?? '').toLowerCase();
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw.replaceAll('_', '-');
+  const match = normalized.match(/corps-(\d+)/);
+  if (!match) {
+    return null;
+  }
+
+  return `corps-${match[1]}`;
 }
 
 function renderTerrainPlaceholders(state, battlefieldProfile) {
@@ -823,6 +957,276 @@ function renderTerrainValidation(state) {
   `;
 }
 
+function formatRoundCorpsLabel(corpsId) {
+  const match = String(corpsId ?? '').match(/corps-(\d+)/i);
+  return match ? `Corps ${match[1]}` : escapeHtml(String(corpsId ?? 'Corps'));
+}
+
+function getSetupGuideStepContent(state) {
+  const stepId = state.game.setup.currentStepId;
+  const currentIndex = SETUP_STEP_DEFINITIONS.findIndex((step) => step.id === stepId);
+  const stepNumber = currentIndex === -1 ? '?' : currentIndex + 1;
+  const isReadyStep = stepId === 'ready';
+
+  const base = {
+    stepNumber,
+    badge: 'Setup Flow',
+    sourceStatus: 'needs-source-check',
+    helper: 'Die Schrittfuehrung ist jetzt als End-UX-Hook eingebaut. Offizielle Legality-Checks bleiben bis zur Source-Pruefung klar markiert.',
+    primaryAction: isReadyStep ? 'complete-setup' : 'setup-next',
+    primaryLabel: isReadyStep ? 'In die Schlacht' : 'Weiter zum naechsten Schritt',
+  };
+
+  switch (stepId) {
+    case 'format':
+      return {
+        ...base,
+        title: 'Initiative, Rollen und Format vorbereiten',
+        body: 'Langfristig sollen hier Initiativewurf, Angreifer/Verteidiger und Profilstart dialoggefuehrt starten. Aktuell dient dieser Schritt als gefuehrter Einstieg vor der Regions- und Terrainphase.',
+        checklist: [
+          'Initiative und Rollen sind fachlich noch placeholder.',
+          'Spielprofil bleibt Standard-200 als aktueller Zielpfad.',
+        ],
+      };
+    case 'region':
+      return {
+        ...base,
+        title: 'Region und Pflichtgelaende festlegen',
+        body: 'Hier sollte spaeter die Region bestimmt werden und daraus das Pflichtgelaende des Verteidigers folgen. Solange die Regionstabellen noch nicht source-verifiziert sind, bleibt dieser Schritt ein gefuehrter Platzhalter.',
+        checklist: [
+          'Verteidiger bestimmt spaeter Region und Pflichtgelaende.',
+          'Exakte Terrainquoten bleiben bis Source-Check offen.',
+        ],
+      };
+    case 'terrain':
+      return {
+        ...base,
+        title: 'Terrain auswaehlen und platzieren',
+        body: 'Nutze links die Terrain-Palette und platziere sichtbare Placeholder auf dem Feld. Dieser Schritt bildet jetzt bereits die spaetere Platzierungsreihenfolge als Untersequenz ab, auch wenn Quoten und einzelne Sonderregeln noch nicht final erzwungen werden.',
+        checklist: [
+          'Pflichtgelaende des Verteidigers zuerst.',
+          'Danach restliches Terrain in der vorgesehenen Reihenfolge.',
+        ],
+        substeps: [
+          '1. Verteidiger platziert Pflichtgelaende.',
+          '2. Falls vorhanden: Fluss oder Kueste wird als frueher Sonderfall gesetzt.',
+          '3. Verteidiger versucht gegebenenfalls ein Dorf zu platzieren.',
+          '4. Beide Spieler platzieren restliches Gelaende abwechselnd.',
+          '5. Die Strasse folgt zuletzt.',
+        ],
+      };
+    case 'terrain-adjustment':
+      return {
+        ...base,
+        title: 'Terrain anpassen',
+        body: 'Dieser Schritt ist der Hook fuer die spaetere Adjustment-Sequenz mit Wurf, erlaubter Aktion und Bestätigung je Gelaendeteil. Aktuell kannst du Placeholder bewegen und die Diagnosen links zur Orientierung nutzen.',
+        checklist: [
+          'Angreifer passt zuerst an, dann Verteidiger.',
+          'Offizielle Wurf- und Entfernen-Regeln sind noch nicht final erzwungen.',
+        ],
+      };
+    case 'camps':
+      return {
+        ...base,
+        title: 'Camps und Befestigungen setzen',
+        body: 'Pflicht-Camps und weitere Setup-Objekte koennen bereits als echte Placeholder auf dem Tisch liegen. Spaeter wird dieser Schritt Defender-first und dann Attacker-first streng dialoggefuehrt.',
+        checklist: [
+          'Camp in eigener Zone und offenem Gelaende.',
+          'Fortifications und Obstacles folgen spaeter mit offizieller Legalitaet.',
+        ],
+      };
+    case 'battle-plan':
+      return {
+        ...base,
+        title: 'Battle Plan verdeckt festlegen',
+        body: 'Ordne die Corps links, mitte, rechts oder Flank March auf dem privaten Board zu. Dieser Schritt ist als Hotseat-sicherer Handover-Hook gedacht und bleibt owner-private.',
+        checklist: [
+          'Corps-Slots getrennt von echten Battlefield-Sektoren behandeln.',
+          `Aktuelle Privacy-Ansicht: ${escapeHtml(state.game.setupViewMode)}.`,
+        ],
+      };
+    case 'ambushes':
+      return {
+        ...base,
+        title: 'Ambush Marker setzen',
+        body: 'Lege Marker und private Inhalte an. Der sichtbare Marker bleibt oeffentlich, der Inhalt privat. So bleibt der Schritt spaeter fuer Hotseat und Multiplayer verwendbar.',
+        checklist: [
+          'Verteidiger zuerst, dann Angreifer.',
+          'Exakte Markeranzahl und Terrainbedingungen bleiben source-blocked.',
+        ],
+      };
+    case 'deployment':
+      return {
+        ...base,
+        title: 'Armeen corpsweise deployen',
+        body: 'Die sichtbaren Deployment-Placeholder sind jetzt der End-UX-Hook fuer spaetere corpsweise Aufstellung. Die aktuelle Version zeigt schon Footprints und Non-Overlap-Hooks, aber noch keine voll offizielle Deployment-Legalitaet.',
+        checklist: [
+          'Verteidiger beginnt, danach abwechselnd corpsweise.',
+          'Schwere und leichte Truppen-Zonen folgen spaeter mit strenger Regelpruefung.',
+        ],
+      };
+    case 'ready':
+      return {
+        ...base,
+        title: 'Setup abschliessen und Spiel starten',
+        body: 'Wenn Terrain, Battle Plan, Ambushes und Deployment vorbereitet sind, wechselst du mit diesem Schritt in die Schlacht. Direkt danach sollte der Rundenstart-Dialog erscheinen.',
+        checklist: [
+          'Dismounting, Flank March und Unreliable sollen spaeter als eigene End-Hooks folgen.',
+          'Mit In die Schlacht endet das Setup und die Round-Flow-Dialoge uebernehmen.',
+        ],
+      };
+    default:
+      return {
+        ...base,
+        title: 'Setup-Schritt',
+        body: 'Dieser Setup-Schritt hat bereits einen Guide-Hook, aber noch keine spezifische Schrittbeschreibung.',
+        checklist: [],
+        substeps: [],
+      };
+  }
+}
+
+function renderSetupGuideDialog(state) {
+  if (!state.game.setup.isActive) {
+    return '';
+  }
+
+  const content = getSetupGuideStepContent(state);
+  const currentStepId = state.game.setup.currentStepId;
+  const isLocked = state.game.setup.lockedStepIds.includes(currentStepId);
+  const isDismissed = state.game.setup.dismissedGuideStepIds.includes(currentStepId);
+
+  if (isDismissed) {
+    return '';
+  }
+
+  return `
+    <div class="battlefield-setup-guide-overlay" data-setup-guide-overlay>
+      <div class="battlefield-setup-guide-dialog" role="dialog" aria-labelledby="setup-guide-title" aria-modal="false">
+        <div class="battlefield-setup-guide-header">
+          <span class="battlefield-round-dialog-tag">${content.badge}</span>
+          <span class="battlefield-round-dialog-tag is-muted">Schritt ${content.stepNumber}</span>
+        </div>
+        <strong id="setup-guide-title">${escapeHtml(content.title)}</strong>
+        <span class="muted-copy">${escapeHtml(content.body)}</span>
+        <div class="battlefield-setup-guide-meta">
+          <span><strong>Status:</strong> ${isLocked ? 'fixiert' : 'offen'}</span>
+          <span><strong>Quelle:</strong> ${escapeHtml(content.sourceStatus)}</span>
+        </div>
+        ${content.checklist.length ? `
+          <ul class="battlefield-setup-guide-list">
+            ${content.checklist.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('')}
+          </ul>
+        ` : ''}
+        ${content.substeps?.length ? `
+          <div class="battlefield-setup-guide-substeps">
+            <strong>Untersequenz</strong>
+            <ol class="battlefield-setup-guide-sequence-list">
+              ${content.substeps.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('')}
+            </ol>
+          </div>
+        ` : ''}
+        <span class="muted-copy">${escapeHtml(content.helper)}</span>
+        <div class="battlefield-round-dialog-actions">
+          <button class="shell-button battlefield-round-dialog-button" type="button" data-action="dismiss-setup-guide">OK</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRoundDialog(state) {
+  const round = state.game.round;
+  const dialogType = round?.dialog?.type ?? null;
+
+  if (!round || !dialogType) {
+    return '';
+  }
+
+  if (dialogType === ROUND_DIALOG_TYPES.CORPS_SELECTION) {
+    const availableCorps = getAvailableCorpsForPlayer(
+      state.game.commandContext.corpsActivation,
+      round.turnPlayerId,
+    );
+
+    return `
+      <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay>
+        <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
+          <div class="battlefield-round-dialog-header">
+            <span class="battlefield-round-dialog-tag">Rundenfolge</span>
+          </div>
+          <strong id="round-dialog-title">Bitte erstes Corps fuer Aktivierung waehlen</strong>
+          <span class="muted-copy">Waehle eines der noch nicht aktivierten Corps des aktuellen Spielers.</span>
+          <div class="battlefield-round-dialog-corps-grid">
+            ${availableCorps.map((entry) => `
+              <button class="shell-button battlefield-round-dialog-button" type="button" data-action="select-active-corps" data-corps-id="${entry.corpsId}">
+                ${formatRoundCorpsLabel(entry.corpsId)}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (dialogType === ROUND_DIALOG_TYPES.NEXT_CORPS_PROMPT) {
+    return `
+      <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay>
+        <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
+          <div class="battlefield-round-dialog-header">
+            <span class="battlefield-round-dialog-tag">Rundenfolge</span>
+          </div>
+          <strong id="round-dialog-title">Naechstes Corps?</strong>
+          <span class="muted-copy">Soll ein weiteres Corps dieses Spielers aktiviert werden?</span>
+          <div class="battlefield-round-dialog-actions">
+            <button class="shell-button battlefield-round-dialog-button" type="button" data-action="confirm-next-corps">Ja</button>
+            <button class="ghost-button battlefield-round-dialog-button" type="button" data-action="skip-remaining-corps">Nein</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (dialogType === ROUND_DIALOG_TYPES.PHASE_ANNOUNCE) {
+    return `
+      <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay>
+        <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
+          <div class="battlefield-round-dialog-header">
+            <span class="battlefield-round-dialog-tag">Rundenfolge</span>
+          </div>
+          <strong id="round-dialog-title">${escapeHtml(round.dialog.phaseLabel ?? 'Naechste Phase')}</strong>
+          <span class="muted-copy">Diese Phase ist aktuell noch ein Platzhalter. Mit Weiter springst du direkt zur naechsten Phase.</span>
+          <div class="battlefield-round-dialog-actions">
+            <button class="shell-button battlefield-round-dialog-button" type="button" data-action="advance-round-phase">Weiter</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const title = dialogType === ROUND_DIALOG_TYPES.PLAYER_SWITCH
+    ? `${round.turnPlayerId === 'player-2' ? 'Spieler 2' : 'Spieler 1'} ist dran`
+    : `Runde ${round.roundNumber}`;
+  const copy = dialogType === ROUND_DIALOG_TYPES.PLAYER_SWITCH
+    ? 'Der naechste Spieler beginnt jetzt mit seiner Corps-Aktivierung.'
+    : 'Beginne die Runde und waehle danach das erste Corps fuer die Aktivierung.';
+
+  return `
+    <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay>
+      <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
+        <div class="battlefield-round-dialog-header">
+          <span class="battlefield-round-dialog-tag">Rundenfolge</span>
+        </div>
+        <strong id="round-dialog-title">${escapeHtml(title)}</strong>
+        <span class="muted-copy">${copy}</span>
+        <div class="battlefield-round-dialog-actions">
+          <button class="shell-button battlefield-round-dialog-button" type="button" data-action="round-begin">Beginnen</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function renderBattlefieldScreen(state) {
   const visibleSetup = projectSetupForViewer(state.game.setup, state.game.setupViewMode);
   const renderState = {
@@ -843,11 +1247,20 @@ export function renderBattlefieldScreen(state) {
   const isDeploymentSetupStep = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
   const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
+  const selectedUnitMovementFinished = Boolean(
+    selectedUnit
+      && (
+        Number(selectedUnit.advanceUsedUd ?? 0) > 0
+        || Boolean(selectedUnit.slideUsedThisMovementPhase)
+        || Boolean(selectedUnit.stayedThisMovementPhase)
+      )
+  );
   const canIssueMovementCommands =
     !isSetupActive &&
     selectedUnit !== null &&
     state.game.commandContext.currentPhaseId === 'movement' &&
-    selectedUnit.owner === state.game.commandContext.activePlayerId;
+    selectedUnit.owner === state.game.commandContext.activePlayerId &&
+    !selectedUnitMovementFinished;
   const canDragUnitsInSetup = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
   const {
@@ -869,6 +1282,10 @@ export function renderBattlefieldScreen(state) {
     diagnostics,
     canCancelMovement,
     canConfirmMovement,
+    canMarkStay,
+    canShowMovementButtons,
+    canUseFreeCommandPoint,
+    useFreeCommandPoint,
   } = getAdvancePreviewPresentation({
     state,
     selectedUnit,
@@ -882,7 +1299,38 @@ export function renderBattlefieldScreen(state) {
   const showSectorOverlay = state.game.overlayMode === 'Sektoren' || state.game.overlayMode === 'Beides';
   const committedPreviewSegments = getCommittedMovementPreviewSegments(state.game.movement.preview);
   const committedPreviewTrailSegments = committedPreviewSegments.slice(0, -1);
-  const movementReferenceUnit = createMovementReferenceUnit(selectedUnit, state.game.movement.preview);
+  const commanderGhostPose = selectedUnit
+    && state.game.commanderFreeMovePreview?.status === 'ready'
+    && state.game.commanderFreeMovePreview.unitId === selectedUnit.id
+    && Number.isFinite(state.game.commanderFreeMovePreview.xUd)
+    && Number.isFinite(state.game.commanderFreeMovePreview.yUd)
+    ? {
+        xUd: state.game.commanderFreeMovePreview.xUd,
+        yUd: state.game.commanderFreeMovePreview.yUd,
+        rotationRadians: selectedUnit.rotationRadians ?? 0,
+      }
+    : null;
+  const commanderAttachTargetingActive = Boolean(
+    selectedUnit
+      && selectedUnit.isCommander
+      && !selectedUnit.hasIncludedCommander
+      && !selectedUnit.attachedUnitId
+      && state.game.commanderFreeMovePreview?.status === 'targeting'
+      && state.game.commanderFreeMovePreview?.mode === 'attach'
+      && state.game.commanderFreeMovePreview?.unitId === selectedUnit.id,
+  );
+  const commanderAttachReachUd = commanderAttachTargetingActive
+    ? getCommanderAttachRemainingUd(state.game, selectedUnit)
+    : 0;
+  const commanderAttachRangeStyle = commanderAttachTargetingActive
+    ? [
+        `left:${(selectedUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
+        `top:${(selectedUnit.yUd / battlefieldProfile.heightUd) * 100}%`,
+        `width:${((commanderAttachReachUd * 2) / battlefieldProfile.widthUd) * 100}%`,
+        `height:${((commanderAttachReachUd * 2) / battlefieldProfile.heightUd) * 100}%`,
+      ].join(';')
+    : '';
+  const movementReferenceUnit = createMovementReferenceUnit(selectedUnit, state.game.movement.preview, state.game.commanderFreeMovePreview);
   const wheelDisplayPose = wheelModeActive && selectedUnit
     ? getMovementPreviewEndPose(state.game.movement.preview, {
         xUd: selectedUnit.xUd,
@@ -963,15 +1411,11 @@ export function renderBattlefieldScreen(state) {
       <div class="battlefield-stage">
         <aside class="battlefield-side-panel battlefield-side-panel-left" data-panel-id="left">
           <button class="ghost-button battlefield-back-button" type="button" data-action="navigate" data-screen="main-menu">Zurueck zum Menue</button>
-          ${renderTerrainPalette(renderState)}
-          ${renderTerrainValidation(renderState)}
-          ${renderSetupObjectPalette(renderState)}
-          ${renderBattlePlanBoard(renderState)}
-          ${renderAmbushMarkersPanel(renderState)}
-          ${renderDeploymentSetupCard(renderState)}
-          ${renderAdvanceCommandPanel({
+          ${isSetupActive ? renderAdvanceCommandPanel({
             selectedUnit,
             isSetupActive,
+            roundState: state.game.round,
+            setupStepId: state.game.setup.currentStepId,
             canIssueMovementCommands,
             advanceModeActive,
             slideModeActive,
@@ -989,7 +1433,53 @@ export function renderBattlefieldScreen(state) {
             diagnostics,
             canCancelMovement,
             canConfirmMovement,
-          })}
+            canMarkStay,
+            canShowMovementButtons,
+            canUseFreeCommandPoint,
+            useFreeCommandPoint,
+            canToggleCommanderEngagedDiagnostic: false,
+            commanderEngagedDiagnosticActive: false,
+            canAttachCommander: false,
+          }) : ''}
+          ${renderTerrainPalette(renderState)}
+          ${renderTerrainValidation(renderState)}
+          ${renderSetupObjectPalette(renderState)}
+          ${renderBattlePlanBoard(renderState)}
+          ${renderAmbushMarkersPanel(renderState)}
+          ${!isSetupActive ? renderAdvanceCommandPanel({
+            selectedUnit,
+            isSetupActive,
+            roundState: state.game.round,
+            setupStepId: state.game.setup.currentStepId,
+            canIssueMovementCommands,
+            advanceModeActive,
+            slideModeActive,
+            wheelModeActive,
+            wheelPivotSide,
+            advancePreviewUd,
+            slidePreviewUd,
+            wheelPreviewAngleRadians,
+            wheelDistanceUd,
+            previewDistanceUd,
+            slideAvailable,
+            remainingAdvanceBudgetUd,
+            maxAdvanceUd,
+            helperCopy,
+            diagnostics,
+            canCancelMovement,
+            canConfirmMovement,
+            canMarkStay,
+            canShowMovementButtons,
+            canUseFreeCommandPoint,
+            useFreeCommandPoint,
+            canToggleCommanderEngagedDiagnostic: Boolean(
+              state.game.commandContext.currentPhaseId === 'movement'
+                && state.game.commandContext.commander?.unitId,
+            ),
+            commanderEngagedDiagnosticActive: Boolean(state.game.commandContext.commander?.engagedInCombat),
+            canAttachCommander: canStartCommanderAttach(state.game, selectedUnit),
+          }) : ''}
+          ${renderDeploymentSetupCard(renderState)}
         </aside>
         <div class="battlefield-center-column">
           <div class="battlefield-surface" data-battlefield-surface>
@@ -1002,10 +1492,17 @@ export function renderBattlefieldScreen(state) {
               ${!isSetupActive ? renderZocBands(state.game.units, movementReferenceUnit, battlefieldProfile) : ''}
               ${!isSetupActive ? renderNearZocCue(state.game.units, movementReferenceUnit, battlefieldProfile, 0.5) : ''}
               ${!isSetupActive ? renderMostThreateningLine(state.game.units, movementReferenceUnit, state.game.movement.validationSnapshot, battlefieldProfile) : ''}
+              ${!isSetupActive ? renderCommandStatusLine(state, movementReferenceUnit, battlefieldProfile) : ''}
+              ${!isSetupActive ? getActiveCommanderRangeVisualization(state, battlefieldProfile) : ''}
+              ${commanderAttachTargetingActive ? `
+                <span class="battlefield-command-range-ring has-range is-attach-preview-ring" aria-hidden="true" style="${commanderAttachRangeStyle}">
+                  <span class="battlefield-command-range-ring-label">Attach ${formatLengthUd(commanderAttachReachUd)} UD</span>
+                </span>
+              ` : ''}
               ${advanceModeActive ? `<div class="battlefield-advance-reach" aria-hidden="true" style="${advanceReachStyle}"></div>` : ''}
               ${selectedUnit && committedPreviewTrailSegments.length > 0 ? committedPreviewTrailSegments.map((segment) => `
                 <div
-                  class="battlefield-unit-preview is-trail"
+                  class="battlefield-unit-preview is-trail ${selectedUnit.baseShape === 'circle' ? 'is-circle-base' : ''}"
                   aria-hidden="true"
                   style="${createPreviewGhostStyle(segment.endPose, selectedUnit, battlefieldProfile)}"
                 ></div>
@@ -1018,6 +1515,14 @@ export function renderBattlefieldScreen(state) {
                   ${slideModeActive ? 'data-slide-preview-handle' : ''}
                   data-unit-id="${selectedUnit.id}"
                   style="${previewUnitStyle}"
+                ></div>
+              ` : ''}
+              ${selectedUnit && commanderGhostPose ? `
+                <div
+                  class="battlefield-unit-preview ${selectedUnit.baseShape === 'circle' ? 'is-circle-base' : ''}"
+                  aria-hidden="true"
+                  data-unit-id="${selectedUnit.id}"
+                  style="${createPreviewGhostStyle(commanderGhostPose, selectedUnit, battlefieldProfile)}"
                 ></div>
               ` : ''}
               ${wheelModeActive && selectedUnit && leftWheelHandlePoint && rightWheelHandlePoint ? `
@@ -1052,15 +1557,93 @@ export function renderBattlefieldScreen(state) {
               ` : ''}
               ${facingRelationship && state.game.debug.showFacingGeometryOverlay ? renderFacingGeometryOverlay({ ...facingRelationship, battlefieldProfileId: battlefieldProfile.id }) : ''}
               ${state.game.units.map((unit) => `
+                ${(() => {
+                  const unitCssToken = toUnitCssToken(unit.id);
+                  const activeCorpsSlotId = toCorpsSlotId(state.game.commandContext.activeCorpsId);
+                  const unitCorpsSlotId = toCorpsSlotId(unit.corpsId);
+                  const corpsActivationRecord = state.game.commandContext.corpsActivation?.corps?.find(
+                    (entry) => toCorpsSlotId(entry.corpsId) === unitCorpsSlotId && entry.ownerId === unit.owner,
+                  ) ?? null;
+                  const isActiveCorpsUnit = Boolean(
+                    activeCorpsSlotId
+                      && unitCorpsSlotId === activeCorpsSlotId
+                      && unit.owner === state.game.commandContext.activePlayerId,
+                  );
+                  const isSpentCorpsUnit = Boolean(
+                    !isActiveCorpsUnit
+                      && corpsActivationRecord?.status === 'spent'
+                      && unit.owner === state.game.commandContext.activePlayerId,
+                  );
+                  const isSelectableUnit = Boolean(
+                    unit.owner === state.game.commandContext.activePlayerId
+                      && (!activeCorpsSlotId || unitCorpsSlotId === activeCorpsSlotId),
+                  );
+                  const commanderSpentUd = state.game.commanderFreeMovePreview?.status === 'ready'
+                    && state.game.commanderFreeMovePreview.unitId === unit.id
+                    ? Number(state.game.commanderFreeMovePreview.nextSpentUd ?? unit.advanceUsedUd ?? 0)
+                    : Number(unit.advanceUsedUd ?? 0);
+                  const isCommanderFreeMoveReady = Boolean(
+                    !isSetupActive
+                      && state.game.selectedUnitId === unit.id
+                      && state.game.commandContext.currentPhaseId === 'movement'
+                      && unit.isCommander
+                      && !unit.hasIncludedCommander
+                      && Math.max(0, 5 - commanderSpentUd) > 0
+                      && unit.owner === state.game.commandContext.activePlayerId
+                      && isActiveCorpsUnit
+                      && !advanceModeActive
+                      && !slideModeActive
+                      && !wheelModeActive,
+                  );
+                  const hasMovedThisPhase = (unit.advanceUsedUd ?? 0) > 0 || Boolean(unit.slideUsedThisMovementPhase);
+                  const hasStayedThisPhase = Boolean(unit.stayedThisMovementPhase);
+                  const hasMandatoryMovementPending = Boolean(unit.mandatoryMovementPending ?? unit.mustMoveThisPhase);
+                  const hasMandatoryMovementResolved = Boolean(unit.mandatoryMovementResolved);
+                  const isAttachTarget = Boolean(
+                    commanderAttachTargetingActive
+                      && canAttachCommanderToUnit(state.game, unit, selectedUnit)
+                  );
+                  const isAttachTargetSelected = Boolean(
+                    selectedUnit
+                      && state.game.commanderFreeMovePreview?.mode === 'attach'
+                      && state.game.commanderFreeMovePreview?.targetUnitId === unit.id,
+                  );
+                  const activeCorpsStatusClass = !isActiveCorpsUnit
+                    ? ''
+                    : hasMandatoryMovementPending && !hasMandatoryMovementResolved && !hasMovedThisPhase && !hasStayedThisPhase
+                      ? 'is-corps-unit-mandatory'
+                      : hasMovedThisPhase || hasStayedThisPhase || hasMandatoryMovementResolved
+                        ? 'is-corps-unit-done'
+                        : 'is-corps-unit-pending';
+                  const commandRangeRing = unit.commandRangeUd != null
+                    ? (() => {
+                      const radiusUd = Number(unit.commandRangeUd) + 0.5;
+                      const diameterUd = radiusUd * 2;
+                      const style = [
+                        `left:${(unit.xUd / battlefieldProfile.widthUd) * 100}%`,
+                        `top:${(unit.yUd / battlefieldProfile.heightUd) * 100}%`,
+                        `width:${(diameterUd / battlefieldProfile.widthUd) * 100}%`,
+                        `height:${(diameterUd / battlefieldProfile.heightUd) * 100}%`,
+                      ].join(';');
+
+                      return `<span class="battlefield-command-range-ring has-range for-${unitCssToken}" aria-hidden="true" style="${style}"></span>`;
+                    })()
+                    : `<span class="battlefield-command-range-ring no-range for-${unitCssToken}" aria-hidden="true"></span>`;
+
+                  return `
                 <button
-                  class="battlefield-unit-token ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
+                  class="battlefield-unit-token for-${unitCssToken} ${unit.baseShape === 'circle' ? 'is-circle-base' : ''} ${unit.isCommander ? 'is-commander' : ''} ${unit.hasIncludedCommander ? 'has-included-commander' : ''} ${isActiveCorpsUnit ? 'is-active-corps-unit' : ''} ${isSpentCorpsUnit ? 'is-spent-corps-unit' : ''} ${!isSelectableUnit ? 'is-selection-locked' : ''} ${activeCorpsStatusClass} ${isAttachTarget ? 'is-attach-target' : ''} ${isAttachTargetSelected ? 'is-attach-target-selected' : ''} ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${(canDragUnitsInSetup || isCommanderFreeMoveReady) && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
                   type="button"
+                  ${isSelectableUnit ? '' : 'disabled'}
                   aria-pressed="${state.game.selectedUnitId === unit.id}"
                   data-action="select-unit"
                   data-unit-id="${unit.id}"
-                  title="${isTerrainStep ? 'Unit auswaehlen' : canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'Unit ziehen' : 'Unit auswaehlen'}"
+                  title="${isTerrainStep ? 'Unit auswaehlen' : canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'Unit ziehen' : isCommanderFreeMoveReady ? 'General ziehen (max 5 UD)' : 'Unit auswaehlen'}${unit.hasIncludedCommander ? ' (inkl. General)' : unit.isCommander ? ' (General)' : ''}"
                   style="--token-color:${unit.owner === 'player-1' ? state.shell.settings.playerColor : '#a8a8a8'};${createUnitTokenStyle(unit)}"
-                ></button>
+                >${activeCorpsStatusClass === 'is-corps-unit-mandatory' ? '<span class="battlefield-unit-status-badge is-mandatory" aria-hidden="true">!</span>' : ''}</button>
+                ${commandRangeRing}
+              `;
+                })()}
               `).join('')}
             </div>
           </div>
@@ -1077,6 +1660,8 @@ export function renderBattlefieldScreen(state) {
           selectedUnitRotationRadians,
           facingRelationship,
         })}
+        ${renderSetupGuideDialog(state)}
+        ${renderRoundDialog(state)}
       </div>
     </section>
   `;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { BATTLEFIELD_PROFILE_IDS } from '../data/battlefield-profiles.js';
+import { COMMAND_CP_REASON_CODES } from '../engine/command/index.js';
 import { degreesToRadians } from '../engine/geometry/index.js';
 import { getWheelAngleRadiansForDistanceUd } from '../engine/movement/wheel.js';
 import {
@@ -49,8 +50,18 @@ function advanceToBattlefield(state = createInitialAppState()) {
   };
 }
 
+function startDirectBattle(state = createInitialAppState()) {
+  return reduceAppState(state, { type: ACTION_TYPES.START_DIRECT_BATTLE });
+}
+
 function selectTestUnit(state) {
-  return reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  const withActiveCorps = state.game.commandContext.currentPhaseId === BATTLE_PHASE_IDS.MOVEMENT
+    && state.game.commandContext.activePlayerId === COMMAND_PLAYER_IDS.PLAYER_ONE
+    && !state.game.commandContext.activeCorpsId
+    ? reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' })
+    : state;
+
+  return reduceAppState(withActiveCorps, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
 }
 
 function completeSetupToBattle(state = startNewGame()) {
@@ -61,6 +72,22 @@ function completeSetupToBattle(state = startNewGame()) {
   }
 
   return reduceAppState(nextState, { type: ACTION_TYPES.COMPLETE_SETUP });
+}
+
+function exhaustCurrentPlayerCorps(state) {
+  const corpsIds = ['corps-1', 'corps-2', 'corps-3'];
+  let nextState = state;
+
+  corpsIds.forEach((corpsId, index) => {
+    nextState = reduceAppState(nextState, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId });
+    nextState = reduceAppState(nextState, { type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+
+    if (index < corpsIds.length - 1) {
+      nextState = reduceAppState(nextState, { type: ACTION_TYPES.CONFIRM_NEXT_CORPS });
+    }
+  });
+
+  return nextState;
 }
 
 test('new game defaults to 200 points', () => {
@@ -78,6 +105,111 @@ test('starting a new game enters the battlefield setup flow', () => {
   assert.equal(state.game.setup.isActive, true);
   assert.equal(state.game.setup.currentStepId, SETUP_STEP_IDS.FORMAT);
   assert.equal(state.game.setupViewMode, 'canonical');
+});
+
+test('locking the current setup step marks it as fixed', () => {
+  let state = startNewGame();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.LOCK_CURRENT_SETUP_STEP });
+
+  assert.deepEqual(state.game.setup.lockedStepIds, [SETUP_STEP_IDS.FORMAT]);
+});
+
+test('direct battle start skips setup and enters the battlefield movement phase', () => {
+  const state = startDirectBattle();
+
+  assert.equal(state.shell.currentScreen, SCREEN_IDS.BATTLEFIELD);
+  assert.equal(state.game.setup.isActive, false);
+  assert.equal(state.game.phaseTracker.mode, 'battle');
+  assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.MOVEMENT);
+  assert.equal(state.game.round?.dialog?.type, 'round-start');
+});
+
+test('round begin opens corps selection and selecting a corps closes the popup', () => {
+  let state = startDirectBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  assert.equal(state.game.round.dialog.type, 'corps-selection');
+  assert.equal(state.game.commandContext.activePlayerId, COMMAND_PLAYER_IDS.PLAYER_ONE);
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.MOVEMENT);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  assert.equal(state.game.commandContext.activeCorpsId, 'corps-1');
+  assert.equal(state.game.round.dialog.type, null);
+});
+
+test('requesting the next corps spends the active corps and can branch into shooting', () => {
+  let state = startDirectBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+
+  state = reduceAppState(state, { type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+  assert.equal(state.game.commandContext.activeCorpsId, null);
+  assert.equal(state.game.commandContext.corpsActivation.corps.find((corps) => corps.corpsId === 'corps-1')?.status, 'spent');
+  assert.equal(state.game.round.dialog.type, 'next-corps-prompt');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_NEXT_CORPS });
+  assert.equal(state.game.round.dialog.type, 'corps-selection');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-2' });
+  state = reduceAppState(state, { type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+  state = reduceAppState(state, { type: ACTION_TYPES.SKIP_REMAINING_CORPS });
+
+  assert.equal(state.game.round.roundPhase, 'shooting');
+  assert.equal(state.game.round.dialog.type, 'phase-announce');
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.SHOOTING);
+  assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.SHOOTING);
+});
+
+test('round flow switches to player two and then starts a fresh next round', () => {
+  let state = startDirectBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  state = exhaustCurrentPlayerCorps(state);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  assert.equal(state.game.round.roundPhase, 'combat');
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.MELEE);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  assert.equal(state.game.round.roundPhase, 'rout-pursuit');
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.CLEANUP);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  assert.equal(state.game.round.roundPhase, 'victory-check');
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.VICTORY);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  assert.equal(state.game.round.turnPlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+  assert.equal(state.game.round.dialog.type, 'player-switch');
+  assert.equal(state.game.round.roundPhase, 'corps-movement');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  assert.equal(state.game.round.dialog.type, 'corps-selection');
+  assert.equal(state.game.commandContext.activePlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+  assert.ok(state.game.commandContext.corpsActivation.corps.every((corps) => corps.status === 'not-yet-activated'));
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  assert.equal(state.game.commandContext.activeCorpsId, 'corps-1');
+  assert.equal(state.game.commandContext.commander.unitId, 'test-unit-2');
+
+  state = exhaustCurrentPlayerCorps(state);
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+
+  assert.equal(state.game.round.roundNumber, 2);
+  assert.equal(state.game.round.turnPlayerId, COMMAND_PLAYER_IDS.PLAYER_ONE);
+  assert.equal(state.game.round.dialog.type, 'round-start');
+  assert.ok(state.game.commandContext.corpsActivation.corps.every((corps) => corps.status === 'not-yet-activated'));
+});
+
+test('selecting a unit from a non-active corps is ignored', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c2-mi-1' });
+
+  assert.equal(state.game.selectedUnitId, null);
 });
 
 test('command context initializes as a placeholder skeleton', () => {
@@ -99,6 +231,839 @@ test('command context remains JSON-serializable', () => {
   assert.equal(parsed.activePlayerId, COMMAND_PLAYER_IDS.PLAYER_ONE);
   assert.equal(parsed.currentPhaseId, BATTLE_PHASE_IDS.COMMAND);
   assert.equal(parsed.sourceStatus, 'placeholder');
+  assert.equal(parsed.corpsActivation.corps.length, 3);
+  assert.ok(parsed.corpsActivation.corps.every((corps) => corps.status === 'not-yet-activated'));
+  assert.equal(parsed.commandPoints.spent, 0);
+  assert.equal(parsed.commandPoints.free, 0);
+  assert.deepEqual(parsed.commandPoints.ledger, []);
+  assert.equal(parsed.commander.attachedUnitId, null);
+  assert.equal(parsed.inCommand.unitId, null);
+});
+
+test('command context activates, completes, and resets corps lifecycle deterministically', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  assert.equal(state.game.commandContext.activeCorpsId, null);
+  assert.ok(state.game.commandContext.corpsActivation.corps.every((corps) => corps.status === 'not-yet-activated'));
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-2',
+  });
+  assert.equal(state.game.commandContext.activeCorpsId, 'corps-2');
+  assert.equal(state.game.commandContext.corpsActivation.corps.find((corps) => corps.corpsId === 'corps-2').status, 'active');
+  assert.equal(state.game.commandContext.corpsActivation.activationHistory.at(-1).status, 'active');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.COMPLETE_ACTIVE_CORPS,
+    corpsId: 'corps-2',
+  });
+  assert.equal(state.game.commandContext.activeCorpsId, null);
+  assert.equal(state.game.commandContext.corpsActivation.corps.find((corps) => corps.corpsId === 'corps-2').status, 'spent');
+  assert.equal(state.game.commandContext.corpsActivation.activationHistory.at(-1).status, 'spent');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-2',
+  });
+  assert.equal(state.game.commandContext.activeCorpsId, null);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.COMMAND,
+  });
+  assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.COMMAND);
+  assert.equal(state.game.commandContext.activeCorpsId, null);
+  assert.equal(state.game.commandContext.corpsActivation.corps.find((corps) => corps.corpsId === 'corps-2').status, 'spent');
+  assert.ok(state.game.commandContext.corpsActivation.corps.some((corps) => corps.status === 'not-yet-activated'));
+});
+
+test('corps activation generates a deterministic placeholder CP snapshot and roll log', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 4);
+  assert.equal(state.game.commandContext.commandPoints.lastRoll, 4);
+  assert.equal(state.game.commandContext.commandPoints.free, 1);
+  assert.equal(state.game.commandContext.commandPoints.ledger.length, 2);
+  assert.equal(state.game.commandContext.corpsActivation.corps.find((corps) => corps.corpsId === 'corps-1').activationRoll, 4);
+  assert.equal(state.game.commandContext.corpsActivation.activationHistory.at(-1).activationRoll, 4);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.COMPLETE_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.available, null);
+  assert.equal(state.game.commandContext.commandPoints.lastRoll, null);
+  assert.deepEqual(state.game.commandContext.commandPoints.ledger, []);
+});
+
+test('active corps selection resolves the active commander snapshot', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+
+  assert.equal(state.game.commandContext.commander.unitId, 'test-unit-1');
+  assert.equal(state.game.commandContext.commander.quality, 'brilliant');
+  assert.equal(state.game.commandContext.commander.rangeUd, 8);
+  assert.match(state.game.commandContext.commander.label, /brilliant/i);
+});
+
+test('selected unit receives an in-command snapshot against the active corps commander', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.commandContext.inCommand.status, 'in-command');
+  assert.equal(state.game.commandContext.inCommand.unitId, 'p1-c1-cav-1');
+  assert.ok(state.game.commandContext.inCommand.distanceUd < state.game.commandContext.inCommand.commandRangeUd);
+});
+
+test('selected unit becomes out of command when moved beyond strict command range', () => {
+  let state = completeSetupToBattle();
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'p1-c1-cav-1'
+          ? { ...unit, xUd: 18, yUd: unit.yUd }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.commandContext.inCommand.status, 'out-of-command');
+  assert.ok(state.game.commandContext.inCommand.distanceUd > state.game.commandContext.inCommand.commandRangeUd);
+});
+
+test('commander-engaged diagnostic toggle produces a reproducible blocked order case', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_COMMANDER_ENGAGED_DIAGNOSTIC,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  assert.equal(state.game.commandContext.commander.engagedInCombat, true);
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+  assert.match(
+    state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'commander-engaged')?.text ?? '',
+    /engaged in combat/i,
+  );
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_COMMANDER_ENGAGED_DIAGNOSTIC,
+    isActive: false,
+  });
+
+  assert.equal(state.game.commandContext.commander.engagedInCombat, false);
+});
+
+test('selected commander uses attach targeting, then confirms attachment and follows the host move', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.free, 1);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'targeting');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'attach');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'attach');
+  assert.equal(state.game.commanderFreeMovePreview.targetUnitId, 'p1-c1-cav-1');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  const attachedHost = state.game.units.find((unit) => unit.id === 'p1-c1-cav-1');
+  const attachedCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  assert.equal(attachedHost?.attachedCommanderId, 'test-unit-1');
+  assert.equal(attachedCommander?.attachedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.commandContext.commander.attachedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.DETACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.units.find((unit) => unit.id === 'p1-c1-cav-1')?.attachedCommanderId, 'test-unit-1');
+  assert.equal(state.game.units.find((unit) => unit.id === 'test-unit-1')?.attachedUnitId, 'p1-c1-cav-1');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  const movedHost = state.game.units.find((unit) => unit.id === 'p1-c1-cav-1');
+  const movedCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  assert.ok(movedHost);
+  assert.ok(movedCommander);
+  assert.equal(Number(Math.abs(movedHost.yUd - movedCommander.yUd).toFixed(3)), Number(((movedHost.depthUd / 2) + (movedCommander.depthUd / 2)).toFixed(3)));
+});
+
+test('attached commanders are released automatically when the player turn ends', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      round: {
+        ...state.game.round,
+        turnPlayerId: 'player-1',
+        roundPhase: 'victory-check',
+        dialog: { type: 'phase-announce', phaseLabel: 'Siegbedingungen' },
+      },
+    },
+  };
+  state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+
+  assert.equal(state.game.units.find((unit) => unit.id === 'p1-c1-cav-1')?.attachedCommanderId, null);
+  assert.equal(state.game.units.find((unit) => unit.id === 'test-unit-1')?.attachedUnitId, null);
+});
+
+test('resetting an attached commander clears the host attachment relation as well', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESET_TEST_UNITS,
+    unitId: 'test-unit-1',
+  });
+
+  assert.equal(state.game.units.find((unit) => unit.id === 'test-unit-1')?.attachedUnitId, null);
+  assert.equal(state.game.units.find((unit) => unit.id === 'p1-c1-cav-1')?.attachedCommanderId, null);
+  assert.equal(state.game.commandContext.commander.attachedUnitId, null);
+});
+
+test('resetting a moved host restores its attached commander to the pre-attach position', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+
+  const initialCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  assert.ok(initialCommander);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialCommander.xUd + 2).toFixed(3)),
+    yUd: initialCommander.yUd,
+    dragOriginXUd: initialCommander.xUd,
+    dragOriginYUd: initialCommander.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'move');
+
+  const preAttachCommander = {
+    xUd: Number(state.game.commanderFreeMovePreview.xUd),
+    yUd: Number(state.game.commanderFreeMovePreview.yUd),
+    advanceUsedUd: Number(state.game.commanderFreeMovePreview.nextSpentUd),
+  };
+  assert.equal(preAttachCommander.advanceUsedUd, 2);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  const afterHostMoveCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  assert.ok(afterHostMoveCommander);
+  assert.notEqual(afterHostMoveCommander.yUd, preAttachCommander.yUd);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESET_TEST_UNITS,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  const resetCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  const resetHost = state.game.units.find((unit) => unit.id === 'p1-c1-cav-1');
+  assert.ok(resetCommander);
+  assert.ok(resetHost);
+  assert.equal(resetCommander.attachedUnitId, null);
+  assert.equal(resetHost.attachedCommanderId, null);
+  assert.equal(resetCommander.xUd, preAttachCommander.xUd);
+  assert.equal(resetCommander.yUd, preAttachCommander.yUd);
+  assert.equal(resetCommander.advanceUsedUd, preAttachCommander.advanceUsedUd);
+});
+
+test('attach targeting still accepts a host when only the host footprint touches the remaining commander radius', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'test-unit-1',
+  });
+
+  const initialCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
+  assert.ok(initialCommander);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialCommander.xUd + 4.2).toFixed(3)),
+    yUd: initialCommander.yUd,
+    dragOriginXUd: initialCommander.xUd,
+    dragOriginYUd: initialCommander.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.nextSpentUd, 4.2);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'p1-c1-cav-1'
+          ? {
+              ...unit,
+              xUd: Number((state.game.commanderFreeMovePreview.xUd + 1.3).toFixed(3)),
+              yUd: state.game.commanderFreeMovePreview.yUd,
+            }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.targetUnitId, 'p1-c1-cav-1');
+  assert.ok(Number(state.game.commanderFreeMovePreview.nextSpentUd) <= 5);
+});
+
+test('movement keeps the in-command snapshot frozen from order start across chained commands', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+
+  assert.equal(state.game.movement.orderCommandSnapshot.status, 'in-command');
+  assert.equal(state.game.movement.orderCommandSnapshot.unitId, 'p1-c1-cav-1');
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        inCommand: {
+          ...state.game.commandContext.inCommand,
+          status: 'out-of-command',
+          distanceUd: 9,
+          commandRangeUd: 8,
+          label: 'Out of command at 9.00 UD.',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_WHEEL_MODE,
+    isActive: true,
+  });
+
+  assert.equal(state.game.movement.orderCommandSnapshot.status, 'in-command');
+  assert.match(state.game.movement.orderCommandSnapshot.label, /In command at/);
+});
+
+test('a later move rechecks command status with a fresh order snapshot', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  assert.equal(state.game.movement.orderCommandSnapshot, null);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-2',
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        inCommand: {
+          ...state.game.commandContext.inCommand,
+          status: 'out-of-command',
+          distanceUd: 9,
+          commandRangeUd: 8,
+          label: 'Out of command at 9.00 UD.',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+
+  assert.equal(state.game.movement.orderCommandSnapshot.status, 'out-of-command');
+  assert.match(state.game.movement.orderCommandSnapshot.label, /Out of command at 9\.00 UD\./);
+});
+
+test('confirm advance spends CP for the frozen order snapshot, including the out-of-command surcharge', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        inCommand: {
+          ...state.game.commandContext.inCommand,
+          status: 'out-of-command',
+          distanceUd: 9,
+          commandRangeUd: 8,
+          label: 'Out of command at 9.00 UD.',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 2);
+  assert.equal(state.game.commandContext.commandPoints.spent, 2);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-2).reasonCode, 'base-order');
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).reasonCode, 'out-of-command');
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).unitId, 'p1-c1-cav-1');
+
+test('included commander host unit can optionally spend the free CP on its movement order', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c3-hi-1',
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 4);
+  assert.equal(state.game.commandContext.commandPoints.free, 1);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_USE_FREE_COMMAND_POINT_FOR_ORDER,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).reasonCode, COMMAND_CP_REASON_CODES.FREE_CP);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).amount, -1);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).unitId, 'p1-c3-hi-1');
+});
+});
+
+test('movement preview blocks confirmation when the current order costs more CP than remain', () => {
+  let state = completeSetupToBattle();
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(initialUnit);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        commandPoints: {
+          ...state.game.commandContext.commandPoints,
+          available: 1,
+          label: '1 CP available',
+        },
+        inCommand: {
+          ...state.game.commandContext.inCommand,
+          status: 'out-of-command',
+          distanceUd: 9,
+          commandRangeUd: 8,
+          label: 'Out of command at 9.00 UD.',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  const cpDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'command-point-cost');
+  assert.ok(cpDiagnostic);
+  assert.equal(cpDiagnostic.status, 'blocked');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  const unit = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(unit);
+  assert.equal(unit.yUd, initialUnit.yUd);
+  assert.equal(state.game.commandContext.commandPoints.available, 1);
+});
+
+test('P6 command fixture includes three corps per player with requested compositions', () => {
+  const state = createInitialAppState();
+  const fixtureUnits = state.game.units.filter((unit) => unit.fixtureTag === 'p6-command-fixture');
+
+  assert.equal(fixtureUnits.length, 20);
+
+  for (const owner of [COMMAND_PLAYER_IDS.PLAYER_ONE, COMMAND_PLAYER_IDS.PLAYER_TWO]) {
+    const ownerUnits = fixtureUnits.filter((unit) => unit.owner === owner);
+    const ownerCorpsIds = new Set(ownerUnits.map((unit) => unit.corpsId));
+
+    assert.equal(ownerUnits.length, 10);
+    assert.equal(ownerCorpsIds.size, 3);
+
+    const corpsOneUnits = ownerUnits.filter((unit) => unit.corpsId.endsWith('corps-1'));
+    assert.equal(corpsOneUnits.filter((unit) => unit.troopType === 'general').length, 1);
+    assert.equal(corpsOneUnits.filter((unit) => unit.troopType === 'cavalry').length, 2);
+
+    const corpsTwoUnits = ownerUnits.filter((unit) => unit.corpsId.endsWith('corps-2'));
+    assert.equal(corpsTwoUnits.filter((unit) => unit.troopType === 'general').length, 1);
+    assert.equal(corpsTwoUnits.filter((unit) => unit.troopType === 'medium-infantry').length, 2);
+
+    const corpsThreeUnits = ownerUnits.filter((unit) => unit.corpsId.endsWith('corps-3'));
+    assert.equal(corpsThreeUnits.filter((unit) => unit.troopType === 'heavy-infantry').length, 4);
+    assert.equal(corpsThreeUnits.filter((unit) => unit.hasIncludedCommander).length, 1);
+  }
+});
+
+test('P6 command fixture uses requested commander qualities, ranges, and base dimensions', () => {
+  const state = createInitialAppState();
+  const fixtureUnits = state.game.units.filter((unit) => unit.fixtureTag === 'p6-command-fixture');
+
+  const brilliantCommanders = fixtureUnits.filter((unit) => unit.commanderQuality === 'brilliant');
+  const competentCommanders = fixtureUnits.filter((unit) => unit.commanderQuality === 'competent');
+  const ordinaryCommanders = fixtureUnits.filter((unit) => unit.commanderQuality === 'ordinary');
+
+  assert.equal(brilliantCommanders.length, 2);
+  assert.equal(competentCommanders.length, 2);
+  assert.equal(ordinaryCommanders.length, 2);
+
+  assert.ok(brilliantCommanders.every((unit) => unit.commandRangeUd === 8));
+  assert.ok(competentCommanders.every((unit) => unit.commandRangeUd === 6));
+  assert.ok(ordinaryCommanders.every((unit) => unit.commandRangeUd === 4));
+
+  const generals = fixtureUnits.filter((unit) => unit.troopType === 'general');
+  const mediumInfantry = fixtureUnits.filter((unit) => unit.troopType === 'medium-infantry');
+  const cavalry = fixtureUnits.filter((unit) => unit.troopType === 'cavalry');
+  const heavyInfantry = fixtureUnits.filter((unit) => unit.troopType === 'heavy-infantry');
+
+  assert.ok(generals.every((unit) => unit.baseShape === 'circle' && unit.widthUd === 1 && unit.depthUd === 1));
+  assert.ok(mediumInfantry.every((unit) => unit.baseShape === 'square' && unit.widthUd === 1 && unit.depthUd === 1));
+  assert.ok(cavalry.every((unit) => unit.baseShape === 'rectangle' && unit.widthUd === 1 && unit.depthUd === 0.75));
+  assert.ok(heavyInfantry.every((unit) => unit.baseShape === 'rectangle' && unit.widthUd === 1 && unit.depthUd === 0.75));
+});
+
+test('P6 command fixture corps are placed side-by-side in each player zone orientation', () => {
+  const state = createInitialAppState();
+  const fixtureUnits = state.game.units.filter((unit) => unit.fixtureTag === 'p6-command-fixture');
+
+  const playerOneUnits = fixtureUnits.filter((unit) => unit.owner === COMMAND_PLAYER_IDS.PLAYER_ONE);
+  const playerTwoUnits = fixtureUnits.filter((unit) => unit.owner === COMMAND_PLAYER_IDS.PLAYER_TWO);
+
+  const playerOneCorpsCenters = new Set(
+    playerOneUnits
+      .filter((unit) => unit.isCommander)
+      .map((unit) => Number(unit.xUd.toFixed(2))),
+  );
+
+  const playerTwoCorpsCenters = new Set(
+    playerTwoUnits
+      .filter((unit) => unit.isCommander)
+      .map((unit) => Number(unit.xUd.toFixed(2))),
+  );
+
+  assert.equal(playerOneCorpsCenters.size, 2);
+  assert.equal(playerTwoCorpsCenters.size, 2);
+
+  assert.ok(playerOneUnits.every((unit) => unit.yUd >= 17));
+  assert.ok(playerTwoUnits.every((unit) => unit.yUd <= 3));
+  assert.ok(playerOneUnits.every((unit) => unit.facing === 'north' && unit.rotationRadians === 0));
+  assert.ok(playerTwoUnits.every((unit) => unit.facing === 'south' && unit.rotationRadians === Math.PI));
 });
 
 test('movement state initializes as a serializable placeholder spine', () => {
@@ -118,6 +1083,7 @@ test('movement draft and preview store declarative serializable command data aft
 
   // P5-06: movement commands require active phase = movement.
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.MOVEMENT });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SELECT_MOVEMENT_COMMAND,
@@ -197,6 +1163,8 @@ test('movement draft state resets during setup and when clearing or changing sel
 
 test('cancel movement preview clears command ui state without resetting the unit', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_MODE,
@@ -210,7 +1178,7 @@ test('cancel movement preview clears command ui state without resetting the unit
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.yUd, 10);
+  assert.equal(unit.yUd, initialUnit.yUd);
   assert.equal(state.game.advanceModeActive, false);
   assert.equal(state.game.slideModeActive, false);
   assert.equal(state.game.wheelModeActive, false);
@@ -218,8 +1186,116 @@ test('cancel movement preview clears command ui state without resetting the unit
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.IDLE);
 });
 
+test('pending movement preview blocks deselection and switching to another unit until cancel', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: null });
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-2' });
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: null });
+  assert.equal(state.game.selectedUnitId, null);
+});
+
+test('changing active corps does not bypass pending movement order atomicity', () => {
+  let state = completeSetupToBattle();
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'p1-c1-cav-1',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
+    corpsId: 'corps-2',
+  });
+
+  assert.equal(state.game.commandContext.activeCorpsId, 'corps-1');
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
+  assert.equal(state.game.movement.orderCommandSnapshot.unitId, 'p1-c1-cav-1');
+});
+
+test('pending commander free move preview also blocks deselection and switching until canceled', () => {
+  let state = advanceToBattlefield();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 2).toFixed(3)),
+    yUd: initialGeneral.yUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: null });
+  assert.equal(state.game.selectedUnitId, 'test-unit-1');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+  assert.equal(state.game.selectedUnitId, 'test-unit-1');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CANCEL_COMMANDER_FREE_MOVE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+});
+
 test('movement validation snapshot reports missing active corps as placeholder during preview', () => {
-  let state = selectTestUnit(advanceToBattlefield());
+  let state = reduceAppState(advanceToBattlefield(), { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_MODE,
@@ -233,6 +1309,152 @@ test('movement validation snapshot reports missing active corps as placeholder d
   const commandContextDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'command-context');
   assert.ok(commandContextDiagnostic);
   assert.equal(commandContextDiagnostic.status, 'placeholder');
+
+  const commandLegalityDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'command-legality');
+  assert.ok(commandLegalityDiagnostic);
+  assert.equal(commandLegalityDiagnostic.status, 'blocked');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+});
+
+test('confirm advance is blocked when no active corps is selected even if preview exists', () => {
+  let state = reduceAppState(advanceToBattlefield(), { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(unit);
+  assert.equal(unit.yUd, initialUnit.yUd);
+});
+
+test('movement validation blocks confirmation when the selected unit falls outside the active corps', () => {
+  let state = advanceToBattlefield();
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'p1-c2-mi-1');
+  assert.ok(initialUnit);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      selectedUnitId: 'p1-c2-mi-1',
+      commandContext: {
+        ...state.game.commandContext,
+        activeCorpsId: 'corps-1',
+        currentPhaseId: BATTLE_PHASE_IDS.MOVEMENT,
+        activePlayerId: COMMAND_PLAYER_IDS.PLAYER_ONE,
+        inCommand: {
+          ...state.game.commandContext.inCommand,
+          status: 'wrong-corps',
+          unitId: 'p1-c2-mi-1',
+          corpsId: 'corps-2',
+          label: 'Selected unit is outside the active corps.',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  const commandLegalityDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'command-legality');
+  assert.ok(commandLegalityDiagnostic);
+  assert.equal(commandLegalityDiagnostic.status, 'blocked');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_ADVANCE,
+  });
+
+  const unit = state.game.units.find((candidate) => candidate.id === 'p1-c2-mi-1');
+  assert.ok(unit);
+  assert.equal(unit.yUd, initialUnit.yUd);
+});
+
+test('movement confirmation is blocked for source-sensitive difficult manoeuvre cases in the current P6 subset', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-1'
+          ? {
+              ...unit,
+              isCataphract: true,
+            }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  const difficultDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'difficult-manoeuvre');
+  assert.ok(difficultDiagnostic);
+  assert.equal(difficultDiagnostic.status, 'blocked');
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
+});
+
+test('movement confirmation is blocked when the active commander is marked as engaged in combat', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        commander: {
+          ...state.game.commandContext.commander,
+          engagedInCombat: true,
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  const engagedDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'commander-engaged');
+  assert.ok(engagedDiagnostic);
+  assert.equal(engagedDiagnostic.status, 'blocked');
+
+  const commandPointDiagnostic = state.game.movement.validationSnapshot.diagnostics.find((entry) => entry.id === 'command-point-cost');
+  assert.ok(commandPointDiagnostic);
+  assert.equal(commandPointDiagnostic.status, 'blocked');
+
+  assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
 });
 
 test('wheel preview stores left-side wheel state without mutating the unit first', () => {
@@ -259,6 +1481,8 @@ test('wheel preview stores left-side wheel state without mutating the unit first
 
 test('confirm wheel updates unit pose through reducer state', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_WHEEL_MODE,
@@ -273,8 +1497,8 @@ test('confirm wheel updates unit pose through reducer state', () => {
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(Number(unit.xUd.toFixed(3)), 10);
-  assert.equal(Number(unit.yUd.toFixed(3)), 9);
+  assert.equal(Number(unit.xUd.toFixed(3)), Number(initialUnit.xUd.toFixed(3)));
+  assert.equal(Number(unit.yUd.toFixed(3)), Number((initialUnit.yUd - 1).toFixed(3)));
   assert.equal(Number(unit.rotationRadians.toFixed(3)), Number((Math.PI / 2).toFixed(3)));
   assert.equal(unit.advanceUsedUd, 1.5);
   assert.equal(state.game.wheelModeActive, false);
@@ -762,6 +1986,8 @@ test('terrain update keeps last valid placeholder state when an invalid move is 
 
 test('unit placement is blocked before the deployment setup step', () => {
   let state = selectTestUnit(startNewGame());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_UNIT_POSITION,
@@ -772,8 +1998,8 @@ test('unit placement is blocked before the deployment setup step', () => {
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.xUd, 10);
-  assert.equal(unit.yUd, 10);
+  assert.equal(unit.xUd, initialUnit.xUd);
+  assert.equal(unit.yUd, initialUnit.yUd);
 });
 
 test('unit placement is allowed during deployment setup step', () => {
@@ -796,6 +2022,461 @@ test('unit placement is allowed during deployment setup step', () => {
   assert.equal(unit.yUd, 12);
   assert.equal(state.game.setup.deployment.visiblePlaceholders[0].pose.xUd, 14);
   assert.equal(state.game.setup.deployment.visiblePlaceholders[0].pose.yUd, 12);
+});
+
+test('non-included general drag creates a ghost preview and only moves on confirm', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  const targetXUd = Number((initialGeneral.xUd + 3).toFixed(3));
+  const targetYUd = Number((initialGeneral.yUd - 4).toFixed(3));
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: targetXUd,
+    yUd: targetYUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+  });
+
+  const previewGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(previewGeneral);
+  assert.equal(previewGeneral.xUd, initialGeneral.xUd);
+  assert.equal(previewGeneral.yUd, initialGeneral.yUd);
+  assert.equal(previewGeneral.advanceUsedUd, 0);
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.unitId, 'test-unit-1');
+  assert.equal(state.game.commanderFreeMovePreview.xUd, targetXUd);
+  assert.equal(state.game.commanderFreeMovePreview.yUd, targetYUd);
+  assert.equal(state.game.commanderFreeMovePreview.nextSpentUd, 5);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  const movedGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(movedGeneral);
+  assert.equal(movedGeneral.xUd, targetXUd);
+  assert.equal(movedGeneral.yUd, targetYUd);
+  assert.equal(movedGeneral.advanceUsedUd, 5);
+  assert.equal(state.game.commanderFreeMovePreview.status, 'idle');
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).reasonCode, COMMAND_CP_REASON_CODES.FREE_CP);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).amount, -1);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).unitId, 'test-unit-1');
+});
+
+test('free commander split drag spends the free CP only once when the move starts', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 2).toFixed(3)),
+    yUd: initialGeneral.yUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+
+  const afterFirstConfirm = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(afterFirstConfirm);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((afterFirstConfirm.xUd + 3).toFixed(3)),
+    yUd: afterFirstConfirm.yUd,
+    dragOriginXUd: afterFirstConfirm.xUd,
+    dragOriginYUd: afterFirstConfirm.yUd,
+    maxDistanceUd: 3,
+    dragSpentUdAtStart: 2,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+});
+
+test('commander attach targeting uses the current unconfirmed ghost position and remaining budget', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 2).toFixed(3)),
+    yUd: initialGeneral.yUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'move');
+  assert.equal(state.game.commanderFreeMovePreview.nextSpentUd, 2);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'test-unit-1',
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'targeting');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'attach');
+  assert.equal(state.game.commanderFreeMovePreview.xUd, Number((initialGeneral.xUd + 2).toFixed(3)));
+  assert.equal(state.game.commanderFreeMovePreview.nextSpentUd, 2);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ATTACH_COMMANDER,
+    unitId: 'p1-c1-cav-1',
+  });
+
+  assert.equal(state.game.commanderFreeMovePreview.status, 'ready');
+  assert.equal(state.game.commanderFreeMovePreview.mode, 'attach');
+  assert.equal(state.game.commanderFreeMovePreview.targetUnitId, 'p1-c1-cav-1');
+  assert.ok(Number(state.game.commanderFreeMovePreview.nextSpentUd) > 2);
+  assert.ok(Number(state.game.commanderFreeMovePreview.nextSpentUd) <= 5);
+});
+
+test('non-included general free drag is blocked beyond 5 UD', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 5.2).toFixed(3)),
+    yUd: initialGeneral.yUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+  });
+
+  const blockedGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(blockedGeneral);
+  assert.equal(blockedGeneral.xUd, initialGeneral.xUd);
+  assert.equal(blockedGeneral.yUd, initialGeneral.yUd);
+  assert.equal(blockedGeneral.advanceUsedUd, 0);
+});
+
+test('confirming a general free drag ends that commander movement for the phase', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 2).toFixed(3)),
+    yUd: initialGeneral.yUd,
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  const afterFirstConfirm = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(afterFirstConfirm);
+  assert.equal(Number(afterFirstConfirm.advanceUsedUd.toFixed(3)), 2);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((afterFirstConfirm.xUd + 3).toFixed(3)),
+    yUd: afterFirstConfirm.yUd,
+    dragOriginXUd: afterFirstConfirm.xUd,
+    dragOriginYUd: afterFirstConfirm.yUd,
+    maxDistanceUd: 3,
+    dragSpentUdAtStart: 2,
+  });
+
+  const unchangedAfterSecondAttempt = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(unchangedAfterSecondAttempt);
+  assert.equal(unchangedAfterSecondAttempt.xUd, afterFirstConfirm.xUd);
+  assert.equal(unchangedAfterSecondAttempt.yUd, afterFirstConfirm.yUd);
+  assert.equal(unchangedAfterSecondAttempt.advanceUsedUd, afterFirstConfirm.advanceUsedUd);
+  assert.equal(state.game.commanderFreeMovePreview.status, 'idle');
+});
+
+test('stay action marks a selected unit as stayed during movement phase', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.MARK_UNIT_STAY,
+    unitId: 'test-unit-1',
+  });
+
+  const stayedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(stayedUnit);
+  assert.equal(stayedUnit.stayedThisMovementPhase, true);
+  assert.equal(stayedUnit.advanceUsedUd, 5);
+});
+
+test('non-included general free drag reset restores the drag-start position and refreshes budget', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const initialGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialGeneral);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: Number((initialGeneral.xUd + 2).toFixed(3)),
+    yUd: Number((initialGeneral.yUd - 1).toFixed(3)),
+    dragOriginXUd: initialGeneral.xUd,
+    dragOriginYUd: initialGeneral.yUd,
+    maxDistanceUd: 5,
+    dragSpentUdAtStart: 0,
+  });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
+  });
+
+  const movedGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(movedGeneral);
+  assert.ok((movedGeneral.advanceUsedUd ?? 0) > 0);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESET_COMMANDER_FREE_MOVE,
+    unitId: 'test-unit-1',
+  });
+
+  const resetGeneral = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(resetGeneral);
+  assert.equal(resetGeneral.xUd, initialGeneral.xUd);
+  assert.equal(resetGeneral.yUd, initialGeneral.yUd);
+  assert.equal(resetGeneral.advanceUsedUd, 0);
+  assert.equal(resetGeneral.commanderMovePhaseStartXUd, null);
+  assert.equal(resetGeneral.commanderMovePhaseStartYUd, null);
+  assert.equal(state.game.commandContext.commandPoints.available, 4);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 1);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).reasonCode, COMMAND_CP_REASON_CODES.FREE_CP);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).amount, 1);
+  assert.equal(state.game.commandContext.commandPoints.ledger.at(-1).unitId, 'test-unit-1');
+});
+
+test('reset test units only resets the selected unit to the completed setup baseline', () => {
+  let state = startNewGame();
+
+  while (state.game.setup.currentStepId !== SETUP_STEP_IDS.DEPLOYMENT) {
+    state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_SETUP_STEP });
+  }
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'test-unit-1',
+    xUd: 14,
+    yUd: 12,
+  });
+
+  while (state.game.setup.currentStepId !== SETUP_STEP_IDS.READY) {
+    state = reduceAppState(state, { type: ACTION_TYPES.ADVANCE_SETUP_STEP });
+  }
+
+  state = reduceAppState(state, { type: ACTION_TYPES.COMPLETE_SETUP });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.MOVEMENT });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  const movedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  const otherUnitBeforeReset = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(movedUnit);
+  assert.ok(otherUnitBeforeReset);
+  assert.notEqual(movedUnit.yUd, 12);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.RESET_TEST_UNITS });
+
+  const resetUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  const otherUnitAfterReset = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(resetUnit);
+  assert.ok(otherUnitAfterReset);
+  assert.equal(resetUnit.xUd, 14);
+  assert.equal(resetUnit.yUd, 12);
+  assert.equal(resetUnit.advanceUsedUd, 0);
+  assert.equal(state.game.commandContext.commandPoints.available, 4);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(otherUnitAfterReset.xUd, otherUnitBeforeReset.xUd);
+  assert.equal(otherUnitAfterReset.yUd, otherUnitBeforeReset.yUd);
+});
+
+test('reset test units leaves non-selected moved units untouched', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  const movedCavalry = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(movedCavalry);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.MARK_UNIT_STAY, unitId: 'p1-c1-cav-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-2' });
+  state = reduceAppState(state, { type: ACTION_TYPES.RESET_TEST_UNITS });
+
+  const cavalryAfterOtherReset = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  const selectedAfterReset = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-2');
+  assert.ok(cavalryAfterOtherReset);
+  assert.ok(selectedAfterReset);
+  assert.equal(cavalryAfterOtherReset.xUd, movedCavalry.xUd);
+  assert.equal(cavalryAfterOtherReset.yUd, movedCavalry.yUd);
+  assert.equal(selectedAfterReset.advanceUsedUd, 0);
+});
+
+test('after movement is confirmed the same unit stays selectable for reset but cannot receive more movement commands', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 1);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-2' });
+  assert.equal(state.game.selectedUnitId, 'p1-c1-cav-2');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+
+  const beforeRetry = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(beforeRetry);
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+
+  const afterRetry = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(afterRetry);
+  assert.equal(afterRetry.yUd, beforeRetry.yUd);
+  assert.equal(state.game.advanceModeActive, false);
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 1);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.RESET_TEST_UNITS, unitId: 'p1-c1-cav-1' });
+  const resetUnit = state.game.units.find((candidate) => candidate.id === 'p1-c1-cav-1');
+  assert.ok(resetUnit);
+  assert.equal(resetUnit.advanceUsedUd, 0);
+});
+
+test('reset test units refunds a free CP consumed by the selected unit movement order', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-3' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c3-hi-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_USE_FREE_COMMAND_POINT_FOR_ORDER, isActive: true });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 1,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 3);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 0);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.RESET_TEST_UNITS });
+
+  assert.equal(state.game.commandContext.commandPoints.available, 4);
+  assert.equal(state.game.commandContext.commandPoints.spent, 0);
+  assert.equal(state.game.commandContext.commandPoints.free, 1);
+});
+
+test('included general host unit cannot use commander free drag movement', () => {
+  let state = advanceToBattlefield();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-3' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c3-hi-1' });
+
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'p1-c3-hi-1');
+  assert.ok(initialUnit);
+  assert.equal(initialUnit.hasIncludedCommander, true);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_UNIT_POSITION,
+    unitId: 'p1-c3-hi-1',
+    xUd: Number((initialUnit.xUd + 1).toFixed(3)),
+    yUd: initialUnit.yUd,
+    dragOriginXUd: initialUnit.xUd,
+    dragOriginYUd: initialUnit.yUd,
+    maxDistanceUd: 5,
+  });
+
+  const unchangedUnit = state.game.units.find((candidate) => candidate.id === 'p1-c3-hi-1');
+  assert.ok(unchangedUnit);
+  assert.equal(unchangedUnit.xUd, initialUnit.xUd);
+  assert.equal(unchangedUnit.yUd, initialUnit.yUd);
 });
 
 test('starting a new game creates explicit deployment zones and visible deployment placeholders', () => {
@@ -850,6 +2531,8 @@ test('advance preview clamps to the 4 UD P0 limit', () => {
 
 test('setup flow blocks advance-mode interaction', () => {
   let state = selectTestUnit(startNewGame());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
   state = reduceAppState(state, {
@@ -862,12 +2545,14 @@ test('setup flow blocks advance-mode interaction', () => {
   assert.ok(unit);
   assert.equal(state.game.advanceModeActive, false);
   assert.equal(state.game.advancePreviewUd, 0);
-  assert.equal(unit.yUd, 10);
+  assert.equal(unit.yUd, initialUnit.yUd);
   assert.equal(unit.advanceUsedUd, 0);
 });
 
 test('confirm advance updates unit position through reducer state', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
@@ -877,7 +2562,7 @@ test('confirm advance updates unit position through reducer state', () => {
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.yUd, 8.5);
+  assert.equal(unit.yUd, initialUnit.yUd - 1.5);
   assert.equal(unit.advanceUsedUd, 1.5);
   assert.equal(state.game.advancePreviewUd, 0);
   assert.equal(state.game.advanceModeActive, false);
@@ -885,6 +2570,8 @@ test('confirm advance updates unit position through reducer state', () => {
 
 test('advance preview stores movement preview data without mutating the unit first', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
   state = reduceAppState(state, {
@@ -894,14 +2581,16 @@ test('advance preview stores movement preview data without mutating the unit fir
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.yUd, 10);
+  assert.equal(unit.yUd, initialUnit.yUd);
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
-  assert.equal(state.game.movement.preview.segments[0].endPose.yUd, 8);
+  assert.equal(state.game.movement.preview.segments[0].endPose.yUd, initialUnit.yUd - 2);
   assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.READY);
 });
 
 test('advance preview follows rotated facing before confirmation', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = {
     ...state,
@@ -923,8 +2612,8 @@ test('advance preview follows rotated facing before confirmation', () => {
     distanceUd: 2,
   });
 
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.xUd.toFixed(3)), 12);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), 10);
+  assert.equal(Number(state.game.movement.preview.segments[0].endPose.xUd.toFixed(3)), Number((initialUnit.xUd + 2).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), Number(initialUnit.yUd.toFixed(3)));
 });
 
 test('advance preview rejects full-footprint battlefield overflow', () => {
@@ -969,7 +2658,7 @@ test('advance preview rejects full-footprint battlefield overflow', () => {
   assert.equal(unit.yUd, 0.6);
 });
 
-test('remaining budget limits later advance previews after a partial move', () => {
+test('confirming movement blocks later advance previews for the same unit in the same phase', () => {
   let state = selectTestUnit(advanceToBattlefield());
 
   state = reduceAppState(state, {
@@ -983,11 +2672,16 @@ test('remaining budget limits later advance previews after a partial move', () =
     distanceUd: 9,
   });
 
-  assert.equal(state.game.advancePreviewUd, 2.44);
+  assert.equal(state.game.advanceModeActive, false);
+  assert.equal(state.game.advancePreviewUd, 0);
+  assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.IDLE);
 });
 
 test('wheel preview clamps to the remaining shared movement budget', () => {
-  let state = selectTestUnit(advanceToBattlefield());
+  let state = advanceToBattlefield();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
 
   state = {
     ...state,
@@ -1008,7 +2702,6 @@ test('wheel preview clamps to the remaining shared movement budget', () => {
     type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
     distanceUd: 3.5,
   });
-  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_WHEEL_MODE,
     isActive: true,
@@ -1019,12 +2712,66 @@ test('wheel preview clamps to the remaining shared movement budget', () => {
     angleRadians: Math.PI / 2,
   });
 
-  assert.equal(Number(state.game.movement.preview.segments[0].distance.resolvedUd.toFixed(3)), 0.5);
+  assert.equal(Number(state.game.movement.preview.segments[1].distance.resolvedUd.toFixed(3)), 0.5);
   assert.equal(Number(state.game.wheelPreviewAngleRadians.toFixed(3)), Number((Math.PI / 6).toFixed(3)));
 });
 
-test('advance preview keeps the wheeled unit rotation after wheel confirmation', () => {
+test('medium infantry advance preview clamps to the approved 3 UD subset budget', () => {
+  let state = advanceToBattlefield();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c2-mi-1' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 9,
+  });
+
+  assert.equal(state.game.advancePreviewUd, 3);
+  assert.equal(Number(state.game.movement.preview.segments[0].distance.resolvedUd.toFixed(3)), 3);
+});
+
+test('heavy infantry advance preview clamps to 2 UD when an enemy starts within 4 UD', () => {
+  let state = advanceToBattlefield();
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'p1-c3-hi-2') {
+          return {
+            ...unit,
+            xUd: 10,
+            yUd: 10,
+          };
+        }
+
+        if (unit.id === 'p2-c2-mi-1') {
+          return {
+            ...unit,
+            xUd: 10,
+            yUd: 6,
+          };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c3-hi-2' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE,
+    distanceUd: 9,
+  });
+
+  assert.equal(state.game.advancePreviewUd, 2);
+  assert.equal(Number(state.game.movement.preview.segments[0].distance.resolvedUd.toFixed(3)), 2);
+});
+
+test('advance preview keeps the wheeled ghost rotation before confirmation', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_WHEEL_MODE,
@@ -1035,7 +2782,6 @@ test('advance preview keeps the wheeled unit rotation after wheel confirmation',
     pivotSide: MOVEMENT_PIVOT_SIDES.RIGHT,
     angleRadians: Math.PI / 2,
   });
-  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_WHEEL });
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_MODE,
     isActive: true,
@@ -1045,13 +2791,15 @@ test('advance preview keeps the wheeled unit rotation after wheel confirmation',
     distanceUd: 1,
   });
 
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.xUd.toFixed(3)), 11);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), 9);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.rotationRadians.toFixed(3)), Number((Math.PI / 2).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[1].endPose.xUd.toFixed(3)), Number((initialUnit.xUd + 1).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[1].endPose.yUd.toFixed(3)), Number((initialUnit.yUd - 1).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[1].endPose.rotationRadians.toFixed(3)), Number((Math.PI / 2).toFixed(3)));
 });
 
 test('switching from advance preview to wheel preserves the chained ghost pose', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_MODE,
@@ -1068,12 +2816,14 @@ test('switching from advance preview to wheel preserves the chained ghost pose',
 
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
   assert.equal(state.game.movement.preview.segments.length, 1);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), 9);
+  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), Number((initialUnit.yUd - 1).toFixed(3)));
   assert.equal(state.game.wheelModeActive, true);
 });
 
 test('mixed movement chain confirms from the final preview pose and budget', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_ADVANCE_MODE,
@@ -1104,22 +2854,24 @@ test('mixed movement chain confirms from the final preview pose and budget', () 
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
   assert.equal(state.game.movement.preview.segments.length, 3);
   assert.equal(Number(getMovementPreviewResolvedDistanceUd(state.game.movement.preview).toFixed(3)), 3.5);
-  assert.equal(Number(state.game.movement.preview.segments[2].endPose.xUd.toFixed(3)), 11);
-  assert.equal(Number(state.game.movement.preview.segments[2].endPose.yUd.toFixed(3)), 8);
+  assert.equal(Number(state.game.movement.preview.segments[2].endPose.xUd.toFixed(3)), Number((initialUnit.xUd + 1).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[2].endPose.yUd.toFixed(3)), Number((initialUnit.yUd - 2).toFixed(3)));
   assert.equal(Number(state.game.movement.preview.segments[2].endPose.rotationRadians.toFixed(3)), Number((Math.PI / 2).toFixed(3)));
 
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(Number(unit.xUd.toFixed(3)), 11);
-  assert.equal(Number(unit.yUd.toFixed(3)), 8);
+  assert.equal(Number(unit.xUd.toFixed(3)), Number((initialUnit.xUd + 1).toFixed(3)));
+  assert.equal(Number(unit.yUd.toFixed(3)), Number((initialUnit.yUd - 2).toFixed(3)));
   assert.equal(Number(unit.rotationRadians.toFixed(3)), Number((Math.PI / 2).toFixed(3)));
   assert.equal(Number(unit.advanceUsedUd.toFixed(3)), 3.5);
 });
 
 test('slide preview moves laterally and stays blocked without 1 UD forward in the chain', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_SLIDE_MODE,
@@ -1132,8 +2884,8 @@ test('slide preview moves laterally and stays blocked without 1 UD forward in th
   });
 
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.ACCEPTED);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.xUd.toFixed(3)), 11);
-  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), 10);
+  assert.equal(Number(state.game.movement.preview.segments[0].endPose.xUd.toFixed(3)), Number((initialUnit.xUd + 1).toFixed(3)));
+  assert.equal(Number(state.game.movement.preview.segments[0].endPose.yUd.toFixed(3)), Number(initialUnit.yUd.toFixed(3)));
   assert.equal(state.game.movement.confirmation.status, MOVEMENT_CONFIRMATION_STATUSES.BLOCKED);
   assert.equal(Number(getMovementPreviewAdvanceDistanceUd(state.game.movement.preview).toFixed(3)), 0);
 });
@@ -1205,6 +2957,8 @@ test('slide also stays blocked when the chained wheel distance is below 1 UD', (
 
 test('slide is free but confirm applies the chained lateral move', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const initialUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(initialUnit);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_SLIDE_MODE,
@@ -1227,8 +2981,8 @@ test('slide is free but confirm applies the chained lateral move', () => {
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(Number(unit.xUd.toFixed(3)), 11);
-  assert.equal(Number(unit.yUd.toFixed(3)), 9);
+  assert.equal(Number(unit.xUd.toFixed(3)), Number((initialUnit.xUd + 1).toFixed(3)));
+  assert.equal(Number(unit.yUd.toFixed(3)), Number((initialUnit.yUd - 1).toFixed(3)));
   assert.equal(Number(unit.advanceUsedUd.toFixed(3)), 1);
   assert.equal(unit.slideUsedThisMovementPhase, true);
 });
@@ -1266,25 +3020,12 @@ test('a unit can only use one slide per movement phase', () => {
 
   assert.equal(state.game.slideModeActive, false);
   assert.equal(state.game.movement.selectedCommandId, null);
-
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
-    phaseId: BATTLE_PHASE_IDS.SHOOTING,
-  });
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
-    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
-  });
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SET_SLIDE_MODE,
-    isActive: true,
-  });
-
-  assert.equal(state.game.slideModeActive, true);
 });
 
 test('zoc subset legality allows confirmation when advance closes on most-threatening enemy without contact', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
 
   state = {
     ...state,
@@ -1292,15 +3033,15 @@ test('zoc subset legality allows confirmation when advance closes on most-threat
       ...state.game,
       units: state.game.units.map((unit) => {
         if (unit.id === 'test-unit-2') {
-          return { ...unit, xUd: 10, yUd: 7, rotationRadians: Math.PI };
+          return { ...unit, xUd: selectedUnit.xUd, yUd: selectedUnit.yUd - 3, rotationRadians: Math.PI };
         }
 
         if (unit.id === 'test-unit-3') {
-          return { ...unit, xUd: 9, yUd: 7, rotationRadians: Math.PI };
+          return { ...unit, xUd: selectedUnit.xUd - 1, yUd: selectedUnit.yUd - 3, rotationRadians: Math.PI };
         }
 
         if (unit.id === 'test-unit-4') {
-          return { ...unit, xUd: 11, yUd: 7, rotationRadians: Math.PI };
+          return { ...unit, xUd: selectedUnit.xUd + 1, yUd: selectedUnit.yUd - 3, rotationRadians: Math.PI };
         }
 
         return unit;
@@ -1330,12 +3071,14 @@ test('zoc subset legality allows confirmation when advance closes on most-threat
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.yUd, 8.1);
+  assert.equal(Number(unit.yUd.toFixed(3)), Number((selectedUnit.yUd - 1.9).toFixed(3)));
   assert.equal(unit.advanceUsedUd, 1.9);
 });
 
 test('zoc subset legality still blocks confirmation when path would create contact with most-threatening enemy', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
 
   state = {
     ...state,
@@ -1343,7 +3086,7 @@ test('zoc subset legality still blocks confirmation when path would create conta
       ...state.game,
       units: state.game.units.map((unit) => {
         if (unit.id === 'test-unit-2') {
-          return { ...unit, xUd: 10, yUd: 7, rotationRadians: Math.PI };
+          return { ...unit, xUd: selectedUnit.xUd, yUd: selectedUnit.yUd - 3, rotationRadians: Math.PI };
         }
 
         return unit;
@@ -1373,7 +3116,7 @@ test('zoc subset legality still blocks confirmation when path would create conta
 
   const unit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
   assert.ok(unit);
-  assert.equal(unit.yUd, 10);
+  assert.equal(unit.yUd, selectedUnit.yUd);
   assert.equal(unit.advanceUsedUd, 0);
 });
 
@@ -1384,12 +3127,14 @@ test('debug mode requires a selected unit and initializes a debug unit pose', ()
   assert.equal(state.game.debug.isActive, false);
 
   state = selectTestUnit(state);
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
   state = reduceAppState(state, { type: ACTION_TYPES.TOGGLE_DEBUG_MODE });
 
   assert.equal(state.game.debug.isActive, true);
   assert.equal(state.game.debug.showFacingGeometryOverlay, false);
-  assert.equal(state.game.debug.unitPose.xUd, 12);
-  assert.equal(state.game.debug.unitPose.yUd, 10);
+  assert.equal(state.game.debug.unitPose.xUd, selectedUnit.xUd + 2);
+  assert.equal(state.game.debug.unitPose.yUd, selectedUnit.yUd);
   assert.equal(state.game.debug.unitPose.rotationRadians, 0);
   assert.equal(state.game.debug.unitDimensions.widthUd, 1);
   assert.equal(state.game.debug.unitDimensions.depthUd, 1);
@@ -1482,6 +3227,8 @@ test('advance mode is blocked when the active player does not own the selected u
 
 test('advance preview distance is blocked when the active player does not own the selected unit', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
 
   // Activate advance while player-1 is active (allowed).
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
@@ -1493,11 +3240,13 @@ test('advance preview distance is blocked when the active player does not own th
 
   // State should be unchanged (unit not moved, preview stays at 0).
   assert.equal(state.game.advancePreviewUd, 0);
-  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, selectedUnit.yUd);
 });
 
 test('confirm advance is blocked when the active player does not own the selected unit', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
 
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
@@ -1508,7 +3257,7 @@ test('confirm advance is blocked when the active player does not own the selecte
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
 
   // Unit must not have moved.
-  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, selectedUnit.yUd);
   assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').advanceUsedUd, 0);
 });
 
@@ -1524,6 +3273,8 @@ test('advance mode is blocked when the active phase is not movement', () => {
 
 test('confirm advance is blocked when the active phase is not movement', () => {
   let state = selectTestUnit(advanceToBattlefield());
+  const selectedUnit = state.game.units.find((candidate) => candidate.id === 'test-unit-1');
+  assert.ok(selectedUnit);
 
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });
@@ -1532,7 +3283,7 @@ test('confirm advance is blocked when the active phase is not movement', () => {
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: BATTLE_PHASE_IDS.COMMAND });
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
 
-  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, 10);
+  assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').yUd, selectedUnit.yUd);
   assert.equal(state.game.units.find((u) => u.id === 'test-unit-1').advanceUsedUd, 0);
 });
 
@@ -1541,6 +3292,7 @@ test('player-2 can advance their own unit when active player is player-2 and pha
   let state = advanceToBattlefield();
 
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: COMMAND_PLAYER_IDS.PLAYER_TWO });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-2' });
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
   state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 2 });

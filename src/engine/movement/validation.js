@@ -7,7 +7,10 @@ import {
   evaluateZocTransitionsForMovementPreview,
   MOVEMENT_PATH_SAMPLE_SOURCE_STATUSES,
 } from './path-splitting.js';
+import { classifyCurrentMovementManoeuvre, DIFFICULT_MANOEUVRE_RESULTS } from './manoeuvre-classification.js';
+import { evaluateMovementBudgetSubset } from './budget.js';
 import { worldPointToLocalPoint } from '../geometry/index.js';
+import { IN_COMMAND_STATUSES } from '../command/index.js';
 import { getUnitFootprintSamplePoints } from '../zoc/geometry.js';
 
 export const MOVEMENT_VALIDATION_STATUSES = {
@@ -177,6 +180,58 @@ function hasCommandContext(commandContext) {
   return Boolean(commandContext?.activePlayerId)
     && Boolean(commandContext?.currentPhaseId)
     && Boolean(commandContext?.activeCorpsId);
+}
+
+function createCommandLegalityDiagnostic(commandContext) {
+  const inCommandStatus = commandContext?.inCommand?.status ?? IN_COMMAND_STATUSES.PLACEHOLDER;
+  const inCommandLabel = commandContext?.inCommand?.label ?? 'Command legality unresolved.';
+
+  if (inCommandStatus === IN_COMMAND_STATUSES.IN_COMMAND || inCommandStatus === IN_COMMAND_STATUSES.OUT_OF_COMMAND) {
+    return {
+      id: 'command-legality',
+      label: 'Command legality',
+      status: 'verified',
+      text: inCommandLabel,
+    };
+  }
+
+  if (
+    inCommandStatus === IN_COMMAND_STATUSES.NO_ACTIVE_CORPS
+    || inCommandStatus === IN_COMMAND_STATUSES.NO_COMMANDER
+    || inCommandStatus === IN_COMMAND_STATUSES.WRONG_CORPS
+  ) {
+    return {
+      id: 'command-legality',
+      label: 'Command legality',
+      status: 'blocked',
+      text: inCommandLabel,
+    };
+  }
+
+  return {
+    id: 'command-legality',
+    label: 'Command legality',
+    status: 'placeholder',
+    text: inCommandLabel,
+  };
+}
+
+function createCommanderEngagedDiagnostic(commandContext) {
+  if (!commandContext?.commander?.engagedInCombat) {
+    return {
+      id: 'commander-engaged',
+      label: 'Commander engaged',
+      status: 'verified',
+      text: 'Active commander is not marked as engaged in combat for the current command snapshot.',
+    };
+  }
+
+  return {
+    id: 'commander-engaged',
+    label: 'Commander engaged',
+    status: 'blocked',
+    text: 'Active commander is marked as engaged in combat. Movement confirmation stays blocked in the current P6 subset until the commander-engaged CP path is source-closed.',
+  };
 }
 
 function createCommandSpecificDiagnostic(lastSegment) {
@@ -463,12 +518,75 @@ export function buildMovementValidationSnapshot({ selectedUnit, selectedCommandI
         },
   );
 
-  diagnostics.push({
-    id: 'movement-allowances',
-    label: 'Movement allowances',
-    status: 'needs-source-check',
-    text: 'Official allowances, terrain effects, group movement, difficult maneuvers, special troop exceptions, and contact/conformation remain partially open beyond the current P5 subset legality scope.',
+  diagnostics.push(createCommandLegalityDiagnostic(commandContext));
+  diagnostics.push(createCommanderEngagedDiagnostic(commandContext));
+
+  const movementBudget = evaluateMovementBudgetSubset({
+    selectedUnit,
+    preview: normalizedPreview,
+    units,
   });
+
+  diagnostics.push(
+    movementBudget.active
+      ? {
+          id: 'movement-allowances',
+          label: movementBudget.label,
+          status: movementBudget.status,
+          text: `${movementBudget.text} Remaining subset budget: ${movementBudget.remainingBudgetUd?.toFixed(3) ?? 'n/a'} UD. Terrain, roads, group movement, and special exceptions remain outside this slice.`,
+        }
+      : {
+          id: 'movement-allowances',
+          label: 'Movement budget subset',
+          status: 'placeholder',
+          text: `${movementBudget.text} Terrain effects, group movement, difficult maneuvers, special troop exceptions, and contact/conformation remain outside the current approved subset.`,
+        },
+  );
+
+  if (movementBudget.operationalZoneText) {
+    diagnostics.push({
+      id: 'heavy-infantry-operational-zone',
+      label: 'Heavy infantry operational zone',
+      status: movementBudget.status === 'blocked' ? 'blocked' : 'verified',
+      text: movementBudget.operationalZoneText,
+    });
+  }
+
+  const difficultManoeuvre = classifyCurrentMovementManoeuvre({
+    selectedUnit,
+    selectedCommandId,
+    preview: normalizedPreview,
+  });
+
+  diagnostics.push(
+    !difficultManoeuvre.active
+      ? {
+          id: 'difficult-manoeuvre',
+          label: 'Difficult manoeuvre',
+          status: 'placeholder',
+          text: difficultManoeuvre.text,
+        }
+      : difficultManoeuvre.result === DIFFICULT_MANOEUVRE_RESULTS.YES
+        ? {
+            id: 'difficult-manoeuvre',
+            label: 'Difficult manoeuvre',
+            status: 'blocked',
+            text: `${difficultManoeuvre.text} Current triggers: ${difficultManoeuvre.triggers.join(', ')}. Confirmation stays blocked until the difficult-manoeuvre CP path is source-closed in P6.`,
+          }
+        : difficultManoeuvre.result === DIFFICULT_MANOEUVRE_RESULTS.NEEDS_SOURCE_CHECK
+          ? {
+              id: 'difficult-manoeuvre',
+              label: 'Difficult manoeuvre',
+              status: 'blocked',
+              text: `${difficultManoeuvre.text} Current unresolved hints: ${difficultManoeuvre.triggers.join(', ')}. Confirmation stays blocked until the difficult-manoeuvre rule classification is source-closed in P6.`,
+            }
+          : {
+              id: 'difficult-manoeuvre',
+              label: 'Difficult manoeuvre',
+              status: 'verified',
+              text: difficultManoeuvre.text,
+            },
+  );
 
   const status = diagnostics.some((diagnostic) => diagnostic.status === 'blocked')
     ? MOVEMENT_VALIDATION_STATUSES.INVALID
