@@ -568,12 +568,14 @@ Progress 2026-05-24:
 - After the defender handoff is acknowledged, the battlefield now renders reducer-owned evade candidate ghosts directly on the map instead of relying only on side-panel buttons.
 - The battlefield candidate layer is generic over the supported candidate types: the current tests cover acknowledged slide-choice ghosts and wheel-style obstacle-wheel ghosts from the same candidate pipeline.
 - Focused browser smoke on the shared page confirmed the real hotseat flow: the slide candidates appeared as battlefield ghosts after `OK`, clicking one committed the evader, and the adjusted-charge roll button appeared only afterwards.
+- The all-targets-evade follow-through preview now also renders the mounted/foot minimum continuation as its own battlefield preview while the `Stop` versus `Continue` choice is still open, so the minimum path is no longer hidden behind the maximum-distance ghost.
 
 Still open before this card can close:
 
 - Add battlefield rendering distinction for pending preview, pending choice, committed trail/token, source-open, and table-exit states.
 - The current battlefield choice UX is click-on-ghost, not yet the full movement-style drag/handle interaction the user requested for slide and wheel selection.
 - Add UI for direction wheel, obstacle wheel, table exit, and light-troop end half-turn once those reducer states exist.
+- Next UI follow-up: separate the `Continue`/`Stop` battlefield preview more strongly, either by stronger color separation or by adding a direct `2 UD` badge on the minimum line/ghost.
 - Complete browser smoke and user manual acceptance.
 
 ### [ ] P7A2-08 - Phase Flags And Future Hooks (partial)
