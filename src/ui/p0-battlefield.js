@@ -1,8 +1,11 @@
 import { getBattlefieldProfile } from '../data/battlefield-profiles.js';
 import {
+  addVectors,
   classifyFacingRelationship,
+  getAxesFromRotation,
   getFacingBoundaries,
   localPointToWorldPoint,
+  scaleVector,
   worldPointToLocalPoint,
 } from '../engine/geometry/index.js';
 import { getCommittedMovementPreviewSegments, getMovementPreviewEndPose } from '../engine/movement/index.js';
@@ -17,13 +20,25 @@ import {
   getCommanderAttachRemainingUd,
   SETUP_STEP_DEFINITIONS,
 } from '../state/p0-state.js';
+import {
+  CHARGE_BRANCH_ROLL_REASONS,
+  CHARGE_CONTACT_CLASSIFICATION_TYPES,
+  CHARGE_FOLLOW_THROUGH_RESOLUTION_STATUSES,
+  CHARGE_PREVIEW_STATUSES,
+  CHARGE_REACTION_REQUEST_TYPES,
+  getEvadeStepIdPart,
+} from '../engine/charge/index.js';
 import { getAvailableCorpsForPlayer, ROUND_DIALOG_TYPES } from '../state/p0-round.js';
 import {
   getEnemyZocBandLocalBounds,
   getUnitFootprintSamplePoints,
   ZOC_DEFAULT_FRONT_RANGE_UD,
 } from '../engine/zoc/geometry.js';
-import { getAdvancePreviewPresentation, renderAdvanceCommandPanel } from './battlefield-command-panel.js';
+import {
+  getAdvancePreviewPresentation,
+  getEvadeAvoidanceChoiceLabel,
+  renderAdvanceCommandPanel,
+} from './battlefield-command-panel.js';
 import { renderBattlefieldRightPanel } from './battlefield-side-panel.js';
 
 const TERRAIN_PALETTE_ENTRIES = [
@@ -107,12 +122,315 @@ function createPreviewGhostStyle(pose, unit, battlefieldProfile) {
   ].join(';');
 }
 
+function createLinearReachStyle(segment, unit, battlefieldProfile) {
+  const forwardAxis = getAxesFromRotation(segment.rotationRadians ?? 0).forwardAxis;
+  const reachCenter = addVectors(
+    { x: segment.xUd, y: segment.yUd },
+    scaleVector(forwardAxis, (unit.depthUd / 2) + (segment.distanceUd / 2)),
+  );
+
+  return [
+    `left:${(reachCenter.x / battlefieldProfile.widthUd) * 100}%`,
+    `top:${(reachCenter.y / battlefieldProfile.heightUd) * 100}%`,
+    `width:${(unit.widthUd / battlefieldProfile.widthUd) * 100}%`,
+    `height:${(segment.distanceUd / battlefieldProfile.heightUd) * 100}%`,
+    `--advance-rotation:${segment.rotationRadians ?? 0}rad`,
+  ].join(';');
+}
+
+function createEvadePlanSegment(evadePlan) {
+  if (!evadePlan?.reorientedPose || !Number.isFinite(evadePlan?.distanceUd)) {
+    return null;
+  }
+
+  return {
+    xUd: evadePlan.reorientedPose.xUd,
+    yUd: evadePlan.reorientedPose.yUd,
+    rotationRadians: evadePlan.reorientedPose.rotationRadians ?? 0,
+    distanceUd: evadePlan.distanceUd,
+  };
+}
+
+function createChargeMovementPlanSegment(chargeMovementPlan) {
+  if (!chargeMovementPlan?.startPose || !Number.isFinite(chargeMovementPlan?.distanceUd)) {
+    return null;
+  }
+
+  return {
+    xUd: chargeMovementPlan.startPose.xUd,
+    yUd: chargeMovementPlan.startPose.yUd,
+    rotationRadians: chargeMovementPlan.frozenDirectionRadians ?? chargeMovementPlan.startPose.rotationRadians ?? 0,
+    distanceUd: chargeMovementPlan.distanceUd,
+  };
+}
+
+function getLinearSegmentEndPose(segment) {
+  const forwardAxis = getAxesFromRotation(segment.rotationRadians ?? 0).forwardAxis;
+
+  return {
+    xUd: segment.xUd + (forwardAxis.x * (segment.distanceUd ?? 0)),
+    yUd: segment.yUd + (forwardAxis.y * (segment.distanceUd ?? 0)),
+    rotationRadians: segment.rotationRadians ?? 0,
+  };
+}
+
+function getEvadeCandidateBadgeLabel(candidate) {
+  if ((candidate?.avoidanceSteps?.length ?? 0) > 1) {
+    return 'Path';
+  }
+
+  switch (candidate?.type) {
+    case 'direction-wheel':
+      return 'Wheel';
+    case 'obstacle-wheel':
+      return 'Obs';
+    case 'straight':
+      return 'Straight';
+    default:
+      return 'Slide';
+  }
+}
+
+function getEvadeHandleBadgeLabel(step) {
+  if (!step) {
+    return 'Go';
+  }
+
+  switch (step.type) {
+    case 'direction-wheel':
+      return step.pivotSide === 'left' ? 'WL' : 'WR';
+    case 'obstacle-wheel':
+      return step.pivotSide === 'left' ? 'OL' : 'OR';
+    case 'slide':
+      return step.side === 'left' ? 'SL' : 'SR';
+    case 'straight':
+      return 'Go';
+    default:
+      return 'Go';
+  }
+}
+
+function getEvadeCandidateAvoidanceSteps(candidate) {
+  if (Array.isArray(candidate?.avoidanceSteps) && candidate.avoidanceSteps.length > 0) {
+    return candidate.avoidanceSteps;
+  }
+
+  if (candidate?.type === 'straight') {
+    return [];
+  }
+
+  return candidate ? [candidate] : [];
+}
+
+function doesEvadeCandidateMatchChoicePath(candidate, choicePathStepIds = []) {
+  if (!Array.isArray(choicePathStepIds) || choicePathStepIds.length === 0) {
+    return true;
+  }
+
+  const steps = getEvadeCandidateAvoidanceSteps(candidate);
+  if (steps.length < choicePathStepIds.length) {
+    return false;
+  }
+
+  return choicePathStepIds.every((stepId, index) => getEvadeStepIdPart(steps[index]) === stepId);
+}
+
+function getEvadeChoiceTree({ evadeAvoidanceCandidates = [], choicePathStepIds = [] }) {
+  const matchingCandidates = evadeAvoidanceCandidates.filter((candidate) => doesEvadeCandidateMatchChoicePath(candidate, choicePathStepIds));
+  const frontierNodes = [];
+  const frontierNodeIds = new Set();
+
+  matchingCandidates.forEach((candidate) => {
+    const steps = getEvadeCandidateAvoidanceSteps(candidate);
+    const nextStep = steps[choicePathStepIds.length] ?? null;
+    const nextStepId = getEvadeStepIdPart(nextStep);
+    if (!nextStepId || frontierNodeIds.has(nextStepId)) {
+      return;
+    }
+
+    frontierNodeIds.add(nextStepId);
+    frontierNodes.push({
+      stepId: nextStepId,
+      depth: choicePathStepIds.length,
+      step: nextStep,
+      candidate,
+    });
+  });
+
+  return {
+    frontierNodes,
+    visibleCandidates: choicePathStepIds.length > 0 ? matchingCandidates : evadeAvoidanceCandidates,
+  };
+}
+
+function getEvadeChoiceHandleAnchorPoint({ sourcePose, evadePlanUnit, step }) {
+  if (!sourcePose || !evadePlanUnit || !step) {
+    return null;
+  }
+
+  const handleOffsetUd = Math.max(evadePlanUnit.widthUd ?? 1, evadePlanUnit.depthUd ?? 1) * 0.55;
+  let localPoint = { x: 0, y: (Number(evadePlanUnit.depthUd ?? 1) / 2) + handleOffsetUd };
+
+  if (step.type === 'slide') {
+    localPoint = {
+      x: (step.side === 'left' ? -1 : 1) * ((Number(evadePlanUnit.widthUd ?? 1) / 2) + handleOffsetUd),
+      y: 0,
+    };
+  } else if (step.type === 'direction-wheel' || step.type === 'obstacle-wheel') {
+    localPoint = {
+      x: (step.pivotSide === 'left' ? -1 : 1) * ((Number(evadePlanUnit.widthUd ?? 1) / 2) + handleOffsetUd),
+      y: (Number(evadePlanUnit.depthUd ?? 1) / 2) + (handleOffsetUd * 0.55),
+    };
+  }
+
+  return localPointToWorldPoint({
+    center: { x: sourcePose.xUd, y: sourcePose.yUd },
+    widthUd: evadePlanUnit.widthUd,
+    depthUd: evadePlanUnit.depthUd,
+    rotationRadians: sourcePose.rotationRadians ?? 0,
+  }, localPoint);
+}
+
+function renderEvadeChoiceHandles({
+  frontierNodes = [],
+  evadePlan,
+  evadePlanUnit,
+  battlefieldProfile,
+}) {
+  if (!evadePlanUnit || !evadePlan?.reorientedPose || !Array.isArray(frontierNodes) || frontierNodes.length === 0) {
+    return '';
+  }
+
+  return frontierNodes
+    .filter((node) => node?.stepId && node?.step)
+    .map((node) => {
+      const steps = getEvadeCandidateAvoidanceSteps(node.candidate);
+      const sourcePose = node.depth > 0
+        ? (steps[node.depth - 1]?.endPose ?? null)
+        : evadePlan.reorientedPose;
+      const handlePoint = getEvadeChoiceHandleAnchorPoint({
+        sourcePose,
+        evadePlanUnit,
+        step: node.step,
+      });
+      if (!Number.isFinite(handlePoint.x) || !Number.isFinite(handlePoint.y)) {
+        return '';
+      }
+
+      return `
+        <button
+          class="battlefield-evade-branch-handle"
+          type="button"
+          data-action="preview-evade-avoidance-node"
+          data-evade-candidate-handle
+          data-evade-handle-kind="${node.step?.type ?? 'straight'}"
+          data-step-id="${node.stepId}"
+          data-evade-node-depth="${node.depth}"
+          aria-label="${escapeHtml(getEvadeAvoidanceChoiceLabel(node.candidate))}"
+          title="${escapeHtml(getEvadeAvoidanceChoiceLabel(node.candidate))}"
+          style="${createWheelHandleStyle(handlePoint, battlefieldProfile)}"
+        >
+          <span>${escapeHtml(getEvadeHandleBadgeLabel(node.step))}</span>
+        </button>
+      `;
+    })
+    .join('');
+}
+
+function renderEvadeChoiceTrails({
+  evadeAvoidanceCandidates = [],
+  evadePlanUnit,
+  battlefieldProfile,
+}) {
+  if (!evadePlanUnit || !Array.isArray(evadeAvoidanceCandidates) || evadeAvoidanceCandidates.length === 0) {
+    return '';
+  }
+
+  return evadeAvoidanceCandidates
+    .filter((candidate) => candidate?.id && Array.isArray(candidate?.avoidanceSteps) && candidate.avoidanceSteps.length > 0)
+    .map((candidate) => candidate.avoidanceSteps
+      .filter((step) => step?.endPose)
+      .map((step, index) => `
+        <div
+          class="battlefield-unit-preview battlefield-evade-choice-trail ${evadePlanUnit.baseShape === 'circle' ? 'is-circle-base' : ''} is-trail"
+          aria-hidden="true"
+          data-evade-candidate-trail
+          data-candidate-id="${candidate.id ?? ''}"
+          data-evade-step-index="${index}"
+          style="${createPreviewGhostStyle(step.endPose, evadePlanUnit, battlefieldProfile)}"
+        ></div>
+      `).join(''))
+    .join('');
+}
+
+function renderEvadeChoiceGhosts({
+  evadeAvoidanceCandidates = [],
+  evadePlanUnit,
+  battlefieldProfile,
+}) {
+  if (!evadePlanUnit || !Array.isArray(evadeAvoidanceCandidates) || evadeAvoidanceCandidates.length === 0) {
+    return '';
+  }
+
+  return `
+    ${renderEvadeChoiceTrails({
+      evadeAvoidanceCandidates,
+      evadePlanUnit,
+      battlefieldProfile,
+    })}
+    ${evadeAvoidanceCandidates
+    .filter((candidate) => candidate?.id && candidate?.endPose)
+    .map((candidate) => `
+      <button
+        class="battlefield-evade-choice-button"
+        type="button"
+        data-action="select-evade-avoidance-choice"
+        data-evade-candidate-ghost
+        data-evade-candidate-type="${candidate.type ?? 'slide'}"
+        data-candidate-id="${candidate.id ?? ''}"
+        data-side="${candidate.side ?? ''}"
+        data-distance-ud="${candidate.distanceUd ?? candidate.spentDistanceUd ?? 0}"
+        aria-label="${escapeHtml(getEvadeAvoidanceChoiceLabel(candidate))}"
+        title="${escapeHtml(getEvadeAvoidanceChoiceLabel(candidate))}"
+        style="${createPreviewGhostStyle(candidate.endPose, evadePlanUnit, battlefieldProfile)}"
+      >
+        <span class="battlefield-evade-choice-badge">${escapeHtml(getEvadeCandidateBadgeLabel(candidate))}</span>
+      </button>
+    `)
+    .join('')}`;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
+}
+
+function getRollPipPattern(value) {
+  const patterns = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8],
+  };
+
+  return patterns[value] ?? [];
+}
+
+function renderRollPips(value) {
+  const activePips = new Set(getRollPipPattern(value));
+
+  return `
+    <span class="battlefield-command-roll-pips" aria-hidden="true">
+      ${Array.from({ length: 9 }, (_, index) => `
+        <span class="battlefield-command-roll-pip ${activePips.has(index) ? 'is-filled' : ''}"></span>
+      `).join('')}
+    </span>
+  `;
 }
 
 function formatRelationshipLabel(label) {
@@ -465,14 +783,20 @@ function renderDeploymentSetupCard(state) {
   `;
 }
 
-function renderZocBands(units, selectedUnit, battlefieldProfile) {
+function renderZocBands(units, selectedUnit, battlefieldProfile, options = {}) {
   if (!selectedUnit) {
     return '';
   }
 
+  const showAllEnemyZoc = Boolean(options.showAllEnemyZoc);
+
   return units
     .filter((unit) => unit.owner !== selectedUnit.owner)
     .filter((enemy) => {
+      if (showAllEnemyZoc) {
+        return true;
+      }
+
       // Only show band when selected unit is within 0.5 UD of the ZOC near edge.
       // Threshold = enemy front half-depth + ZOC range + selected unit half-depth + 0.5 UD.
       const threshold =
@@ -1227,6 +1551,175 @@ function renderRoundDialog(state) {
   `;
 }
 
+function getChargeReactionUnitLabel(state, unitId) {
+  const unit = state.game.units.find((candidate) => candidate.id === unitId) || null;
+  return unit?.scenarioLabel ?? unit?.id ?? 'Unbekanntes Ziel';
+}
+
+function getPendingChargeReactionDialogConfig(preview) {
+  if (preview?.status === CHARGE_PREVIEW_STATUSES.REACTION_PENDING) {
+    return {
+      request: preview.declarationSnapshot?.reactionRequests?.[0] ?? preview.reactionRequests?.[0] ?? null,
+      resolveAction: 'resolve-charge-reaction',
+      tag: 'Charge-Reaktion',
+      titlePrefix: 'Reaktion des Ziels',
+      bodyPrefix: 'reagiert jetzt auf die bestaetigte Charge-Deklaration.',
+    };
+  }
+
+  if (
+    preview?.status === CHARGE_PREVIEW_STATUSES.EVADE_REQUIRED
+    && preview?.followThroughResolution?.status === CHARGE_FOLLOW_THROUGH_RESOLUTION_STATUSES.SECONDARY_TARGET
+    && !preview?.secondaryReactionDecision
+  ) {
+    return {
+      request: preview.reactionRequests?.[1] ?? null,
+      resolveAction: 'resolve-secondary-charge-reaction',
+      tag: 'Sekundaerziel-Reaktion',
+      titlePrefix: 'Reaktion des Sekundaerziels',
+      bodyPrefix: 'reagiert jetzt auf den pausierten Follow-Through-Kontakt.',
+    };
+  }
+
+  return null;
+}
+
+function renderChargeReactionDialog(state) {
+  const preview = state.game.chargePreview;
+  const dialogConfig = getPendingChargeReactionDialogConfig(preview);
+  if (!dialogConfig) {
+    return '';
+  }
+
+  const request = dialogConfig.request;
+  if (!request) {
+    return '';
+  }
+
+  const targetLabel = escapeHtml(getChargeReactionUnitLabel(state, request.unitId));
+  const diagnosticsText = escapeHtml((request.diagnostics ?? []).map((entry) => entry.text).filter(Boolean).join(' '));
+
+  let title = dialogConfig.titlePrefix;
+  let body = `${targetLabel} ${dialogConfig.bodyPrefix}`;
+  let actions = '';
+
+  if (request.type === CHARGE_REACTION_REQUEST_TYPES.NONE) {
+    title = 'Keine Ausweichreaktion';
+    body = `${targetLabel} hat in diesem P7-Schnitt keine Ausweichreaktion. Mit Weiter wird der No-Evade-Handoff festgehalten.`;
+    actions = `<button class="shell-button battlefield-round-dialog-button" type="button" data-action="${dialogConfig.resolveAction}" data-decision-type="no-evade">Weiter</button>`;
+  } else if (request.type === CHARGE_REACTION_REQUEST_TYPES.BLOCKED_EVADE) {
+    title = 'Ausweichen blockiert';
+    body = `${targetLabel} darf nicht ausweichen. Mit Weiter wird der blockierte No-Evade-Handoff festgehalten.`;
+    actions = `<button class="shell-button battlefield-round-dialog-button" type="button" data-action="${dialogConfig.resolveAction}" data-decision-type="blocked-no-evade">Weiter</button>`;
+  } else if (request.type === CHARGE_REACTION_REQUEST_TYPES.MAY_EVADE) {
+    title = 'Reaktion: Ausweichen moeglich';
+    body = `${targetLabel} darf jetzt ausweichen oder stehenbleiben.`;
+    actions = `
+      <button class="shell-button battlefield-round-dialog-button" type="button" data-action="${dialogConfig.resolveAction}" data-decision-type="evade">Ausweichen</button>
+      <button class="ghost-button battlefield-round-dialog-button" type="button" data-action="${dialogConfig.resolveAction}" data-decision-type="no-evade">Nicht ausweichen</button>
+    `;
+  } else if (request.type === CHARGE_REACTION_REQUEST_TYPES.MUST_EVADE) {
+    title = 'Reaktion: Ausweichen erforderlich';
+    body = `${targetLabel} muss in diesem P7-Schnitt ausweichen. Mit Bestaetigen wird der explizite P7A-Handoff gesetzt.`;
+    actions = `<button class="shell-button battlefield-round-dialog-button" type="button" data-action="${dialogConfig.resolveAction}" data-decision-type="forced-evade">Ausweichen bestaetigen</button>`;
+  } else {
+    title = 'Quellenpruefung erforderlich';
+    body = `${targetLabel} braucht vor der Reaktionsaufloesung noch eine Quellenpruefung. Die Charge darf von hier nur abgebrochen werden.`;
+    actions = '<button class="ghost-button battlefield-round-dialog-button" type="button" data-action="cancel-charge-preview">Charge abbrechen</button>';
+  }
+
+  return `
+    <div class="battlefield-round-dialog-overlay" data-charge-reaction-dialog-overlay>
+      <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="charge-reaction-dialog-title">
+        <div class="battlefield-round-dialog-header">
+          <span class="battlefield-round-dialog-tag">${dialogConfig.tag}</span>
+        </div>
+        <strong id="charge-reaction-dialog-title">${escapeHtml(title)}</strong>
+        <span class="muted-copy">${escapeHtml(body)}</span>
+        ${diagnosticsText ? `<span class="muted-copy">${diagnosticsText}</span>` : ''}
+        <div class="battlefield-round-dialog-actions">
+          ${actions}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderChargeBranchDistanceDialog(state) {
+  const preview = state.game.chargePreview;
+  const claim = preview?.branchDistanceRoll?.claim ?? null;
+  const result = preview?.branchDistanceRoll?.result ?? null;
+  if (!claim || result) {
+    return '';
+  }
+
+  const targetLabel = escapeHtml(getChargeReactionUnitLabel(state, claim.targetUnitId));
+  const chargerLabel = escapeHtml(getChargeReactionUnitLabel(state, claim.chargingUnitId));
+  const isAdjustedChargeDistance = claim.reason === CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE;
+  const title = isAdjustedChargeDistance ? 'Adjusted Charge-Distanz bestimmen' : 'Ausweichdistanz bestimmen';
+  const tag = isAdjustedChargeDistance ? 'P7A Charge-Folgezug' : 'P7A Evade-Distanz';
+  const body = isAdjustedChargeDistance
+    ? `${chargerLabel} folgt jetzt allen initialen Ausweichern mit der angepassten Charge. Waehle den deterministischen D6-Wert fuer die erste Follow-Through-Distanz.`
+    : `${targetLabel} weicht der bestaetigten Charge von ${chargerLabel} aus. Waehle den deterministischen D6-Wert fuer die erste Evade-Distanz.`;
+
+  return `
+    <div class="battlefield-round-dialog-overlay" data-charge-branch-distance-dialog-overlay>
+      <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="charge-branch-distance-dialog-title">
+        <div class="battlefield-round-dialog-header">
+          <span class="battlefield-round-dialog-tag">${tag}</span>
+        </div>
+        <strong id="charge-branch-distance-dialog-title">${title}</strong>
+        <span class="muted-copy">${body}</span>
+        <div class="battlefield-branch-roll-grid">
+          ${Array.from({ length: 6 }, (_, index) => {
+            const dieRoll = index + 1;
+            return `
+              <button
+                class="battlefield-command-roll-die battlefield-command-roll-die-button"
+                type="button"
+                data-action="resolve-charge-branch-distance"
+                data-die-roll="${dieRoll}"
+                data-roll-value="${dieRoll}"
+              >
+                ${renderRollPips(dieRoll)}
+                <span class="battlefield-command-roll-die-label">D6</span>
+                <span class="battlefield-command-roll-die-value">${dieRoll}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEvadeChoiceHandoffDialog(state) {
+  const handoff = state.game.chargePreview?.evadeChoiceHandoff ?? null;
+  if (handoff?.status !== 'pending') {
+    return '';
+  }
+
+  const reactingPlayerLabel = handoff.reactingPlayerId === 'player-2' ? 'Spieler B' : 'Spieler A';
+  const targetLabel = escapeHtml(handoff.targetLabel ?? handoff.reactingUnitId ?? 'das Ziel');
+  const prompt = escapeHtml(handoff.prompt ?? `${reactingPlayerLabel} waehlt jetzt den Ausweichzug fuer ${targetLabel}.`);
+
+  return `
+    <div class="battlefield-round-dialog-overlay" data-evade-choice-handoff-dialog-overlay>
+      <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="evade-choice-handoff-dialog-title">
+        <div class="battlefield-round-dialog-header">
+          <span class="battlefield-round-dialog-tag">Hotseat Handoff</span>
+        </div>
+        <strong id="evade-choice-handoff-dialog-title">${reactingPlayerLabel} uebernimmt den Ausweichzug</strong>
+        <span class="muted-copy">${prompt}</span>
+        <span class="muted-copy">Mit OK schaltest du auf ${reactingPlayerLabel} um und oeffnest erst dann die Ausweichwahl fuer ${targetLabel}.</span>
+        <div class="battlefield-round-dialog-actions">
+          <button class="shell-button battlefield-round-dialog-button" type="button" data-action="acknowledge-evade-choice-handoff">OK</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export function renderBattlefieldScreen(state) {
   const visibleSetup = projectSetupForViewer(state.game.setup, state.game.setupViewMode);
   const renderState = {
@@ -1260,7 +1753,8 @@ export function renderBattlefieldScreen(state) {
     selectedUnit !== null &&
     state.game.commandContext.currentPhaseId === 'movement' &&
     selectedUnit.owner === state.game.commandContext.activePlayerId &&
-    !selectedUnitMovementFinished;
+    !selectedUnitMovementFinished &&
+    state.game.chargePreview?.status === CHARGE_PREVIEW_STATUSES.IDLE;
   const canDragUnitsInSetup = isSetupActive
     && (renderState.game.setup.currentStepId === 'deployment' || renderState.game.setup.currentStepId === 'ready');
   const {
@@ -1286,6 +1780,22 @@ export function renderBattlefieldScreen(state) {
     canShowMovementButtons,
     canUseFreeCommandPoint,
     useFreeCommandPoint,
+    chargePreviewActive,
+    chargeStartControlsActive,
+    chargeStartOptions,
+    selectedChargeStartType,
+    canStartCharge,
+    chargeDisabledReason,
+    canStartAdjustedChargeDistanceRoll,
+    canResolveEvadeAvoidanceChoice,
+    evadeAvoidanceCandidates,
+    evadeChoicePathStepIds,
+    canResolveChargeContinuationChoice,
+    minimumChargeContinuationDistanceUd,
+    maximumChargeContinuationDistanceUd,
+    chargeWhyItems,
+    confirmActionLabel,
+    confirmActionTitle,
   } = getAdvancePreviewPresentation({
     state,
     selectedUnit,
@@ -1322,6 +1832,59 @@ export function renderBattlefieldScreen(state) {
   const commanderAttachReachUd = commanderAttachTargetingActive
     ? getCommanderAttachRemainingUd(state.game, selectedUnit)
     : 0;
+  const chargeTargetingActive = Boolean(
+    state.game.chargePreview?.status === CHARGE_PREVIEW_STATUSES.TARGETING
+      && state.game.chargePreview?.intent?.unitId === selectedUnit?.id,
+  );
+  const chargePreviewActiveForSelectedUnit = Boolean(
+    state.game.chargePreview?.status !== CHARGE_PREVIEW_STATUSES.IDLE
+      && state.game.chargePreview?.intent?.unitId === selectedUnit?.id,
+  );
+  const chargeTargetCandidatesByUnitId = new Map(
+    Array.isArray(state.game.chargePreview?.targetCandidates)
+      ? state.game.chargePreview.targetCandidates.map((candidate) => [candidate.unitId, candidate])
+      : [],
+  );
+  const chargeGuideSegment = selectedUnit && chargePreviewActiveForSelectedUnit
+    ? (state.game.chargePreview?.pathSegments ?? []).find((segment) => segment.kind === 'charge-direction-guide') || null
+    : null;
+  const chargeContactEvent = chargePreviewActiveForSelectedUnit
+    ? (state.game.chargePreview?.contactEvents ?? [])[0] ?? null
+    : null;
+  const chargeStartPose = chargePreviewActiveForSelectedUnit
+    ? state.game.chargePreview?.intent?.startPose ?? null
+    : null;
+  const chargePreviewReachStyle = chargeGuideSegment && selectedUnit
+    ? createLinearReachStyle(chargeGuideSegment, selectedUnit, battlefieldProfile)
+    : '';
+  const chargeGhostPose = chargeGuideSegment && selectedUnit
+    ? getLinearSegmentEndPose(chargeGuideSegment)
+    : null;
+  const evadePlan = state.game.chargePreview?.evadePlan ?? null;
+  const evadePlanUnit = evadePlan?.reactingUnitId
+    ? state.game.units.find((unit) => unit.id === evadePlan.reactingUnitId) ?? null
+    : null;
+  const evadeChoiceTree = getEvadeChoiceTree({
+    evadeAvoidanceCandidates,
+    choicePathStepIds: evadeChoicePathStepIds,
+  });
+  const evadeReorientationStyle = evadePlan?.reorientedPose && evadePlanUnit
+    ? createPreviewGhostStyle(evadePlan.reorientedPose, evadePlanUnit, battlefieldProfile)
+    : '';
+  const evadePlanSegment = evadePlan && evadePlanUnit ? createEvadePlanSegment(evadePlan) : null;
+  const evadePlanReachStyle = evadePlanSegment && evadePlanUnit
+    ? createLinearReachStyle(evadePlanSegment, evadePlanUnit, battlefieldProfile)
+    : '';
+  const chargeMovementPlan = state.game.chargePreview?.chargeMovementPlan ?? null;
+  const chargeMovementPlanUnit = chargeMovementPlan?.chargingUnitId
+    ? state.game.units.find((unit) => unit.id === chargeMovementPlan.chargingUnitId) ?? null
+    : null;
+  const chargeMovementPlanSegment = chargeMovementPlan && chargeMovementPlanUnit
+    ? createChargeMovementPlanSegment(chargeMovementPlan)
+    : null;
+  const chargeMovementPlanReachStyle = chargeMovementPlanSegment && chargeMovementPlanUnit
+    ? createLinearReachStyle(chargeMovementPlanSegment, chargeMovementPlanUnit, battlefieldProfile)
+    : '';
   const commanderAttachRangeStyle = commanderAttachTargetingActive
     ? [
         `left:${(selectedUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
@@ -1337,6 +1900,8 @@ export function renderBattlefieldScreen(state) {
         yUd: selectedUnit.yUd,
         rotationRadians: selectedUnit.rotationRadians ?? 0,
       })
+    : chargePreviewActiveForSelectedUnit && state.game.chargePreview?.intent?.startManoeuvre?.type === 'wheel' && chargeStartPose
+      ? chargeStartPose
     : null;
   const leftWheelHandlePoint = wheelDisplayPose && selectedUnit
     ? localPointToWorldPoint(
@@ -1360,6 +1925,15 @@ export function renderBattlefieldScreen(state) {
         { x: selectedUnit.widthUd / 2, y: selectedUnit.depthUd / 2 },
       )
     : null;
+  const chargeWheelStartManoeuvre = state.game.chargePreview?.intent?.startManoeuvre?.type === 'wheel'
+    ? state.game.chargePreview.intent.startManoeuvre
+    : null;
+  const chargeWheelAngleRadians = Number(chargeWheelStartManoeuvre?.wheelAngleRadians ?? 0);
+  const highlightedWheelPivotSide = chargePreviewActiveForSelectedUnit && chargeWheelStartManoeuvre && chargeWheelAngleRadians > 1e-9
+    ? chargeWheelStartManoeuvre.pivotSide
+    : Number(wheelPreviewAngleRadians ?? 0) > 1e-9
+      ? wheelPivotSide
+      : null;
   const selectedUnitRotationRadians = selectedUnit?.rotationRadians ?? 0;
   const facingRelationship = state.game.debug.isActive && selectedUnit
     ? classifyFacingRelationship(
@@ -1437,6 +2011,22 @@ export function renderBattlefieldScreen(state) {
             canShowMovementButtons,
             canUseFreeCommandPoint,
             useFreeCommandPoint,
+            chargePreviewActive,
+            chargeStartControlsActive,
+            chargeStartOptions,
+            selectedChargeStartType,
+            canStartCharge,
+            chargeDisabledReason,
+            canStartAdjustedChargeDistanceRoll,
+            canResolveEvadeAvoidanceChoice,
+            evadeAvoidanceCandidates,
+            evadeChoicePathStepIds,
+            canResolveChargeContinuationChoice,
+            minimumChargeContinuationDistanceUd,
+            maximumChargeContinuationDistanceUd,
+            chargeWhyItems,
+            confirmActionLabel,
+            confirmActionTitle,
             canToggleCommanderEngagedDiagnostic: false,
             commanderEngagedDiagnosticActive: false,
             canAttachCommander: false,
@@ -1472,6 +2062,22 @@ export function renderBattlefieldScreen(state) {
             canShowMovementButtons,
             canUseFreeCommandPoint,
             useFreeCommandPoint,
+            chargePreviewActive,
+            chargeStartControlsActive,
+            chargeStartOptions,
+            selectedChargeStartType,
+            canStartCharge,
+            chargeDisabledReason,
+            canStartAdjustedChargeDistanceRoll,
+            canResolveEvadeAvoidanceChoice,
+            evadeAvoidanceCandidates,
+            evadeChoicePathStepIds,
+            canResolveChargeContinuationChoice,
+            minimumChargeContinuationDistanceUd,
+            maximumChargeContinuationDistanceUd,
+            chargeWhyItems,
+            confirmActionLabel,
+            confirmActionTitle,
             canToggleCommanderEngagedDiagnostic: Boolean(
               state.game.commandContext.currentPhaseId === 'movement'
                 && state.game.commandContext.commander?.unitId,
@@ -1489,7 +2095,7 @@ export function renderBattlefieldScreen(state) {
               ${renderSetupObjects(renderState, battlefieldProfile)}
               ${renderAmbushMarkerShells(renderState, battlefieldProfile)}
               ${renderTerrainPlaceholders(renderState, battlefieldProfile)}
-              ${!isSetupActive ? renderZocBands(state.game.units, movementReferenceUnit, battlefieldProfile) : ''}
+              ${!isSetupActive ? renderZocBands(state.game.units, movementReferenceUnit, battlefieldProfile, { showAllEnemyZoc: chargePreviewActiveForSelectedUnit }) : ''}
               ${!isSetupActive ? renderNearZocCue(state.game.units, movementReferenceUnit, battlefieldProfile, 0.5) : ''}
               ${!isSetupActive ? renderMostThreateningLine(state.game.units, movementReferenceUnit, state.game.movement.validationSnapshot, battlefieldProfile) : ''}
               ${!isSetupActive ? renderCommandStatusLine(state, movementReferenceUnit, battlefieldProfile) : ''}
@@ -1498,6 +2104,81 @@ export function renderBattlefieldScreen(state) {
                 <span class="battlefield-command-range-ring has-range is-attach-preview-ring" aria-hidden="true" style="${commanderAttachRangeStyle}">
                   <span class="battlefield-command-range-ring-label">Attach ${formatLengthUd(commanderAttachReachUd)} UD</span>
                 </span>
+              ` : ''}
+              ${chargeGuideSegment && selectedUnit ? `
+                ${chargeStartPose ? `
+                  <div
+                    class="battlefield-unit-preview ${selectedUnit.baseShape === 'circle' ? 'is-circle-base' : ''}"
+                    aria-hidden="true"
+                    ${state.game.chargePreview?.intent?.startManoeuvre?.type === 'shift-slide' ? 'data-slide-preview-handle' : ''}
+                    data-unit-id="${selectedUnit.id}"
+                    style="${createPreviewGhostStyle(chargeStartPose, selectedUnit, battlefieldProfile)}"
+                  ></div>
+                ` : ''}
+                <div
+                  class="battlefield-advance-reach battlefield-charge-preview-reach"
+                  aria-hidden="true"
+                  data-charge-preview-corridor
+                  data-charge-start-type="${state.game.chargePreview?.intent?.startManoeuvre?.type ?? 'none'}"
+                  style="${chargePreviewReachStyle}"
+                ></div>
+                <div
+                  class="battlefield-unit-preview ${selectedUnit.baseShape === 'circle' ? 'is-circle-base' : ''}"
+                  aria-hidden="true"
+                  data-charge-preview-ghost
+                  data-charge-start-type="${state.game.chargePreview?.intent?.startManoeuvre?.type ?? 'none'}"
+                  style="${createPreviewGhostStyle(chargeGhostPose, selectedUnit, battlefieldProfile)}"
+                ></div>
+              ` : ''}
+              ${evadePlanSegment && evadePlanUnit ? `
+                <div
+                  class="battlefield-unit-preview battlefield-evade-preview-reorientation ${evadePlanUnit.baseShape === 'circle' ? 'is-circle-base' : ''} ${evadePlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-evade-preview-reorientation
+                  data-evade-contact-type="${evadePlan?.contactType ?? 'unknown'}"
+                  style="${evadeReorientationStyle}"
+                ></div>
+                <div
+                  class="battlefield-advance-reach battlefield-evade-preview-reach ${evadePlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-evade-preview-corridor
+                  data-evade-source-status="${evadePlan?.sourceStatus ?? 'verified'}"
+                  style="${evadePlanReachStyle}"
+                ></div>
+                <div
+                  class="battlefield-unit-preview battlefield-evade-preview-ghost ${evadePlanUnit.baseShape === 'circle' ? 'is-circle-base' : ''} ${evadePlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-evade-preview-ghost
+                  data-evade-source-status="${evadePlan?.sourceStatus ?? 'verified'}"
+                  style="${createPreviewGhostStyle(evadePlan.endPose, evadePlanUnit, battlefieldProfile)}"
+                ></div>
+              ` : ''}
+              ${canResolveEvadeAvoidanceChoice ? renderEvadeChoiceHandles({
+                frontierNodes: evadeChoiceTree.frontierNodes,
+                evadePlan,
+                evadePlanUnit,
+                battlefieldProfile,
+              }) : ''}
+              ${canResolveEvadeAvoidanceChoice ? renderEvadeChoiceGhosts({
+                evadeAvoidanceCandidates: evadeChoiceTree.visibleCandidates,
+                evadePlanUnit,
+                battlefieldProfile,
+              }) : ''}
+              ${chargeMovementPlanSegment && chargeMovementPlanUnit ? `
+                <div
+                  class="battlefield-advance-reach battlefield-charge-follow-through-reach ${chargeMovementPlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-charge-follow-through-corridor
+                  data-charge-follow-through-source-status="${chargeMovementPlan?.sourceStatus ?? 'verified'}"
+                  style="${chargeMovementPlanReachStyle}"
+                ></div>
+                <div
+                  class="battlefield-unit-preview battlefield-charge-follow-through-ghost ${chargeMovementPlanUnit.baseShape === 'circle' ? 'is-circle-base' : ''} ${chargeMovementPlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-charge-follow-through-ghost
+                  data-charge-follow-through-source-status="${chargeMovementPlan?.sourceStatus ?? 'verified'}"
+                  style="${createPreviewGhostStyle(chargeMovementPlan.endPose, chargeMovementPlanUnit, battlefieldProfile)}"
+                ></div>
               ` : ''}
               ${advanceModeActive ? `<div class="battlefield-advance-reach" aria-hidden="true" style="${advanceReachStyle}"></div>` : ''}
               ${selectedUnit && committedPreviewTrailSegments.length > 0 ? committedPreviewTrailSegments.map((segment) => `
@@ -1525,9 +2206,9 @@ export function renderBattlefieldScreen(state) {
                   style="${createPreviewGhostStyle(commanderGhostPose, selectedUnit, battlefieldProfile)}"
                 ></div>
               ` : ''}
-              ${wheelModeActive && selectedUnit && leftWheelHandlePoint && rightWheelHandlePoint ? `
+              ${(wheelModeActive || (chargePreviewActiveForSelectedUnit && state.game.chargePreview?.intent?.startManoeuvre?.type === 'wheel')) && selectedUnit && leftWheelHandlePoint && rightWheelHandlePoint ? `
                 <button
-                  class="battlefield-wheel-handle ${wheelPivotSide === 'right' ? 'is-active' : ''}"
+                  class="battlefield-wheel-handle ${highlightedWheelPivotSide === 'right' ? 'is-active' : ''}"
                   type="button"
                   aria-label="Linke vordere Ecke ziehen"
                   data-wheel-handle
@@ -1536,7 +2217,7 @@ export function renderBattlefieldScreen(state) {
                   style="${createWheelHandleStyle(leftWheelHandlePoint, battlefieldProfile)}"
                 ></button>
                 <button
-                  class="battlefield-wheel-handle ${wheelPivotSide === 'left' ? 'is-active' : ''}"
+                  class="battlefield-wheel-handle ${highlightedWheelPivotSide === 'left' ? 'is-active' : ''}"
                   type="button"
                   aria-label="Rechte vordere Ecke ziehen"
                   data-wheel-handle
@@ -1574,10 +2255,7 @@ export function renderBattlefieldScreen(state) {
                       && corpsActivationRecord?.status === 'spent'
                       && unit.owner === state.game.commandContext.activePlayerId,
                   );
-                  const isSelectableUnit = Boolean(
-                    unit.owner === state.game.commandContext.activePlayerId
-                      && (!activeCorpsSlotId || unitCorpsSlotId === activeCorpsSlotId),
-                  );
+                  const chargeTargetCandidate = chargeTargetCandidatesByUnitId.get(unit.id) || null;
                   const commanderSpentUd = state.game.commanderFreeMovePreview?.status === 'ready'
                     && state.game.commanderFreeMovePreview.unitId === unit.id
                     ? Number(state.game.commanderFreeMovePreview.nextSpentUd ?? unit.advanceUsedUd ?? 0)
@@ -1608,6 +2286,51 @@ export function renderBattlefieldScreen(state) {
                       && state.game.commanderFreeMovePreview?.mode === 'attach'
                       && state.game.commanderFreeMovePreview?.targetUnitId === unit.id,
                   );
+                  const isChargeTargetSelected = Boolean(
+                    chargePreviewActiveForSelectedUnit
+                      && state.game.chargePreview?.intent?.targetUnitId === unit.id,
+                  );
+                  const isChargeContactDefender = Boolean(
+                    chargeContactEvent?.defenderId === unit.id,
+                  );
+                  const chargeContactClassification = isChargeContactDefender
+                    ? chargeContactEvent?.classification ?? null
+                    : null;
+                  const selectedChargeContactSide = isChargeContactDefender
+                    && state.game.chargePreview?.selectedContactSide?.defenderId === unit.id
+                    ? state.game.chargePreview.selectedContactSide.side
+                    : null;
+                  const isChargeTargetEligible = Boolean(
+                    chargeTargetingActive && chargeTargetCandidate?.status === 'eligible',
+                  );
+                  const isChargeTargetBlocked = Boolean(
+                    (chargeTargetingActive && chargeTargetCandidate?.status === 'blocked')
+                      || (isChargeTargetSelected && chargeTargetCandidate?.status === 'blocked'),
+                  );
+                  const chargeTargetReasonTitle = (chargeTargetingActive || isChargeTargetSelected) && chargeTargetCandidate?.reason
+                    ? chargeTargetCandidate.reason
+                    : '';
+                  const baseUnitTitle = isTerrainStep
+                    ? 'Unit auswaehlen'
+                    : canDragUnitsInSetup && state.game.selectedUnitId === unit.id
+                      ? 'Unit ziehen'
+                      : isCommanderFreeMoveReady
+                        ? 'General ziehen (max 5 UD)'
+                        : 'Unit auswaehlen';
+                  const suppressUnitTitleSuffix = Boolean(
+                    (chargeTargetingActive && chargeTargetCandidate)
+                      || isChargeTargetSelected
+                      || chargeTargetReasonTitle,
+                  );
+                  const unitTitle = `${chargeTargetReasonTitle || baseUnitTitle}${suppressUnitTitleSuffix ? '' : unit.hasIncludedCommander ? ' (inkl. General)' : unit.isCommander ? ' (General)' : ''}`;
+                  const isSelectableUnit = Boolean(
+                    chargeTargetingActive
+                      ? unit.id === selectedUnit?.id || chargeTargetCandidatesByUnitId.has(unit.id)
+                      : chargePreviewActiveForSelectedUnit && isChargeTargetSelected
+                        ? true
+                        : unit.owner === state.game.commandContext.activePlayerId
+                          && (!activeCorpsSlotId || unitCorpsSlotId === activeCorpsSlotId),
+                  );
                   const activeCorpsStatusClass = !isActiveCorpsUnit
                     ? ''
                     : hasMandatoryMovementPending && !hasMandatoryMovementResolved && !hasMovedThisPhase && !hasStayedThisPhase
@@ -1632,15 +2355,19 @@ export function renderBattlefieldScreen(state) {
 
                   return `
                 <button
-                  class="battlefield-unit-token for-${unitCssToken} ${unit.baseShape === 'circle' ? 'is-circle-base' : ''} ${unit.isCommander ? 'is-commander' : ''} ${unit.hasIncludedCommander ? 'has-included-commander' : ''} ${isActiveCorpsUnit ? 'is-active-corps-unit' : ''} ${isSpentCorpsUnit ? 'is-spent-corps-unit' : ''} ${!isSelectableUnit ? 'is-selection-locked' : ''} ${activeCorpsStatusClass} ${isAttachTarget ? 'is-attach-target' : ''} ${isAttachTargetSelected ? 'is-attach-target-selected' : ''} ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${(canDragUnitsInSetup || isCommanderFreeMoveReady) && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
+                  class="battlefield-unit-token for-${unitCssToken} ${unit.baseShape === 'circle' ? 'is-circle-base' : ''} ${unit.isCommander ? 'is-commander' : ''} ${unit.hasIncludedCommander ? 'has-included-commander' : ''} ${isActiveCorpsUnit ? 'is-active-corps-unit' : ''} ${isSpentCorpsUnit ? 'is-spent-corps-unit' : ''} ${!isSelectableUnit ? 'is-selection-locked' : ''} ${activeCorpsStatusClass} ${isAttachTarget ? 'is-attach-target' : ''} ${isAttachTargetSelected ? 'is-attach-target-selected' : ''} ${isChargeTargetEligible ? 'is-charge-target-eligible' : ''} ${isChargeTargetBlocked ? 'is-charge-target-blocked' : ''} ${isChargeTargetSelected ? 'is-charge-target-selected' : ''} ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${(canDragUnitsInSetup || isCommanderFreeMoveReady) && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
                   type="button"
                   ${isSelectableUnit ? '' : 'disabled'}
                   aria-pressed="${state.game.selectedUnitId === unit.id}"
                   data-action="select-unit"
                   data-unit-id="${unit.id}"
-                  title="${isTerrainStep ? 'Unit auswaehlen' : canDragUnitsInSetup && state.game.selectedUnitId === unit.id ? 'Unit ziehen' : isCommanderFreeMoveReady ? 'General ziehen (max 5 UD)' : 'Unit auswaehlen'}${unit.hasIncludedCommander ? ' (inkl. General)' : unit.isCommander ? ' (General)' : ''}"
+                  data-charge-target-status="${chargeTargetingActive ? chargeTargetCandidate?.status ?? 'none' : isChargeTargetSelected ? 'selected' : 'none'}"
+                  data-selected-charge-target-current-status="${isChargeTargetSelected ? chargeTargetCandidate?.status ?? 'unknown' : 'none'}"
+                  data-charge-contact-classification="${chargeContactClassification?.type ?? 'none'}"
+                  data-selected-charge-contact-side="${selectedChargeContactSide ?? 'none'}"
+                  title="${escapeHtml(unitTitle)}"
                   style="--token-color:${unit.owner === 'player-1' ? state.shell.settings.playerColor : '#a8a8a8'};${createUnitTokenStyle(unit)}"
-                >${activeCorpsStatusClass === 'is-corps-unit-mandatory' ? '<span class="battlefield-unit-status-badge is-mandatory" aria-hidden="true">!</span>' : ''}</button>
+                >${activeCorpsStatusClass === 'is-corps-unit-mandatory' ? '<span class="battlefield-unit-status-badge is-mandatory" aria-hidden="true">!</span>' : ''}${renderChargeContactSideMarkers(chargeContactClassification, selectedChargeContactSide)}</button>
                 ${commandRangeRing}
               `;
                 })()}
@@ -1662,7 +2389,96 @@ export function renderBattlefieldScreen(state) {
         })}
         ${renderSetupGuideDialog(state)}
         ${renderRoundDialog(state)}
+        ${renderChargeReactionDialog(state)}
+        ${renderChargeBranchDistanceDialog(state)}
+        ${renderEvadeChoiceHandoffDialog(state)}
       </div>
     </section>
+  `;
+}
+
+function getChargeContactSideStates(classification, selectedContactSide = null) {
+  if (!classification?.type) {
+    return null;
+  }
+
+  const sideStates = {
+    front: 'not-attacked',
+    rear: 'not-attacked',
+    left: 'not-attacked',
+    right: 'not-attacked',
+  };
+
+  if (classification.type === CHARGE_CONTACT_CLASSIFICATION_TYPES.FRONT) {
+    sideStates.front = 'attacked';
+    return sideStates;
+  }
+
+  if (classification.type === CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR) {
+    sideStates.rear = 'attacked';
+    return sideStates;
+  }
+
+  if (classification.type === CHARGE_CONTACT_CLASSIFICATION_TYPES.FLANK) {
+    if (classification.flankSide === 'left') {
+      sideStates.left = 'attacked';
+    } else if (classification.flankSide === 'right') {
+      sideStates.right = 'attacked';
+    }
+    return sideStates;
+  }
+
+  if (classification.type === CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR_OR_FLANK) {
+    const possibleSides = ['rear'];
+    if (classification.flankSide === 'left') {
+      possibleSides.push('left');
+    } else if (classification.flankSide === 'right') {
+      possibleSides.push('right');
+    }
+
+    if (possibleSides.includes(selectedContactSide)) {
+      sideStates[selectedContactSide] = 'attacked';
+      return sideStates;
+    }
+
+    sideStates.rear = 'possible';
+    if (classification.flankSide === 'left') {
+      sideStates.left = 'possible';
+    } else if (classification.flankSide === 'right') {
+      sideStates.right = 'possible';
+    }
+    return sideStates;
+  }
+
+  return null;
+}
+
+function renderChargeContactSideMarkers(classification, selectedContactSide = null) {
+  const sideStates = getChargeContactSideStates(classification, selectedContactSide);
+  if (!sideStates) {
+    return '';
+  }
+
+  const createSideMarkerMarkup = (side, state) => {
+    const isSelectable = state === 'possible'
+      || (
+        classification.type === CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR_OR_FLANK
+        && selectedContactSide === side
+        && state === 'attacked'
+      );
+    const selectableAttributes = isSelectable
+      ? ' data-charge-contact-side-selectable="true"'
+      : '';
+
+    return `<span class="battlefield-charge-contact-side is-${side} is-${state}" data-charge-contact-side="${side}" data-charge-contact-state="${state}"${selectableAttributes}></span>`;
+  };
+
+  return `
+    <span class="battlefield-charge-contact-sides" aria-hidden="true" data-charge-contact-classification="${classification.type}">
+      ${createSideMarkerMarkup('front', sideStates.front)}
+      ${createSideMarkerMarkup('rear', sideStates.rear)}
+      ${createSideMarkerMarkup('left', sideStates.left)}
+      ${createSideMarkerMarkup('right', sideStates.right)}
+    </span>
   `;
 }

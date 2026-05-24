@@ -43,3 +43,5 @@ For this repository, behave like a strict AdG Online project steward by default.
 - Use feature or bugfix branches for implementation work.
 - Commit, push, and prepare PRs when requested. Never merge PRs; the user merges manually.
 - Run relevant tests, builds, and browser checks for implementation phases.
+- For visual gameplay changes on the battlefield, actively verify the rendered result in the browser when browser tooling is available; do not rely only on reducer or geometry tests.
+- If browser tooling is unavailable in the current session, state that limitation explicitly and fall back to focused render tests plus screenshot review instead of claiming browser validation.

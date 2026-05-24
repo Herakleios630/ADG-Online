@@ -1,0 +1,3334 @@
+﻿MATCH: [target reaction] PAGE: 93
+╗ The charge direction must respect the ZoC of the
+╗ Impetious units must continue their charge up to
+most threatening enemy (see p 35).
+their full adjusted charge distance.
+½ Inall cases the charge stops if the unit meets: an
+3 - Target reaction
+enemy unit (see p 41), an enemy ZoC which
+* The initial target of the charge may choose to blocks its movement (see p 35), a friendly unit
+evade if it is able to do so (see p 47).
+that cannot be interpenetrated or a table edge.
+4 - Charge movement
+--------------------
+MATCH: [all initial targets] PAGE: 93
+LARD DE LA GLERRE
+Charge procedure 6 - If all initial targets evade
+* The charging unit or group rolls 1D6 to adjust its
+The phasing player conducts his/her charges in any
+charge distance as shown in the table below.
+order they wish. They are not required to declare all
+charges in advance. For each charge, the following
+--------------------
+MATCH: [Continuing a charge] PAGE: 52
+Commander value 24 Light cavalry 15 Shooting support
+Commander 24, 64, 60 Light infantry 13, 42, 62 Shoating zone
+Confermation 50 Light troops 12, 32, 59 Shooting
+Contact restrictions 42 Line of sight 57 Simple Movement 30
+Contacting enemy AY Longbow 59 Slide 30
+Continuing a charge 43 Looting the camp 66 Special abilities 17
+Contraction 33 Lost commander 26 Special conformation 54
+Cover 70 Main unit 60 Spontaneous charge 44
+Crossbow 38 Manceuvrability a4 Stakes 19
+Deployment zone 78 Marsh 72 Strategist 2
+Deployment 78 Measuring distances 6, 30) Support 60, 63
+--------------------
+MATCH: [Continuing a charge] PAGE: 60
+beginning and at the end of each of their moves (but
+╗ Scythed chariots cannot form a group with any
+not necessarily during the entire movement phase).
+other types of troops.
+There are however some exceptions when
+continuing a charge (see p 43) or due to adjusting
+Positions after interpenetration (see p 39). ARMY COMPOSITION
+eee OURSO F UNITS An army is composed of three corps: centre, right
+wing and left wing. One of the corps may be an
+allied contingent from another army list. Each corps
+ast has a commander and must include one or more
+--------------------
+MATCH: [Continuing a charge] PAGE: 93
+advance, following the rules set out in point 6
+group can wheel or slide (but not both}, It is also
+other than that their movement allowance is not
+possible to make a half-turn or quarter-turn adjusted.
+followed by an optional wheel but without
+sliding. 8 - Continuing a charge
+* The unit or group then advances straight ahead
+* The units of a charging group who have not
+in the specified direction. The charge continues
+contacted an enemy and who are not in support
+and may stop depending on the reaction of the
+--------------------
+MATCH: [Continuing a charge] PAGE: 93
+target (see points 5 to 8).
+charge up to their maximum movement
+½ The direction of a charge cannot be changed once
+allowance.
+it has started.
+* Continuing a charge is optional for
+AOR-
+* Charge movement must comply with ZoC rules
+Inipetuous units. It is mandatory for all fnpetuows
+(see p 35).
+units but only if they can contact a new enemy or
+--------------------
+MATCH: [Continuing a charge] PAGE: 93
+if they are pursuing evading units unless this
+brings the front of one or more units into contact
+would result in any of the "Exceptions to
+with the enemy is also considered a charge.
+uncontrolled charges" (see p 46).
+Continuing a charge can cause a charging group
+5 - If the initial targets do not evade
+to become separated but this does not change the
+* All units that can do so must contact the enemy CP cost for the charge move.
+or move into support position,
+In all cases a charge stops if the unit meets an
+--------------------
+MATCH: [Continuing a charge] PAGE: 94
+interpenetrated or a table edge.
+9 - Conformation
+* All units that have contacted an enemy must
+then conform (see p 50). This is performed after
+each charge.
+CONTINUING A CHARGE EXAMPLE
+Bi
+an
+ch
+nit
+cavalry group Cl-C4 charges the enemy chariot
+--------------------
+MATCH: [Continuing a charge] PAGE: 94
+C3-C4 are [nipeliious, continuing this charge is
+not andatory unless B2-B3 would cause an exception to
+sort ontrolled charges (p46).
+reir
+ent Contacting secondary targets
+When charging or continuing a charge, a unit may
+ton-
+meet a new enemy unit in the path of its charge.
+tous
+These enemies are secondary targets of the charge.
+y OF
+--------------------
+MATCH: [Conformation] PAGE: 52
+Commander 24, 64, 60 Light infantry 13, 42, 62 Shoating zone
+Confermation 50 Light troops 12, 32, 59 Shooting
+Contact restrictions 42 Line of sight 57 Simple Movement 30
+Contacting enemy AY Longbow 59 Slide 30
+Continuing a charge 43 Looting the camp 66 Special abilities 17
+Contraction 33 Lost commander 26 Special conformation 54
+Cover 70 Main unit 60 Spontaneous charge 44
+Crossbow 38 Manceuvrability a4 Stakes 19
+Deployment zone 78 Marsh 72 Strategist 2
+Deployment 78 Measuring distances 6, 30) Support 60, 63
+Destruction of LI 62 Medium infantry 13 Terrain (types) 70, 72
+--------------------
+MATCH: [Conformation] PAGE: 53
+INTRODUCTION ssstosiscentesccscserenanicncncns 6
+CHABTE io cseacsenqpuiunceu ngugaerrcseuesas 42
+Rules organisation ........ceccsssseeeeeeeneterereseeesenenesneereaee 6
+EVade MOO sj cccns suc ninecinnnsccanuunmean 47
+SCALES... ceccescecccsccenceesetsvcersveceseeeeneecaetenserssceretsnecsusennens 6
+Conformation oo... ccceeeccescceereeeececesseserseessteeseeeeeseese 50
+Equi pine nttccnscesnecnecassunanaveresnenar ernrennaniaonennnsta ear einevaneetens 7
+RALLYING sscsssseneacatcrmnsonsenmeccumnsceraneavs 55
+FIPUTOS i casa enivormioranareoniicucsiminegeenneEn nnagt 7
+How units are represented ..00.0.0 ccc cseeeceeesceeeereseees 8 PROCEA UTE siccrusii ss, sess cevs ei iacie ES TEEEIE a annee SUS 55
+UME SEAEUB si. cress sees cid. wane ndtdbsVlad, nnoneaepitdiecterranacanneenenennd 9 Beall iteat meceeecete neerernsment o
+--------------------
+MATCH: [Conformation] PAGE: 76
+= Command range is evaluated at the moment the
+of his subordinates.
+order is given. A commander can give an order,
+½ Units of the corps can always make spontaneous
+move to get in range and give another order.
+and uncontrolled charges or conformations as
+= im the case of a dispute due to basing, consider
+these moves do not require orders and so cost
+that the commander is based on a square base of
+zero CP.
+1 UD when measuring command range.
+--------------------
+MATCH: [Conformation] PAGE: 87
+slower enemy can move straight ahead their full
+movement allowance without becoming Disordered
+and for only 1 CP, even as a group move.
+Involuntary exit from a ZoC
+It is possible that a unit can leave an enemy ZoC
+involuntarily due to alignment or conformation.
+Such movements are permitted in the following
+cases:
+Unit Bl must respect A2's ZoC, which is tHe most
+Hireatening enemy. Bl wheels to charge but it is * The unit is shifted to allow the conformation of a
+impossible for Bl te contact A2 because Ai is friendly unit in melee.
+--------------------
+MATCH: [Conformation] PAGE: 87
+It is possible that a unit can leave an enemy ZoC
+involuntarily due to alignment or conformation.
+Such movements are permitted in the following
+cases:
+Unit Bl must respect A2's ZoC, which is tHe most
+Hireatening enemy. Bl wheels to charge but it is * The unit is shifted to allow the conformation of a
+impossible for Bl te contact A2 because Ai is friendly unit in melee.
+interposed. In this particular case, Al becomes the * The unit is interpenetrated by a friend and
+new target for the charge of BL. This is an incomplete moved back to make space.
+conformation case (see p 33). If Al evades, then B1 * The unit is part of a group that switches from
+will contact A2. column to line (see diagram below).
+--------------------
+MATCH: [Conformation] PAGE: 87
+Unit Bl must respect A2's ZoC, which is tHe most
+Hireatening enemy. Bl wheels to charge but it is * The unit is shifted to allow the conformation of a
+impossible for Bl te contact A2 because Ai is friendly unit in melee.
+interposed. In this particular case, Al becomes the * The unit is interpenetrated by a friend and
+new target for the charge of BL. This is an incomplete moved back to make space.
+conformation case (see p 33). If Al evades, then B1 * The unit is part of a group that switches from
+will contact A2. column to line (see diagram below).
+37
+--------------------
+MATCH: [Conformation] PAGE: 92
+them on their flank or rear. If the enemy being
+charged is a heavy troop which would destroy LI
+of Definition
+in open terrain (see p 62) the entire front edge of
+mt
+A charge is a move in which a unit engages in the LI must end in the terrain after conformation
+the
+combat with an enemy. The units must contact the for the charge to be allowed.
+nit
+enemy with part of its front edge (even a single * If, during a charge move, a light infantry would
+ynt
+--------------------
+MATCH: [Conformation] PAGE: 92
+engage in combat, and such units can only contact charging to check if an enemy is within range.
+enemy units under certain conditions: *" A group can charge if at least one unit of the
+group is within charge range of the enemy.
+Light infantry However, only those units of the group that start
+* In open terrain light infantry can only charge an within charge range will be able to conform with
+enemy if, after conformation, they would be in the enemy (see p 50).
+melee with light infantry, light cavalry, elephant, * A charge can take place on the enemy's front,
+scythed chariot, artillery or the enemy camp or flank or rear depending on the initial position of
+they would be in a support position. the charging unit (see p 41).
+* In rough or difficult terrain light infantry may
+charge any enemy who is either; penalised in
+--------------------
+MATCH: [Conformation] PAGE: 94
+LAR GAP |e
+in combat, a friendly unit that cannot be
+interpenetrated or a table edge.
+9 - Conformation
+* All units that have contacted an enemy must
+then conform (see p 50). This is performed after
+each charge.
+CONTINUING A CHARGE EXAMPLE
+Bi
+--------------------
+MATCH: [Conformation] PAGE: 97
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+this enemy exerts a zone of control over the unit
+terrain by the charge of heavy troops must evade,
+trying to evade.
+unless after conformation they would:
+* Be in melee with light troops, elephants or
+EVADE MOVE BLOCKED BY ENEMY ZOC
+scythed chariots,
+* Be ina position to support a friendly unit.
+If the light infantry cannot evade or if they evade
+--------------------
+MATCH: [Conformation] PAGE: 100
+CONFORMATION * If several units are in the ZoC of the same
+enemy, the unit that first entered the enemy's
+ZoC conforms to this enemy (this may not be the
+Definition
+one that has contacted the enemy),
+Conformation is a special movement in which units * Units that cannot line up in front of an enemy
+--------------------
+MATCH: [Conformation] PAGE: 100
+CONFORMATION * If several units are in the ZoC of the same
+enemy, the unit that first entered the enemy's
+ZoC conforms to this enemy (this may not be the
+Definition
+one that has contacted the enemy),
+Conformation is a special movement in which units * Units that cannot line up in front of an enemy
+are more neatly aligned against their opponents conform in a simple support position front
+before combat is resolved. corner against front corner.
+* Conformation can take place whenever a unit is
+in contact with enemy even by only one corner. CONFORMATION AFTER CHARGE
+How a unit will conform is always dictated by
+--------------------
+MATCH: [Conformation] PAGE: 100
+Definition
+one that has contacted the enemy),
+Conformation is a special movement in which units * Units that cannot line up in front of an enemy
+are more neatly aligned against their opponents conform in a simple support position front
+before combat is resolved. corner against front corner.
+* Conformation can take place whenever a unit is
+in contact with enemy even by only one corner. CONFORMATION AFTER CHARGE
+How a unit will conform is always dictated by
+the ZoC of it's most Hireatening enenry (see p35)
+A unit in melee or melee support aligns its front
+edge against the enemy, with a front corner
+--------------------
+MATCH: [Conformation] PAGE: 100
+one that has contacted the enemy),
+Conformation is a special movement in which units * Units that cannot line up in front of an enemy
+are more neatly aligned against their opponents conform in a simple support position front
+before combat is resolved. corner against front corner.
+* Conformation can take place whenever a unit is
+in contact with enemy even by only one corner. CONFORMATION AFTER CHARGE
+How a unit will conform is always dictated by
+the ZoC of it's most Hireatening enenry (see p35)
+A unit in melee or melee support aligns its front
+edge against the enemy, with a front corner
+against a front corner of the enemy, or if this is
+--------------------
+MATCH: [Conformation] PAGE: 100
+not possible (in a flank or rear attack) with a
+front corner against the enemy's rear corner.
+* A unit in simple support, must be aligned front
+corner to front corner or flank to flank.
+* A unit must conform as fully as possible
+otherwise there is an incomplete conformation
+(see p 53). A unit does not have to enter terrain A group of cavalry A charges enemy B. The charge
+in which the unit is penalised in melee to fully stops when Al contacts B1 and units must conform.
+conform, but it may choose to do so. For Al and A2, B1 is the most tireatening eneny but as
+a Only units belonging to the phasing player can A2 entered first into BI's ZoC, it is thus A? which
+conform, conforms to Bt.
+--------------------
+MATCH: [Conformation] PAGE: 100
+(see p 53). A unit does not have to enter terrain A group of cavalry A charges enemy B. The charge
+in which the unit is penalised in melee to fully stops when Al contacts B1 and units must conform.
+conform, but it may choose to do so. For Al and A2, B1 is the most tireatening eneny but as
+a Only units belonging to the phasing player can A2 entered first into BI's ZoC, it is thus A? which
+conform, conforms to Bt.
+* Conformation does not expend CPs,
+The distance moved during a conformation is
+not deducted from movement allowance.
+If the conforming unit is part of a group, other
+units in the group may also be moved up to one
+UD to remain aligned as a group.
+--------------------
+MATCH: [Conformation] PAGE: 100
+in which the unit is penalised in melee to fully stops when Al contacts B1 and units must conform.
+conform, but it may choose to do so. For Al and A2, B1 is the most tireatening eneny but as
+a Only units belonging to the phasing player can A2 entered first into BI's ZoC, it is thus A? which
+conform, conforms to Bt.
+* Conformation does not expend CPs,
+The distance moved during a conformation is
+not deducted from movement allowance.
+If the conforming unit is part of a group, other
+units in the group may also be moved up to one
+UD to remain aligned as a group.
+Time of conformation
+--------------------
+MATCH: [Conformation] PAGE: 100
+The distance moved during a conformation is
+not deducted from movement allowance.
+If the conforming unit is part of a group, other
+units in the group may also be moved up to one
+UD to remain aligned as a group.
+Time of conformation
+Conformation takes place during the Movement
+Phase, or the Rout and Pursuit phase, in the
+soilowing cases: The group then slides te align A2 with BI and then
+After a charge to align the unit with the enemy. rotated to align all the units. Al is then in a
+ict,
+--------------------
+MATCH: [Conformation] PAGE: 100
+not deducted from movement allowance.
+If the conforming unit is part of a group, other
+units in the group may also be moved up to one
+UD to remain aligned as a group.
+Time of conformation
+Conformation takes place during the Movement
+Phase, or the Rout and Pursuit phase, in the
+soilowing cases: The group then slides te align A2 with BI and then
+After a charge to align the unit with the enemy. rotated to align all the units. Al is then in a
+ict,
+* To support a friendly unit already in melee. supporting position for AZ.
+--------------------
+MATCH: [Conformation] PAGE: 100
+* To align units already in melee that could not
+fully conform in the previous turn.
+During the rout and pursuit phase when a
+s
+Pursuer contacts a new enemy.
+Conformation after a charge
+@uce contact with the enemy has been made, each
+wet that was within charge range conforms against
+the most threatening enemy (see p35).
+ô®= Conformation is done first by sliding and then
+by pivoting the units to align them corner to
+--------------------
+MATCH: [Conformation] PAGE: 100
+Pursuer contacts a new enemy.
+Conformation after a charge
+@uce contact with the enemy has been made, each
+wet that was within charge range conforms against
+the most threatening enemy (see p35).
+ô®= Conformation is done first by sliding and then
+by pivoting the units to align them corner to
+Al enters first in the ZoC of Bl and must therefore
+--------------------
+MATCH: [Conformation] PAGE: 101
+POMP DE 2 A Gal PIRRT
+Conformation to give support * ZoCs and restrictions on contact with the enemy
+must be respected and take precedence over the
+During movement, a unit or group can conform to an
+obligation to conform.
+enemy to give support to a friendly unit already in
+* Units subject to uncontrolled charge must either
+--------------------
+MATCH: [Conformation] PAGE: 101
+enemy to give support to a friendly unit already in
+* Units subject to uncontrolled charge must either
+melee.
+conform or charge another enemy. Any other
+move costs 3 CP.
+CONFORMATION AND SUPPORT * When conforming to an enemy who can evade,
+the unit conforms first and then the enemy
+makes its evade movement (see p 47). The
+conforming unit does not pursue the evading
+enemy.
+* Conformation in this way is not considered a
+--------------------
+MATCH: [Conformation] PAGE: 101
+CONFORMATION AND SUPPORT * When conforming to an enemy who can evade,
+the unit conforms first and then the enemy
+makes its evade movement (see p 47). The
+conforming unit does not pursue the evading
+enemy.
+* Conformation in this way is not considered a
+charge since both units are already in contact
+Abilities that are only valid in the first round of a
+melee Umipact, Javelin, etc.) and the effects of the
+Furious charge do not apply.
+CONFORMING UNITS ALREADY IN CONTACT
+--------------------
+MATCH: [Conformation] PAGE: 101
+enemy without being either in melee or in a position
+to support a friend in melee: front corner against
+front corner or side by side for example.
+The phasing player should resolve all such situations
+during his movement phase if at all possible, either Al cannot conform on B1 as B1 is already ina mek
+by conformation, by moving units, or by making with A2. Al can make a wheel and attack Bl on th
+flank by expending 1 CP.
+charges against other enemies.
+B2 has eliminated his opponent and is no longer |
+* Artillery, WWe and units behind a fortification,
+melee. AS cannot stay in this position. AS mus
+--------------------
+MATCH: [Conformation] PAGE: 102
+wath another enemy on their front edge.
+CONFORMING UNITS IN MELEE
+Unit A destroys Unit B in combat. As it has another
+enemy C aiready in melee on its flank, it does not
+pursue but conforms against C.
+Conformation to a flank or rear
+\ is attacked on the flank by enemy B but
+ves the melee. During its movement phase, A When conforming against enemy flank or rear units
+turn to conform to B. must consider all enemy ZoCs. It is forbidden to
+attack an enemy on its flank or rear if the unit cannot
+: Conformation and pursuit fully conform due to enemy ZoCs (except special
+--------------------
+MATCH: [Conformation] PAGE: 102
+Conformation to a flank or rear
+\ is attacked on the flank by enemy B but
+ves the melee. During its movement phase, A When conforming against enemy flank or rear units
+turn to conform to B. must consider all enemy ZoCs. It is forbidden to
+attack an enemy on its flank or rear if the unit cannot
+: Conformation and pursuit fully conform due to enemy ZoCs (except special
+case see p 37).
+After a victorious combat the phasing player's unit
+æ mmay pursue by advancing up to one UD (see p 69).
+CONFORMATION AND ZOC
+Any units contacting a new enemy with their front
+--------------------
+MATCH: [Conformation] PAGE: 102
+attack an enemy on its flank or rear if the unit cannot
+: Conformation and pursuit fully conform due to enemy ZoCs (except special
+case see p 37).
+After a victorious combat the phasing player's unit
+æ mmay pursue by advancing up to one UD (see p 69).
+CONFORMATION AND ZOC
+Any units contacting a new enemy with their front
+edge (even by corner-to-corner) during this pursuit
+must immediately conform if possible.
+CONFORMATION AND PURSUIT
+Bl
+--------------------
+MATCH: [Conformation] PAGE: 102
+æ mmay pursue by advancing up to one UD (see p 69).
+CONFORMATION AND ZOC
+Any units contacting a new enemy with their front
+edge (even by corner-to-corner) during this pursuit
+must immediately conform if possible.
+CONFORMATION AND PURSUIT
+Bl
+The unit B cannot charge Al on its flank because it
+will enter in the ZoC of A2 when conforming. If unit
+B charges, it will conform to the front of unit Al.
+Conformation and shifting units
+--------------------
+MATCH: [Conformation] PAGE: 102
+CONFORMATION AND PURSUIT
+Bl
+The unit B cannot charge Al on its flank because it
+will enter in the ZoC of A2 when conforming. If unit
+B charges, it will conform to the front of unit Al.
+Conformation and shifting units
+and AS units are /Jyipetiious units that have
+stroved their opponents and must pursue. If necessary to create space for units to conform it is
+permitted to shift friendly units that are not already
+pursues by one UD and contacts Bl and B2. It
+engaged in melee. Shifting units must respect the
+--------------------
+MATCH: [Conformation] PAGE: 103
+JOART L DE LA GETIS RE
+Additional points INCOMPLETE CONFORMATION
+* A unit ina support position can only be shifted if
+it remains in a support position.
+* Units are able to exit or enter enemy ZoCs
+involuntarily as a result of being shifted (see p
+37-38),
+--------------------
+MATCH: [Conformation] PAGE: 103
+37-38),
+" A friendly unit that has been shifted cannot then
+move or rally in the rest of the movement phase
+unless it is ight troops. Units that have already
+moved or rallied can however still be shifted by
+the conformation of another unit.
+Bt, B2 and B3 charge and contact Al, A2 and A37.
+SHIFTING UNITS WHEN CONFORMING Bl is ina melee with A2 its most threatening ener
+ao
+but cannot fully conform because both B2 and B3 a:
+in contact with enemy and cannot be shifted.
+--------------------
+MATCH: [Conformation] PAGE: 103
+B3 cannot fully conform to A3 because it would hay
+to shift B2 who is supporting Bl against A2. b
+conforms as much as is possible against A3.
+In the next turn, A? will conform to Bl also shilting
+Al to the left. A3 will then align fully against B3.
+CONFORMATION AND TERRAIN
+Cavalry Bl charges Al and conforms by sliding to
+the right. Unit B2 is pushed back as little as possible
+to allow BL te conform. After doing so, B2 leaves
+Al's ZoC but remains in A2Æs ZoC.
+Incomplete conformation
+--------------------
+MATCH: [Conformation] PAGE: 103
+CONFORMATION AND TERRAIN
+Cavalry Bl charges Al and conforms by sliding to
+the right. Unit B2 is pushed back as little as possible
+to allow BL te conform. After doing so, B2 leaves
+Al's ZoC but remains in A2Æs ZoC.
+Incomplete conformation
+B is not required to fully conform to Al as this would
+In some situations, it may happen that complete cause it to enter into a penalising terrain. Al is in <
+melee with B and supported by A2. In tts turn, Aj
+conformation is not possible due to terrain, the table
+edge or friendly units that cannot be shifted. will have to conform against B because the clear
+--------------------
+MATCH: [Conformation] PAGE: 103
+Al's ZoC but remains in A2Æs ZoC.
+Incomplete conformation
+B is not required to fully conform to Al as this would
+In some situations, it may happen that complete cause it to enter into a penalising terrain. Al is in <
+melee with B and supported by A2. In tts turn, Aj
+conformation is not possible due to terrain, the table
+edge or friendly units that cannot be shifted. will have to conform against B because the clear
+However, this does not prevent units from fighting terrain does not penalise MI. A2 will be shifted to the
+each other even if they are not perfectly aligned. right but will remain in a position to support Al,
+* Ifa unit cannot fully conform on the flank of an INCOMPLETE FLANK CONFORMING
+enemy, then if possible, it must fully conform on
+--------------------
+MATCH: [Conformation] PAGE: 103
+if it contacts a front corner.
+½ If a unit cannot fully conform on the rear of an
+enemy, then if possible, it must fully conform on
+the nearest flank.
+* Otherwise, units remain in a position of
+incomplete conformation.
+* This situation is temporary and as soon as
+possible, units must fully conform during their Al contacts BI on the flank but cannot fully conform
+movement phase. so it must conform to the front of Bl. A2 contacts B2
+on the flank but cannot fully conform either on the
+flank or on the rear so it remains in its position. In its
+--------------------
+MATCH: [Conformation] PAGE: 104
+POART DE LA GLERRE
+Special conformation Heavy artillery
+As it is immobile, heavy artillery can only conform
+Ambiguous conformation
+by a quarter-turn or half-turn. It does not conform in
+After conformation, a unit must be clearly aligned
+other cases.
+--------------------
+MATCH: [Conformation] PAGE: 104
+POART DE LA GLERRE
+Special conformation Heavy artillery
+As it is immobile, heavy artillery can only conform
+Ambiguous conformation
+by a quarter-turn or half-turn. It does not conform in
+After conformation, a unit must be clearly aligned
+other cases.
+with its principal opponent, and must not be more
+aligned with another unit.
+--------------------
+MATCH: [Conformation] PAGE: 104
+POART DE LA GLERRE
+Special conformation Heavy artillery
+As it is immobile, heavy artillery can only conform
+Ambiguous conformation
+by a quarter-turn or half-turn. It does not conform in
+After conformation, a unit must be clearly aligned
+other cases.
+with its principal opponent, and must not be more
+aligned with another unit.
+Fortifications, obstacles or stakes
+A unit defending a fortification, obstacle or that has
+--------------------
+MATCH: [Conformation] PAGE: 104
+other cases.
+with its principal opponent, and must not be more
+aligned with another unit.
+Fortifications, obstacles or stakes
+A unit defending a fortification, obstacle or that has
+AMBIGUOUS CONFORMATION
+placed its Stakes does not conform against a unit
+attacking through them.
+Columns attacked from the flank
+Because of the difference between width and depth
+of some bases, conformation of a column attacked in
+--------------------
+MATCH: [Conformation] PAGE: 104
+AMBIGUOUS CONFORMATION
+placed its Stakes does not conform against a unit
+attacking through them.
+Columns attacked from the flank
+Because of the difference between width and depth
+of some bases, conformation of a column attacked in
+the flank is a special case. Units attacked from the
+flank are shifted so that each unit remains in contact
+with only one opponent. When making this
+conformation, all units are treated as if they have a
+depth of one UD.
+--------------------
+MATCH: [Conformation] PAGE: 104
+Because of the difference between width and depth
+of some bases, conformation of a column attacked in
+the flank is a special case. Units attacked from the
+flank are shifted so that each unit remains in contact
+with only one opponent. When making this
+conformation, all units are treated as if they have a
+depth of one UD.
+> charges Al without entering the terrain. Al is
+st tHreatening eneniy and B must attempt to
+COLUMNS ATTACKED FROM THE FLANK
+rm to Al. However, if B pivots to directly face
+--------------------
+MATCH: [Conformation] PAGE: 105
+attempts to rally cannot voluntarily move or conform
+additional CP to attempt to rally a unit unless if
+but can still shoot or fight in melee. Only light troops
+that have been shifted as a result of interpenetration is the unit he is attached to or included in.
+* When a group with [petueus troops is held by
+or conformation can be rallied, others cannot.
+spending 3 CPs, one rally attempt for one unit in
+the group is permitted at no extra CP cost. Other
+RALLY TEST
+units in the group can also attempt to rally for
+one additional CP for each rally attempt.
+--------------------
+MATCH: [Conformation] PAGE: 106
+╗ A unit engaged in melee or supporting a friend
+in melee cannot shoot.
+*╗ A unit cannot shoot at an enemy engaged in
+melee or one supporting another unit in melee
+even if the unit is not in contact with the enemy,
+because full conformation was not possible.
+* Other units in contact with an enemy but not
+providing support in a combat can still shoot
+and be targeted.
+TARGET SELECTION
+Target priority
+--------------------
+MATCH: [Conformation] PAGE: 110
+Main unit
+A melee usually involves one unit against a single Melee support
+enemy unit. However it can also happen that several * The unit is fully conformed with its front edge
+units are in combat against a single opponent. In this against the flank or the rear of the enemy in
+case, the main unit of the combat is determined. The melee with the supported friendly unit. If the
+other units only provide support to the main unit. flank or rear conformation is incomplete (see p
+53) the support is counted as simple support.
+After conformation, the main unit is: * Each unit in melee support provides a bonus
+=╗ The unit in contact with the enemy's front edge equal to its combat factor +1.
+other than with just a corner-to-corner contact. *" Special abilities and all other modifiers
+½ If the units are not fully conformed, the main (including Disorder or presence of commander)
+--------------------
+MATCH: [Conformation] PAGE: 110
+enemy unit. However it can also happen that several * The unit is fully conformed with its front edge
+units are in combat against a single opponent. In this against the flank or the rear of the enemy in
+case, the main unit of the combat is determined. The melee with the supported friendly unit. If the
+other units only provide support to the main unit. flank or rear conformation is incomplete (see p
+53) the support is counted as simple support.
+After conformation, the main unit is: * Each unit in melee support provides a bonus
+=╗ The unit in contact with the enemy's front edge equal to its combat factor +1.
+other than with just a corner-to-corner contact. *" Special abilities and all other modifiers
+½ If the units are not fully conformed, the main (including Disorder or presence of commander)
+unit is the one that is most in front of the enemy. are not counted when calculating the melee
+= If the enemy is contacted only on its flank support bonus.
+--------------------
+MATCH: [Conformation] PAGE: 111
+rear edge, it immediately loses one cohesion
+point.
+* The enemy must fully conform on the unitsÆ
+flank or rear, otherwise there is no cohesion loss.
+* A multiple attack can occur during a charge,
+movement, conformation or pursuit.
+½ A unit also loses a cohesion point if it is engaged
+in melee or in melee support on multiple sides
+by multiple enemy units during the same phase.
+Al provides simple support to A2 against B1. At least one of the enemy units contacting its
+A2 and BI are in melee. flank or the rear must conform properly and
+--------------------
+MATCH: [Conformation] PAGE: 112
+18).
+iference Looser
+= No cohesion loss The Furious charge ability only applies during the
+- 1 cohesion point first round of a melee if the unit charges or is
+an - 2 cohesion points charged on its front edge. If the combat takes place
+a or 6 pts - 3 cohesion points after conformation by units already in contact or in
+a pts and more Automatic rout melee (see p 51) or after a pursuit (see p 69), Furious
+charge does not apply.
+<r With a bit of practice, melee can be quickly resolved by a
+ks le differential calculation. Example: Impetuous heavy swordsmen charge heavy
+ily
+--------------------
+MATCH: [Conformation] PAGE: 113
+only if the unit receives a charge.
+First round of a melee
+These abilities are only effective during the first
+round of a melee if the unit charges or is charged by
+an enemy on its front edge. If the combat takes place
+after a conformation of an existing contact or after a
+Al contacts BlÆs flank but cannot fully conform. 4
+pursuit, these special abilities do not apply.
+therefore slides and pivots to conform on the front
+B1 as he is able to do so.
+Receiving a charge on the front
+--------------------
+MATCH: [Conformation] PAGE: 114
+Situation modifier
+if the main unit of a melee is situated on the flank or
+rear of the enemy it has a +1 modifier for the melee,
+even if the conformation is incomplete.
+le: In the example on the previous page, A3 and A4
+t from this modifier even if they are not fully
+ed fo the flank or rear.
+Terrain modifier
+Troops that are penalised in rough or difficult terrain
+--------------------
+MATCH: [evade] PAGE: 52
+Disorder 9,63 Missile weapon 17 Types of troops 12,15,;:22
+, fim Elephant rampage 68 Mixed units &, 20 Uncontrolled charge 45
+iders, Elephant 16, 19 Most in front Unit status 9
+Engagedcommander 28 Most threatening enemy 35 Unmanceuvrable 34
+Equipment Mounted traops 12 Unreliable 25, 80
+Evade 47 Movement allowance 29 Village 72
+Exiting the table 49 Movement zones 29 Visibility 76
+Exiting a ZoC B7 Movement 29 War wagons 14, 67
+Expendable 20 Multiple attack 61 Wheel a)
+Extension 32 Multiple movements 34 Woods eu
+Fields 72 Nearest unit 9 Zone of control Hay bo
+--------------------
+MATCH: [evade] PAGE: 53
+OVERVIEW... ccccscenssrssesssteeres sxaearacanecvanennaneÆ 5
+SPECIAL MOVEMENTGB...........0008 eeeerreeeee 42
+INTRODUCTION ssstosiscentesccscserenanicncncns 6
+CHABTE io cseacsenqpuiunceu ngugaerrcseuesas 42
+Rules organisation ........ceccsssseeeeeeeneterereseeesenenesneereaee 6
+EVade MOO sj cccns suc ninecinnnsccanuunmean 47
+SCALES... ceccescecccsccenceesetsvcersveceseeeeneecaetenserssceretsnecsusennens 6
+Conformation oo... ccceeeccescceereeeececesseserseessteeseeeeeseese 50
+Equi pine nttccnscesnecnecassunanaveresnenar ernrennaniaonennnsta ear einevaneetens 7
+RALLYING sscsssseneacatcrmnsonsenmeccumnsceraneavs 55
+FIPUTOS i casa enivormioranareoniicucsiminegeenneEn nnagt 7
+--------------------
+MATCH: [evade] PAGE: 62
+(Kn), Scythed Chariots (SCh) and Elephants (El). * Protection against shooting.
+Light troops: This includes light infantry (LI) and
+Troop quality does not apply to:
+light cavalry (LH) that maneuver more easily than * Rally tests,
+other troops. All others troops are called ôheavy * Movement adjustment rolls during a charge or
+troopsö. evade move.
+Type and combat factor The die result is modified by unit quality before
+applying any other modifier (such as Armour, Heavy
+Within the same category there are different types of
+armour, Treo-handed weapon or Missile support
+troops representing variations in fighting style or use
+--------------------
+MATCH: [evade] PAGE: 63
+bows, slings, crossbows or firearms). Their main
+against heavy mounted troops.
+functions are to harass the enemy and occupy areas
+of rough or difficult terrain. In open terrain, they
+Medium swordsmen: These are troops
+must evade the charge of heavy troops or be
+destroyed if contacted. equipped with a hand weapon, a light spear or a
+polearm. Their focus is close combat and they can
+have the linpact ability or be [nipetuous. Examples are
+* Combat factor of zero against all.
+Roman Auxilia or Spanish Scutarii. Some of them are
+--------------------
+MATCH: [evade] PAGE: 63
+the front edge. This represents a volley of ╗ They cancel the Impact ability (but not the Furious
+missiles before the charge. charge) of mounted troops, except elephants, if
+they receive the charge on the front edge.
+Javelinmen: These troops are lightly equipped
+with javelins and light spears. They have the Javelin Heavy infantry (HI)
+ability, can shoot and evade as light infantry and are
+These troops represent those trained to fight in a
+effective against elephants. Unlike light infantry,
+deep, close formation. They may be equipped with
+their tighter formation allows them to stand up to
+sturdy armour or a large shield. Their tight
+--------------------
+MATCH: [evade] PAGE: 65
+horses and treat brush as open terrain and sand
+with missile weapons and used to harass the enemy.
+dunes as rough terrain. They are not penalized in
+They fight in open order allowing them to move
+combat in these terrain types.
+quickly and evade the enemy. Some riders have a
+lance instead of a missile weapon and benefit from
+Heavy chariots (HCh)
+the Impact ability. This category also includes also
+light units mounted on camels. Some armies like the
+These are the chariots of the ancient period, each
+--------------------
+MATCH: [evade] PAGE: 84
+now impetuous cavalry.
+½ To exit an enemyÆs zone of control (see p 37)
+ction of a line of cavalry advancing 4 UD and
+except when performed by troops that can
+ting one unit on each wing.
+evade.
+ULTIPLE MOVEMENTS
+The following are difficult manoeuvres only for
+unmanoeuvrable units:
+WA unit or group of units can perform a second or
+=╗ Any manoeuvre that includes a quarter-turn, a
+--------------------
+MATCH: [evade] PAGE: 87
+OART E DE LAGE TERRE
+PROTECTING A FLANK Exiting a ZoC
+A unit can voluntarily exit an enemy ZoC under the
+a following conditions:
+Units that can evade
+A unit or group capable of evading can exit an
+enemy ZoC in its own turn by making an evade
+move without an enemy charge (see p 47).
+* The initial reorientation is done only relative to
+the ZoC of the most threatening enenry.
+--------------------
+MATCH: [evade] PAGE: 87
+PROTECTING A FLANK Exiting a ZoC
+A unit can voluntarily exit an enemy ZoC under the
+a following conditions:
+Units that can evade
+A unit or group capable of evading can exit an
+enemy ZoC in its own turn by making an evade
+move without an enemy charge (see p 47).
+* The initial reorientation is done only relative to
+the ZoC of the most threatening enenry.
+* Follow points 1 to 5 of the evade procedure.
+* Units can exit the table in this way, as they can
+--------------------
+MATCH: [evade] PAGE: 87
+A unit or group capable of evading can exit an
+enemy ZoC in its own turn by making an evade
+move without an enemy charge (see p 47).
+* The initial reorientation is done only relative to
+the ZoC of the most threatening enenry.
+* Follow points 1 to 5 of the evade procedure.
+* Units can exit the table in this way, as they can
+during an evade move to avoid a charge.
+Cavalry Al wishes to attack Bl on the flank to Units that cannot evade
+provide melee support to A2. In doing so, unit Al These units cannot turn away from an enemy when
+would enter B2's ZoC. that enemy is too close. Exiting a ZoC is therefore
+--------------------
+MATCH: [evade] PAGE: 87
+move without an enemy charge (see p 47).
+* The initial reorientation is done only relative to
+the ZoC of the most threatening enenry.
+* Follow points 1 to 5 of the evade procedure.
+* Units can exit the table in this way, as they can
+during an evade move to avoid a charge.
+Cavalry Al wishes to attack Bl on the flank to Units that cannot evade
+provide melee support to A2. In doing so, unit Al These units cannot turn away from an enemy when
+would enter B2's ZoC. that enemy is too close. Exiting a ZoC is therefore
+This movement is forbidden for two reasons: very difficult for them.
+* The direction of Al's advance into B?'s ZoC * If the enemy is to their flank or rear, the unit is
+--------------------
+MATCH: [evade] PAGE: 87
+* The initial reorientation is done only relative to
+the ZoC of the most threatening enenry.
+* Follow points 1 to 5 of the evade procedure.
+* Units can exit the table in this way, as they can
+during an evade move to avoid a charge.
+Cavalry Al wishes to attack Bl on the flank to Units that cannot evade
+provide melee support to A2. In doing so, unit Al These units cannot turn away from an enemy when
+would enter B2's ZoC. that enemy is too close. Exiting a ZoC is therefore
+This movement is forbidden for two reasons: very difficult for them.
+* The direction of Al's advance into B?'s ZoC * If the enemy is to their flank or rear, the unit is
+would not allow it to contact B2. pivoted in place to face tHe most threatening
+--------------------
+MATCH: [evade] PAGE: 87
+Unit Bl must respect A2's ZoC, which is tHe most
+Hireatening enemy. Bl wheels to charge but it is * The unit is shifted to allow the conformation of a
+impossible for Bl te contact A2 because Ai is friendly unit in melee.
+interposed. In this particular case, Al becomes the * The unit is interpenetrated by a friend and
+new target for the charge of BL. This is an incomplete moved back to make space.
+conformation case (see p 33). If Al evades, then B1 * The unit is part of a group that switches from
+will contact A2. column to line (see diagram below).
+37
+--------------------
+MATCH: [evade] PAGE: 88
+the most threatening enenty.
+flank or rear. æ4
+* A unit does not exert a ZOC into or from terrain
+Sceythed chariot
+that penalises it during combat.
+* A ZoC is ignored by units making an evade
+move (see p 48)
+Aa
+Example: A cavalry unit in rough terrain does not exert a
+P ZoC ona MI unit in open terrain or rough terrain, On the
+ether hand the MI exerts a ZoC on the cavalry as if ts not
+--------------------
+MATCH: [evade] PAGE: 89
+During interpenetration, the movement allowance of
+Interpenetration allows some troops to pass through
+the unit passing through friends must allow it to at
+others. An interpenetration is allowed during a
+least partially reach the other side of those friends. If
+movement, a charge or an evade move.
+the unit passed through cannot be fully crossed the
+positions of the units are adjusted in the following
+Permitted interpenetrations
+The only permitted interpenetrations are:
+╗ If the unit passing through is light troops or a
+--------------------
+MATCH: [evade] PAGE: 93
+LARD DE LA GLERRE
+Charge procedure 6 - If all initial targets evade
+* The charging unit or group rolls 1D6 to adjust its
+The phasing player conducts his/her charges in any
+charge distance as shown in the table below.
+order they wish. They are not required to declare all
+charges in advance. For each charge, the following
+--------------------
+MATCH: [evade] PAGE: 93
+movement allowances (e.g. Cv with Kn), each
+passing through any enemy units. However
+sub-group sharing the same movement
+heavy troops can choose a target behind enemy
+allowance must roll separately,
+LI in open terrain as LI units are forced to evade.
+* Charging heavy infantry never reduces its
+charge distance.
+2 - Direction of the charge
+* Units that increase their charge distance may
+* The player must indicate to the opponent the
+--------------------
+MATCH: [evade] PAGE: 93
+at least 1 UD for foot or 2 UD for mounted. They
+The player can choose a charge direction that
+may then stop their charge or continue up to
+would allow other secondary units to be
+their maximum adjusted charge distance (see
+contacted if the initial target evades.
+point 8).
+╗ The charge direction must respect the ZoC of the
+╗ Impetious units must continue their charge up to
+most threatening enemy (see p 35).
+their full adjusted charge distance.
+--------------------
+MATCH: [evade] PAGE: 93
+their full adjusted charge distance.
+½ Inall cases the charge stops if the unit meets: an
+3 - Target reaction
+enemy unit (see p 41), an enemy ZoC which
+* The initial target of the charge may choose to blocks its movement (see p 35), a friendly unit
+evade if it is able to do so (see p 47).
+that cannot be interpenetrated or a table edge.
+4 - Charge movement
+7 - If not all targets evade
+The charging group or unit conducts its movement
+= Units that can do so, must contact the enemy.
+--------------------
+MATCH: [evade] PAGE: 93
+enemy unit (see p 41), an enemy ZoC which
+* The initial target of the charge may choose to blocks its movement (see p 35), a friendly unit
+evade if it is able to do so (see p 47).
+that cannot be interpenetrated or a table edge.
+4 - Charge movement
+7 - If not all targets evade
+The charging group or unit conducts its movement
+= Units that can do so, must contact the enemy.
+in the following way:
+½ Any units that do not contact the enemy must
+½ At the beginning of the charge only, the unit or
+--------------------
+MATCH: [evade] PAGE: 93
+brings the front of one or more units into contact
+would result in any of the "Exceptions to
+with the enemy is also considered a charge.
+uncontrolled charges" (see p 46).
+Continuing a charge can cause a charging group
+5 - If the initial targets do not evade
+to become separated but this does not change the
+* All units that can do so must contact the enemy CP cost for the charge move.
+or move into support position,
+In all cases a charge stops if the unit meets an
+½ Other units that have not contacted the enemy
+--------------------
+MATCH: [evade] PAGE: 94
+Bi
+an
+ch
+nit
+cavalry group Cl-C4 charges the enemy chariot
+ho does not evade.
+unit Cl contacts the heavy chariot A and C2
+ust st also stop as it is able to support Cl. Units C3
+t6 i C4 may continue the charge up to contacting B2-
+not or may advance and stop before contact or may
+{continue and remain in a group with C1-C2.
+--------------------
+MATCH: [evade] PAGE: 94
+meet a new enemy unit in the path of its charge.
+tous
+These enemies are secondary targets of the charge.
+y OF
+this
+* A secondary target can evade if it has the ability to
+to do so. The normal evade procedure is
+oup followed (see p 47), except that the charging unit
+the does not move further than its already
+determined maximum adjusted movement
+allowance. 3; an
+--------------------
+MATCH: [evade] PAGE: 94
+tous
+These enemies are secondary targets of the charge.
+y OF
+this
+* A secondary target can evade if it has the ability to
+to do so. The normal evade procedure is
+oup followed (see p 47), except that the charging unit
+the does not move further than its already
+determined maximum adjusted movement
+allowance. 3; an
+. its * Rules for contact restrictions and zone of control
+--------------------
+MATCH: [evade] PAGE: 95
+movement phase if it did not move, rally or was Uncontrolled charges and combat
+not held in place by its commander.
+½ Units that make an uncontrolled charge lose
+╗ After friendly units have charged and enemy
+effectiveness due to the disorganised manner of
+units have evaded an Jimpetuous unit may their attack, fighting with a penalty of -1 in the
+become subject to an uncontrolled charge even
+first round of the melee.
+though it was not subject to one at the start of the
+½ This uncontrolled charge penalty is cumulative
+phase.
+--------------------
+MATCH: [evade] PAGE: 95
+½ This uncontrolled charge penalty is cumulative
+phase.
+with any Disorder penalty. Units still benefit from
+=╗ Conversely, if an enemy unit that provokes an
+their special abilities if they are applicable.
+uncontrolled charge is forced to evade by the
+½ If the target of the charge is directly in front, and
+charge of another friendly unit, an Impefuous unit
+within one UD or less, Impetuous units can
+may no longer be subject to an uncontrolled
+always choose to make a Spontaneous charge (see
+--------------------
+MATCH: [evade] PAGE: 96
+itself in terrain that penalises it in combat.
+* If the unit or its target is behind a fortification, an
+obstacle (or Stnkes if the charging unit is a
+Note: If the target of the uncontrolled charge can
+mounted unit) or a river or ina village.
+evade, any other enemy unit or terrain behind the
+= Ifthe only target unit is an elephant ora WWe.
+target unit up to the movement allowance of the
+= If the charge would cause a mounted unit to
+charging unit plus one UD must be considered
+become subject to Panic (see note}.
+--------------------
+MATCH: [evade] PAGE: 97
+PART DE bo GULERRE
+EVADING UNITÆS ORIENTATION
+EVADE MOVE
+An evade is a movement made in reaction to an
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+--------------------
+MATCH: [evade] PAGE: 97
+PART DE bo GULERRE
+EVADING UNITÆS ORIENTATION
+EVADE MOVE
+An evade is a movement made in reaction to an
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+Troops that can evade
+--------------------
+MATCH: [evade] PAGE: 97
+PART DE bo GULERRE
+EVADING UNITÆS ORIENTATION
+EVADE MOVE
+An evade is a movement made in reaction to an
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+Troops that can evade
+Only the following types of troops can evade:
+* Light infantry and light cavalry,
+--------------------
+MATCH: [evade] PAGE: 97
+EVADING UNITÆS ORIENTATION
+EVADE MOVE
+An evade is a movement made in reaction to an
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+Troops that can evade
+Only the following types of troops can evade:
+* Light infantry and light cavalry,
+½ Javelinmen,
+--------------------
+MATCH: [evade] PAGE: 97
+An evade is a movement made in reaction to an
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+Troops that can evade
+Only the following types of troops can evade:
+* Light infantry and light cavalry,
+½ Javelinmen,
+╗ Cavalry with fmpact and also Bow, Crossbow, 2
+Bow or 2 Crossbow. A LH is charged by a Cy on its flank. It must make ½
+--------------------
+MATCH: [evade] PAGE: 97
+enemy charge or pursuit in order to avoid combat. A
+unit can evade several times during a phase if
+necessary. An evade move is also performed when
+voluntarily exiting an enemy ZoC (see p 37).
+Troops that can evade
+Only the following types of troops can evade:
+* Light infantry and light cavalry,
+½ Javelinmen,
+╗ Cavalry with fmpact and also Bow, Crossbow, 2
+Bow or 2 Crossbow. A LH is charged by a Cy on its flank. It must make ½
+* All other cavalry (including camelry and light quarter-turn.
+--------------------
+MATCH: [evade] PAGE: 97
+½ Javelinmen,
+╗ Cavalry with fmpact and also Bow, Crossbow, 2
+Bow or 2 Crossbow. A LH is charged by a Cy on its flank. It must make ½
+* All other cavalry (including camelry and light quarter-turn.
+chariots) without Inrpact or Impetuous ability.
+2 - Blocked evade move
+Evading is not allowed in the following cases: An evading unit may be blocked by something that
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+--------------------
+MATCH: [evade] PAGE: 97
+Bow or 2 Crossbow. A LH is charged by a Cy on its flank. It must make ½
+* All other cavalry (including camelry and light quarter-turn.
+chariots) without Inrpact or Impetuous ability.
+2 - Blocked evade move
+Evading is not allowed in the following cases: An evading unit may be blocked by something that
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+--------------------
+MATCH: [evade] PAGE: 97
+chariots) without Inrpact or Impetuous ability.
+2 - Blocked evade move
+Evading is not allowed in the following cases: An evading unit may be blocked by something that
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+First case: Evade blocked by enemy ZoC
+Troops that must evade
+--------------------
+MATCH: [evade] PAGE: 97
+2 - Blocked evade move
+Evading is not allowed in the following cases: An evading unit may be blocked by something that
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+First case: Evade blocked by enemy ZoC
+Troops that must evade
+After its reorientation, the evading unit has an
+--------------------
+MATCH: [evade] PAGE: 97
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+First case: Evade blocked by enemy ZoC
+Troops that must evade
+After its reorientation, the evading unit has an
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+--------------------
+MATCH: [evade] PAGE: 97
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+First case: Evade blocked by enemy ZoC
+Troops that must evade
+After its reorientation, the evading unit has an
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+this enemy exerts a zone of control over the unit
+--------------------
+MATCH: [evade] PAGE: 97
+evade move is cancelled. Evades can be blocked in
+only simple support can evade.
+either of the following two cases:
+½ The evade move is blocked (see point 2 below),
+First case: Evade blocked by enemy ZoC
+Troops that must evade
+After its reorientation, the evading unit has an
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+this enemy exerts a zone of control over the unit
+terrain by the charge of heavy troops must evade,
+--------------------
+MATCH: [evade] PAGE: 97
+Troops that must evade
+After its reorientation, the evading unit has an
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+this enemy exerts a zone of control over the unit
+terrain by the charge of heavy troops must evade,
+trying to evade.
+unless after conformation they would:
+* Be in melee with light troops, elephants or
+EVADE MOVE BLOCKED BY ENEMY ZOC
+scythed chariots,
+--------------------
+MATCH: [evade] PAGE: 97
+After its reorientation, the evading unit has an
+enemy situated at least partially directly in front and
+Light infantry who would be contacted in open
+this enemy exerts a zone of control over the unit
+terrain by the charge of heavy troops must evade,
+trying to evade.
+unless after conformation they would:
+* Be in melee with light troops, elephants or
+EVADE MOVE BLOCKED BY ENEMY ZOC
+scythed chariots,
+* Be ina position to support a friendly unit.
+--------------------
+MATCH: [evade] PAGE: 97
+this enemy exerts a zone of control over the unit
+terrain by the charge of heavy troops must evade,
+trying to evade.
+unless after conformation they would:
+* Be in melee with light troops, elephants or
+EVADE MOVE BLOCKED BY ENEMY ZOC
+scythed chariots,
+* Be ina position to support a friendly unit.
+If the light infantry cannot evade or if they evade
+and are caught and engaged in melee by troops of a
+type that automatically destroy them, they are
+--------------------
+MATCH: [evade] PAGE: 97
+unless after conformation they would:
+* Be in melee with light troops, elephants or
+EVADE MOVE BLOCKED BY ENEMY ZOC
+scythed chariots,
+* Be ina position to support a friendly unit.
+If the light infantry cannot evade or if they evade
+and are caught and engaged in melee by troops of a
+type that automatically destroy them, they are
+eliminated (see p 62).
+Evade procedure
+An evade move can be attempted by a unit or by all
+--------------------
+MATCH: [evade] PAGE: 97
+* Be ina position to support a friendly unit.
+If the light infantry cannot evade or if they evade
+and are caught and engaged in melee by troops of a
+type that automatically destroy them, they are
+eliminated (see p 62).
+Evade procedure
+An evade move can be attempted by a unit or by all
+or part of a group in which at least one of the units
+would be contacted by the enemyÆs charge. The
+procedure is as follows:
+1 - Evading unit's orientation
+--------------------
+MATCH: [evade] PAGE: 97
+If the light infantry cannot evade or if they evade
+and are caught and engaged in melee by troops of a
+type that automatically destroy them, they are
+eliminated (see p 62).
+Evade procedure
+An evade move can be attempted by a unit or by all
+or part of a group in which at least one of the units
+would be contacted by the enemyÆs charge. The
+procedure is as follows:
+1 - Evading unit's orientation
+The evading unit is reoriented, in the opposite Units Al-A3 charges a group of LH on their front
+--------------------
+MATCH: [evade] PAGE: 97
+or part of a group in which at least one of the units
+would be contacted by the enemyÆs charge. The
+procedure is as follows:
+1 - Evading unit's orientation
+The evading unit is reoriented, in the opposite Units Al-A3 charges a group of LH on their front
+direction to the charge indicated by the opponent: edge. The LH makes a half-turn and tries to evade.
+* If the unit is charged on its front edge, the
+evading unit makes a half-turn. LH1 is in the ZoC of B which is also in front of it,
+* If the unit is charged on its flank, the evading so the evade move of LH1 is blocked.
+unit performs a quarter-turn. LH2 cannot avoid C and B by a slide of one UD
+and the evade move is therefore blocked.
+--------------------
+MATCH: [evade] PAGE: 97
+1 - Evading unit's orientation
+The evading unit is reoriented, in the opposite Units Al-A3 charges a group of LH on their front
+direction to the charge indicated by the opponent: edge. The LH makes a half-turn and tries to evade.
+* If the unit is charged on its front edge, the
+evading unit makes a half-turn. LH1 is in the ZoC of B which is also in front of it,
+* If the unit is charged on its flank, the evading so the evade move of LH1 is blocked.
+unit performs a quarter-turn. LH2 cannot avoid C and B by a slide of one UD
+and the evade move is therefore blocked.
+½ If the unit is charged on its rear, the evading unit
+keeps its initial facing. LH3 can slide up to one UD to the right and
+* This initial reorientation is free and does not evade. It can ignore the ZoC of D because D is
+--------------------
+MATCH: [evade] PAGE: 97
+direction to the charge indicated by the opponent: edge. The LH makes a half-turn and tries to evade.
+* If the unit is charged on its front edge, the
+evading unit makes a half-turn. LH1 is in the ZoC of B which is also in front of it,
+* If the unit is charged on its flank, the evading so the evade move of LH1 is blocked.
+unit performs a quarter-turn. LH2 cannot avoid C and B by a slide of one UD
+and the evade move is therefore blocked.
+½ If the unit is charged on its rear, the evading unit
+keeps its initial facing. LH3 can slide up to one UD to the right and
+* This initial reorientation is free and does not evade. It can ignore the ZoC of D because D is
+decrease the distance of the evade move. not even partially in front.
+47
+--------------------
+MATCH: [evade] PAGE: 97
+* If the unit is charged on its flank, the evading so the evade move of LH1 is blocked.
+unit performs a quarter-turn. LH2 cannot avoid C and B by a slide of one UD
+and the evade move is therefore blocked.
+½ If the unit is charged on its rear, the evading unit
+keeps its initial facing. LH3 can slide up to one UD to the right and
+* This initial reorientation is free and does not evade. It can ignore the ZoC of D because D is
+decrease the distance of the evade move. not even partially in front.
+47
+--------------------
+MATCH: [evade] PAGE: 97
+unit performs a quarter-turn. LH2 cannot avoid C and B by a slide of one UD
+and the evade move is therefore blocked.
+½ If the unit is charged on its rear, the evading unit
+keeps its initial facing. LH3 can slide up to one UD to the right and
+* This initial reorientation is free and does not evade. It can ignore the ZoC of D because D is
+decrease the distance of the evade move. not even partially in front.
+47
+--------------------
+MATCH: [evade] PAGE: 98
+LONK Tb LA CLE RAE
+Second case: Evade blocked by an obstacle 3 ~ Evade move direction
+After any change in orientation, the evading unit has If the evade move is not blocked after initial
+ememy units, friendly units that it cannot reorientation (see point 2), an evading unit can, if the
+miterpenetrate or an impassable terrain situated less player wishes, wheel to exactly match the direction
+than one UD directly ahead that cannot be avoided of the charge. This wheel is not free in that it does
+by a slide of one UD or less. decrease the adjusted evading distance. This wheel
+--------------------
+MATCH: [evade] PAGE: 98
+LONK Tb LA CLE RAE
+Second case: Evade blocked by an obstacle 3 ~ Evade move direction
+After any change in orientation, the evading unit has If the evade move is not blocked after initial
+ememy units, friendly units that it cannot reorientation (see point 2), an evading unit can, if the
+miterpenetrate or an impassable terrain situated less player wishes, wheel to exactly match the direction
+than one UD directly ahead that cannot be avoided of the charge. This wheel is not free in that it does
+by a slide of one UD or less. decrease the adjusted evading distance. This wheel
+* Any slide to avoid an obstacle is not free and is can be done only if no obstacle blocks the evade
+--------------------
+MATCH: [evade] PAGE: 98
+After any change in orientation, the evading unit has If the evade move is not blocked after initial
+ememy units, friendly units that it cannot reorientation (see point 2), an evading unit can, if the
+miterpenetrate or an impassable terrain situated less player wishes, wheel to exactly match the direction
+than one UD directly ahead that cannot be avoided of the charge. This wheel is not free in that it does
+by a slide of one UD or less. decrease the adjusted evading distance. This wheel
+* Any slide to avoid an obstacle is not free and is can be done only if no obstacle blocks the evade
+deducted from the distance of the evade move. move in this new direction (see point 2).
+* Ifthe evading unit starts within one UD of rough
+or difficult terrain it cannot slide to avoid it, so EVADE MOVE DIRECTION
+must enter the terrain. Its movement distance is
+reduced accordingly.
+--------------------
+MATCH: [evade] PAGE: 98
+ememy units, friendly units that it cannot reorientation (see point 2), an evading unit can, if the
+miterpenetrate or an impassable terrain situated less player wishes, wheel to exactly match the direction
+than one UD directly ahead that cannot be avoided of the charge. This wheel is not free in that it does
+by a slide of one UD or less. decrease the adjusted evading distance. This wheel
+* Any slide to avoid an obstacle is not free and is can be done only if no obstacle blocks the evade
+deducted from the distance of the evade move. move in this new direction (see point 2).
+* Ifthe evading unit starts within one UD of rough
+or difficult terrain it cannot slide to avoid it, so EVADE MOVE DIRECTION
+must enter the terrain. Its movement distance is
+reduced accordingly.
+* Itis allowed to reorient the evading unit to make
+--------------------
+MATCH: [evade] PAGE: 98
+than one UD directly ahead that cannot be avoided of the charge. This wheel is not free in that it does
+by a slide of one UD or less. decrease the adjusted evading distance. This wheel
+* Any slide to avoid an obstacle is not free and is can be done only if no obstacle blocks the evade
+deducted from the distance of the evade move. move in this new direction (see point 2).
+* Ifthe evading unit starts within one UD of rough
+or difficult terrain it cannot slide to avoid it, so EVADE MOVE DIRECTION
+must enter the terrain. Its movement distance is
+reduced accordingly.
+* Itis allowed to reorient the evading unit to make
+an interpenetration if possible.
+EVADE BLOCKED BY AN OBSTACLE
+--------------------
+MATCH: [evade] PAGE: 98
+or difficult terrain it cannot slide to avoid it, so EVADE MOVE DIRECTION
+must enter the terrain. Its movement distance is
+reduced accordingly.
+* Itis allowed to reorient the evading unit to make
+an interpenetration if possible.
+EVADE BLOCKED BY AN OBSTACLE
+The LH can, if the player wishes, wheel to exactly
+match the direction of the enemyÆs charge. The
+distance af the wheel will be deducted from the
+adjusted evade distance.
+4 - Adjusted evade distance
+--------------------
+MATCH: [evade] PAGE: 98
+an interpenetration if possible.
+EVADE BLOCKED BY AN OBSTACLE
+The LH can, if the player wishes, wheel to exactly
+match the direction of the enemyÆs charge. The
+distance af the wheel will be deducted from the
+adjusted evade distance.
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+--------------------
+MATCH: [evade] PAGE: 98
+EVADE BLOCKED BY AN OBSTACLE
+The LH can, if the player wishes, wheel to exactly
+match the direction of the enemyÆs charge. The
+distance af the wheel will be deducted from the
+adjusted evade distance.
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+! cannot evade as B1-B3 are less than one UD
+--------------------
+MATCH: [evade] PAGE: 98
+The LH can, if the player wishes, wheel to exactly
+match the direction of the enemyÆs charge. The
+distance af the wheel will be deducted from the
+adjusted evade distance.
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+! cannot evade as B1-B3 are less than one UD
+Moavement - 1 UD ad after LH1's initial turn and LHI cannot avoid
+--------------------
+MATCH: [evade] PAGE: 98
+distance af the wheel will be deducted from the
+adjusted evade distance.
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+! cannot evade as B1-B3 are less than one UD
+Moavement - 1 UD ad after LH1's initial turn and LHI cannot avoid
+Normal movement
+m by sliding, and cannot interpenctrate either.
+--------------------
+MATCH: [evade] PAGE: 98
+adjusted evade distance.
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+! cannot evade as B1-B3 are less than one UD
+Moavement - 1 UD ad after LH1's initial turn and LHI cannot avoid
+Normal movement
+m by sliding, and cannot interpenctrate either.
+Movement + 1 UD
+--------------------
+MATCH: [evade] PAGE: 98
+4 - Adjusted evade distance
+The unit or group that evades rolls 1D6 and adjusts
+its movement distance accordingly.
+up A charges enemy LH1-2 who trv to evade.
+Adjusted evade distance
+! cannot evade as B1-B3 are less than one UD
+Moavement - 1 UD ad after LH1's initial turn and LHI cannot avoid
+Normal movement
+m by sliding, and cannot interpenctrate either.
+Movement + 1 UD
+2 can evade if B3 is a friendly unit, as it has just
+--------------------
+MATCH: [evade] PAGE: 98
+! cannot evade as B1-B3 are less than one UD
+Moavement - 1 UD ad after LH1's initial turn and LHI cannot avoid
+Normal movement
+m by sliding, and cannot interpenctrate either.
+Movement + 1 UD
+2 can evade if B3 is a friendly unit, as it has just
+sh room to slide and then move along B3's
+If BB was an enemy, LH2 could not evade by
+æing along the side of an enemy unit (see p4l).
+Gallic cavalry
+ew
+--------------------
+MATCH: [evade] PAGE: 98
+Normal movement
+m by sliding, and cannot interpenctrate either.
+Movement + 1 UD
+2 can evade if B3 is a friendly unit, as it has just
+sh room to slide and then move along B3's
+If BB was an enemy, LH2 could not evade by
+æing along the side of an enemy unit (see p4l).
+Gallic cavalry
+ew
+mw
+}i
+--------------------
+MATCH: [evade] PAGE: 98
+mw
+}i
+eh
+m1
+a
+* Only one roll to adjust evade distance is made
+for each group or isolated unit which evades.
+* Only if the units do not all have the same
+movement allowance (such as Cv with LH), are
+separate adjustment rolls made for each sub
+group.
+--------------------
+MATCH: [evade] PAGE: 98
+}i
+eh
+m1
+a
+* Only one roll to adjust evade distance is made
+for each group or isolated unit which evades.
+* Only if the units do not all have the same
+movement allowance (such as Cv with LH), are
+separate adjustment rolls made for each sub
+group.
+5 - Evade move
+--------------------
+MATCH: [evade] PAGE: 98
+for each group or isolated unit which evades.
+* Only if the units do not all have the same
+movement allowance (such as Cv with LH), are
+separate adjustment rolls made for each sub
+group.
+5 - Evade move
+An evading unit moves in a straight line up to its
+maximum adjusted evade distance.
+If during the evade move, the unit encounters a new
+obstacle in its way it must try to manoeuvre to avoid
+or interpenetrate it. The manoeuvre is done when it
+--------------------
+MATCH: [evade] PAGE: 98
+movement allowance (such as Cv with LH), are
+separate adjustment rolls made for each sub
+group.
+5 - Evade move
+An evading unit moves in a straight line up to its
+maximum adjusted evade distance.
+If during the evade move, the unit encounters a new
+obstacle in its way it must try to manoeuvre to avoid
+or interpenetrate it. The manoeuvre is done when it
+arrives within 1 UD of the obstacle or the minimum
+more than 1 UD if a wheel is required. The edge of
+--------------------
+MATCH: [evade] PAGE: 98
+separate adjustment rolls made for each sub
+group.
+5 - Evade move
+An evading unit moves in a straight line up to its
+maximum adjusted evade distance.
+If during the evade move, the unit encounters a new
+obstacle in its way it must try to manoeuvre to avoid
+or interpenetrate it. The manoeuvre is done when it
+arrives within 1 UD of the obstacle or the minimum
+more than 1 UD if a wheel is required. The edge of
+table is not considered as an obstacle and the unit
+--------------------
+MATCH: [evade] PAGE: 99
+DOART DE TAGL ERI
+* Allenemy ZoCs are ignored. EVADE MOVEMENT
+* The unit can slide by a maximum of one UD to
+avoid an obstacle, reducing its move distance by
+the distance of the slide.
+* If an obstacle cannot be avoided by a slide, the
+unit can wheel by a maximum of 90░. This wheel
+--------------------
+MATCH: [evade] PAGE: 99
+the distance of the slide.
+* If an obstacle cannot be avoided by a slide, the
+unit can wheel by a maximum of 90░. This wheel
+must be the minimum necessary to avoid the
+obstacle and must deviate as little as possible
+from the initial direction of the evade move.
+* Asin anormal movement an evading unit can
+only make only one slide together with several
+wheels (up to a maximum of 90░ in total), Any
+wheel or slide reduces the distance of the evade
+move by the relevant amount.
+--------------------
+MATCH: [evade] PAGE: 99
+obstacle and must deviate as little as possible
+from the initial direction of the evade move.
+* Asin anormal movement an evading unit can
+only make only one slide together with several
+wheels (up to a maximum of 90░ in total), Any
+wheel or slide reduces the distance of the evade
+move by the relevant amount.
+* During an evade move a unit cannot perform a
+quarter-turn or a half-turn other than their initial
+reorientation (see point 1).
+* The enemy camp cannot be contacted and must
+--------------------
+MATCH: [evade] PAGE: 99
+* Asin anormal movement an evading unit can
+only make only one slide together with several
+wheels (up to a maximum of 90░ in total), Any
+wheel or slide reduces the distance of the evade
+move by the relevant amount.
+* During an evade move a unit cannot perform a
+quarter-turn or a half-turn other than their initial
+reorientation (see point 1).
+* The enemy camp cannot be contacted and must
+be avoided.
+* Friendly units that can be interpenetrated are
+--------------------
+MATCH: [evade] PAGE: 99
+reorientation (see point 1).
+* The enemy camp cannot be contacted and must
+be avoided.
+* Friendly units that can be interpenetrated are
+passed through without cohesion loss.
+* Ifa LI would be contacted in open terrain by an The light cavalry can evade because it has no enen
+evading enemy heavy troop, the LI must itself within 1 UD in frent of it after its initial turn.
+try to evade. If LI is contacted by that enemy it is ignores the ZoC of B, as B is not directly in front ot
+Routed (see p 62) and the enemy stops. If the LI is after the initial turn.
+in rough or difficult terrain it does not evade and
+The LH makes a half-turn and evades by making
+--------------------
+MATCH: [evade] PAGE: 99
+be avoided.
+* Friendly units that can be interpenetrated are
+passed through without cohesion loss.
+* Ifa LI would be contacted in open terrain by an The light cavalry can evade because it has no enen
+evading enemy heavy troop, the LI must itself within 1 UD in frent of it after its initial turn.
+try to evade. If LI is contacted by that enemy it is ignores the ZoC of B, as B is not directly in front ot
+Routed (see p 62) and the enemy stops. If the LI is after the initial turn.
+in rough or difficult terrain it does not evade and
+The LH makes a half-turn and evades by making
+is an obstacle for the evading enemy.
+slide to avoid the enemy infantry A.
+--------------------
+MATCH: [evade] PAGE: 99
+passed through without cohesion loss.
+* Ifa LI would be contacted in open terrain by an The light cavalry can evade because it has no enen
+evading enemy heavy troop, the LI must itself within 1 UD in frent of it after its initial turn.
+try to evade. If LI is contacted by that enemy it is ignores the ZoC of B, as B is not directly in front ot
+Routed (see p 62) and the enemy stops. If the LI is after the initial turn.
+in rough or difficult terrain it does not evade and
+The LH makes a half-turn and evades by making
+is an obstacle for the evading enemy.
+slide to avoid the enemy infantry A.
+* An evading group reaching a gap between
+obstacles performs a contraction to continue its When the LH reaches new enemies in its path
+--------------------
+MATCH: [evade] PAGE: 99
+* Ifa LI would be contacted in open terrain by an The light cavalry can evade because it has no enen
+evading enemy heavy troop, the LI must itself within 1 UD in frent of it after its initial turn.
+try to evade. If LI is contacted by that enemy it is ignores the ZoC of B, as B is not directly in front ot
+Routed (see p 62) and the enemy stops. If the LI is after the initial turn.
+in rough or difficult terrain it does not evade and
+The LH makes a half-turn and evades by making
+is an obstacle for the evading enemy.
+slide to avoid the enemy infantry A.
+* An evading group reaching a gap between
+obstacles performs a contraction to continue its When the LH reaches new enemies in its path
+evade move. The contracting units are placed at wheels 90░ to the left, before finishing its evade moi
+--------------------
+MATCH: [evade] PAGE: 99
+The LH makes a half-turn and evades by making
+is an obstacle for the evading enemy.
+slide to avoid the enemy infantry A.
+* An evading group reaching a gap between
+obstacles performs a contraction to continue its When the LH reaches new enemies in its path
+evade move. The contracting units are placed at wheels 90░ to the left, before finishing its evade moi
+the rear of the group, increasing the danger of in a straight line.
+being caught.
+½ Light troops can perform an additional free half-
+turn at the end of their evade move.
+* No troops can shoot if they have evaded.
+--------------------
+MATCH: [evade] PAGE: 99
+obstacles performs a contraction to continue its When the LH reaches new enemies in its path
+evade move. The contracting units are placed at wheels 90░ to the left, before finishing its evade moi
+the rear of the group, increasing the danger of in a straight line.
+being caught.
+½ Light troops can perform an additional free half-
+turn at the end of their evade move.
+* No troops can shoot if they have evaded.
+Catching evading units
+2 zi : Light crossbownier
+* If an evading unit is caught by a charging enemy SIE TOSS ;
+it immediately loses a cohesion point unless the
+--------------------
+MATCH: [evade] PAGE: 99
+evade move. The contracting units are placed at wheels 90░ to the left, before finishing its evade moi
+the rear of the group, increasing the danger of in a straight line.
+being caught.
+½ Light troops can perform an additional free half-
+turn at the end of their evade move.
+* No troops can shoot if they have evaded.
+Catching evading units
+2 zi : Light crossbownier
+* If an evading unit is caught by a charging enemy SIE TOSS ;
+it immediately loses a cohesion point unless the
+charging unit consists of light troops.
+--------------------
+MATCH: [evade] PAGE: 101
+enemy to give support to a friendly unit already in
+* Units subject to uncontrolled charge must either
+melee.
+conform or charge another enemy. Any other
+move costs 3 CP.
+CONFORMATION AND SUPPORT * When conforming to an enemy who can evade,
+the unit conforms first and then the enemy
+makes its evade movement (see p 47). The
+conforming unit does not pursue the evading
+enemy.
+* Conformation in this way is not considered a
+--------------------
+MATCH: [evade] PAGE: 101
+melee.
+conform or charge another enemy. Any other
+move costs 3 CP.
+CONFORMATION AND SUPPORT * When conforming to an enemy who can evade,
+the unit conforms first and then the enemy
+makes its evade movement (see p 47). The
+conforming unit does not pursue the evading
+enemy.
+* Conformation in this way is not considered a
+charge since both units are already in contact
+Abilities that are only valid in the first round of a
+--------------------
+MATCH: [evade] PAGE: 106
+wheeled during a playerÆs sequence cannot shoot
+during the same sequence,
+* Other units (including light artillery) can shoot
+after they have moved as long as they have not
+made a second or third move.
+* A unit which charges, evades, disengages, or
+retreats out of an enemy ZoC cannot shoot
+during the same sequence.
+╗ A unit engaged in melee or supporting a friend
+in melee cannot shoot.
+*╗ A unit cannot shoot at an enemy engaged in
+--------------------
+MATCH: [evade] PAGE: 116
+nounted Impact does net count as the medium
+attackers.
+armen is being attacked on its flank.
+A unit attacking the enemy camp is considered
+cavalry rolls a 3 modified to 4 as it is Elite, fer a to be in melee. It cannot therefore be shot at and
+of 8. The MI rolls a 3. With 5 points of such units cannot evade if charged. If it is
+erence, the Ml suffers 3 cohesion losses + 1 for the attacked by another unit the attack on the camp
+alrvÆs Furious charge. It is then Routed. The ceases, and it fights this new opponent. It will
+æction of the MI's Rout is away from their attacker, then conform to its attacker in its next movement
+using also a loss of 1 cohesion point on the L1. phase (see p 52).
+The camp does not provide support in melee and
+--------------------
+MATCH: [evade] PAGE: 117
+* Mounted units attacking a fortification or an
+obstacle suffer a -2 penalty in melee.
+* A light infantry unit defending a fortification
+(but not an obstacle) is not considered in open
+terrain. Thus, it is not destroyed by heavy troops
+and is not compelled to evade.
+* All units (except WWeg) placed behind a
+fortification (but not an obstacle) count as being
+in cover, except when shot at by artillery.
+* A unit placed behind a fortification or obstacle
+cannot wheel.
+--------------------
+MATCH: [evade] PAGE: 119
+Pursuit movement may bring the pursuing unit into cohesion value of the army nor its losses.
+contact with a new enemy.
+* The pursuing unit must then immediately Example: An army of 24 units in total has a corps with @
+conform to the new enemy (see p 52). units on a flank march that has not yet arrived on Hag
+* Enemy units contacted by pursuers can then table, It therefore has a current cohesion value of 18 unitsg
+evade if permitted. The pursuing unit's It has 3 units that have been routed, 5 units in disordeg
+movement remains limited to 1 UD maximum. and 1 unit of light cavalry that fled off the table. It
+½ If the enemy does not evade, the combat will be therefore lost 12 cohesion points out of 18.
+resolved in the next melee phase. The combat
+will not be considered as a charge.
+--------------------
+MATCH: [evade] PAGE: 119
+* The pursuing unit must then immediately Example: An army of 24 units in total has a corps with @
+conform to the new enemy (see p 52). units on a flank march that has not yet arrived on Hag
+* Enemy units contacted by pursuers can then table, It therefore has a current cohesion value of 18 unitsg
+evade if permitted. The pursuing unit's It has 3 units that have been routed, 5 units in disordeg
+movement remains limited to 1 UD maximum. and 1 unit of light cavalry that fled off the table. It
+½ If the enemy does not evade, the combat will be therefore lost 12 cohesion points out of 18.
+resolved in the next melee phase. The combat
+will not be considered as a charge.
+--------------------
+MATCH: [evade] PAGE: 129
+as follows:
+must declare to the opponent the table edge on
+which the flank march will arrive according to what
+* If the unit is not in melee or in melee support, it
+is noted on the battle plan. If both sides have a flank
+makes an evade move in a_ direction
+march on the same flank it will be necessary to check
+perpendicular to the entry edge of the flank
+which flank march is driven back (see below).
+march. If the unit is not normally allowed to
+evade, it still makes an evade move but loses one
+--------------------
+MATCH: [evade] PAGE: 129
+makes an evade move in a_ direction
+march on the same flank it will be necessary to check
+perpendicular to the entry edge of the flank
+which flank march is driven back (see below).
+march. If the unit is not normally allowed to
+evade, it still makes an evade move but loses one
+* In the game-turn following the successful die
+cohesion point. This can lead to become Routed if
+roll, all the units in the flank march must move it had only one point of cohesion left.
+onto the table during the player's movement
+½ If the unit is in melee or in melee support, it
+--------------------
+MATCH: [evade] PAGE: 129
+cohesion point. This can lead to become Routed if
+roll, all the units in the flank march must move it had only one point of cohesion left.
+onto the table during the player's movement
+½ If the unit is in melee or in melee support, it
+phase or be lost.
+doesnÆt evade and continues the fight.
+½ Units can enter from anywhere along the chosen
+½ Artillery and war wagons units are
+short/ flank edge.
+automatically eliminated even if they are not in
+* The first move must be perpendicular to the
+--------------------
+MATCH: [evade] PAGE: 133
+300-point budget but only for melee. The objective is to reduce the
+possible variation during a combat in order to avoid
+* An army consists of 4 corps, of which one or two or suppress extreme results as 6-1.
+may be allied up to a maximum of 40% of the
+budget. Continue to roll a D6 for command points, shooting,
+* The command value of each army is increased rallying, adjusting evade distance, for eliminating
+by one point. commanders and for attacking the camp.
+* The minima and maxima of the lists are
+multiplied by 1.5, rounding down (except the Average dice
+camp). For the allied corps, the minimum and ½ Average dice are 6-sided dice marked 2, 3, 3, 4, 4
+maximum are still halved. and 5.
+--------------------
+MATCH: [evade] PAGE: 134
+phasing player chooses first if he wants to reroll. must be placed on the table.
+* It is only possible to reroll once and the second * Only one picture card of each type (King, Queen,
+result must be kept even if it is inferior to the Jack) can be active for the game.
+first one. ½ If several cards of the same type are drawn, the
+* It is not permitted to reroll a die when adjusting players determine using a DÚ which card will be
+distance for an evade, to attack the camp or ta played. The others are discarded.
+eliminate a commander. * After selection of picture cards, players who
+have less than 3 cards in their hand draw new
+cards until they have 3 cards. If they draw
+picture cards again, these cards are discarded.
+* During the game, each player can use their cards
+--------------------
+MATCH: [impetuous] PAGE: 8
+e|
+ew
+After 1700, replace all chariots *
+Light chariot javelin elite (max 2) 10
+Replace all warriors 6
+Light infantry sling 1-3 Medium swordsmen impetuous
+Guti, in The Great Revolt circa 2250 BC
+Note Elamite allies (List #4 Elamite)
+* Heavy chariots dismount as medium swordsmen Syrian allies (List #18 Syrian City States)
+impact with no armour. Makkan mercenaries 6
+½ Elamite allies (List #4 Elamite) Medium swordsmen impetuous
+--------------------
+MATCH: [impetuous] PAGE: 8
+Light infantry sling 1-3 Medium swordsmen impetuous
+Guti, in The Great Revolt circa 2250 BC
+Note Elamite allies (List #4 Elamite)
+* Heavy chariots dismount as medium swordsmen Syrian allies (List #18 Syrian City States)
+impact with no armour. Makkan mercenaries 6
+½ Elamite allies (List #4 Elamite) Medium swordsmen impetuous
+= Assyrian allies (List #5 Old Assyrian and Melukhkan niercenaries
+Babylonian) Medium spearmen Z
+" Bedouin allies (List #17 Ancient Bedouin) Bowmen
+Guti, between 2193 and 2112 BC |
+Sumerian allies (List #1 Sumer and Akkad)
+--------------------
+MATCH: [impetuous] PAGE: 8
+Command +3
+Note
+The Amorites were a people that Sumerian texts refer
+* Light chariot javelin dismount as medium
+to as Martu and are called Anurru in Akkadian. The
+swordsmen impetuous.
+Amorites were fierce enemies of the Sumerian cities
+and caused the fall of the 3rd-Dynasty of Ur around
+the end of the 21st century BC. Amorite dynasties 4- ELAMITE
+developed in many cities of the Near East,
+3000 - 539 BC
+--------------------
+MATCH: [impetuous] PAGE: 12
+Bowmen
+Upgrade to elite (max 4)
+Downgrade to mediocre
+Light infantry bow
+Fanatic warriors *
+Medium swordsmen impetuous
+Upgrade to elite
+Javelinmen
+Light infantry javelin
+12 - LIBYAN
+3000 BC - 70 AD
+--------------------
+MATCH: [impetuous] PAGE: 12
+Upgrade to elite +2
+Bedouins
+From 1208 to 651 BC
+Light infantry sling
+Pharaoh in litter Replace some warriors *
+Sacred camp Medium swordsmen impetuous 6
+Upgrade to elite (max 4) +2
+11 - NUBIAN From 650 BC
+Replace all chariots *
+3000 - 593 BC
+Light chariot javelin 8 2-8
+--------------------
+MATCH: [impetuous] PAGE: 13
+Werriors with teeo handed axes
+Egyptian allies (List #10 Old and Middle
+Medium swordsmen 2HW
+Kingdom Egyptian)
+Sherden warriors
+| Medium swordsmen impetuous
+Libyan warriors
+Medium swordsmen impetuous
+Egyptian archers
+Egyptian light chariot Bowmen 7
+Downgrade to mediocre -2
+--------------------
+MATCH: [impetuous] PAGE: 13
+Medium swordsmen 2HW
+Kingdom Egyptian)
+Sherden warriors
+| Medium swordsmen impetuous
+Libyan warriors
+Medium swordsmen impetuous
+Egyptian archers
+Egyptian light chariot Bowmen 7
+Downgrade to mediocre -2
+Syro-Canaanites
+Javelinmen 7
+--------------------
+MATCH: [impetuous] PAGE: 14
+Troop type Pts Un
+dynasties of Egyptian culture, the 22nd, 23rd and
+24th, ruled the land. Only the north was controlled, Chariots with 2 or 4 horses *
+while the south remained under influence of the Light chariot armour bow 11
+24
+Kushites from Nubia. In the end, the Kushites took Heavy chariot impetuous 10
+control of the whole country and installed the 25th |U pgrade to elite +2
+Nubian dynasty. Kushite hersemen *
+Medium cavalry
+Troop type Pts Units |H eavy cavalry (max 4) 9
+Kusltite scouts
+--------------------
+MATCH: [impetuous] PAGE: 14
+Kushite warriors
+Medium cavalry mediocre 5 0-3
+|M edium swordsmen
+Light cavalry bow mediocre 4 0-2 Libyan warriors
+Meshwesh Libyan warriors Javelinmen
+Medium swordsmen impetuous 6 Light infantry javelin
+4-8
+Heavy swordsmen impetuous 8
+Upgrade to elite (all or none) +2
+Sherden guardsmen
+Heavy swordsmen 2HW elite u
+--------------------
+MATCH: [impetuous] PAGE: 14
+|M edium swordsmen
+Light cavalry bow mediocre 4 0-2 Libyan warriors
+Meshwesh Libyan warriors Javelinmen
+Medium swordsmen impetuous 6 Light infantry javelin
+4-8
+Heavy swordsmen impetuous 8
+Upgrade to elite (all or none) +2
+Sherden guardsmen
+Heavy swordsmen 2HW elite u
+Egyptian guardsmen 02
+Heavy spearmen elite ae
+--------------------
+MATCH: [impetuous] PAGE: 14
+Egyptian warriors
+Medium swordsmen mediocre
+Egyptian archers
+Bowmen mediocre
+Libu warriors
+Medium swordsmen impetuous
+Bedouins and Palestinians
+Javelinmen mediocre 5 0-4.
+Light infantry javelin 4
+Nubians and Libyans
+Light infantry bow
+--------------------
+MATCH: [impetuous] PAGE: 15
+am swordsmen 6
+Berzrade to mediocre (max 8) -2 Medium spearmen mediocre 5
+Heavy spearmen mediocre 6 4-8
+y with swords 6 0-4
+Add pavise +1
+mim swordsmen impetuous
+Upgrade to ordinary (max 1) +2
+imfantry javelin 4 0-8
+Bowmen mediocre 5 412
+: 7
+Upgrade to ordinary (max 4) +2
+--------------------
+MATCH: [impetuous] PAGE: 16
+LeDEAT ARGUETRRE
+Warriors with sword * Guardsmen
+Medium swordsmen impetuous Medium swordsmen elite 8 0-2
+Light cavalry javelin mediocre 4 Medium spearmen elite 9
+Light infantry javelin 4 Hittites warriors
+Upgrade to elite Medium swordsmen a > p
+Medium spearmen ]
+Light infantry bow 4 ~
+--------------------
+MATCH: [impetuous] PAGE: 16
+Makkan after 1300 BC Javelinmen mediocre o
+O
+Replace all warriors * Light infantry javelin
+e
+n
+Medium swordsmen impetuous 6 All Bowmen mediocre O
+Upgrade to elite (max 2) #2 Light infantry bow
+e
+Bowmen mediocre 5 2-12 | Light infantry sling e 0-2
+F
+Be
+--------------------
+MATCH: [impetuous] PAGE: 16
+Light camelry bow mediocre 5 0-2
+Light chariot javelin (max 12) 8
+Light chariot bow 9
+Note Add armour
+* Babylonian allies (List #6 Kassite Babylonian) Ligarit chariots
+before 1000 BC and not with Makkan option. Heavy chariot impetuous (max 2)
+Gasgans 6
+Medium swordsmen impetuous
+20 - HITTITE Anatolians
+Javelinmen
+1680 - 1180 BC
+--------------------
+MATCH: [impetuous] PAGE: 16
+Light chariot bow 9
+Note Add armour
+* Babylonian allies (List #6 Kassite Babylonian) Ligarit chariots
+before 1000 BC and not with Makkan option. Heavy chariot impetuous (max 2)
+Gasgans 6
+Medium swordsmen impetuous
+20 - HITTITE Anatolians
+Javelinmen
+1680 - 1180 BC
+Plain, Mountain
+Command +5
+--------------------
+MATCH: [impetuous] PAGE: 17
+ight infantry bow 4 Light infantry sling
+Replace some Shiukituldi and Levy 3 0-2
+Aameluti gashati by Alik ilki it miixed Ugarit after 1275 BC
+mation 8 0-6 | -
+Madiunvswurceniwa ' Replace some cltartots with 2 horses *
+Bowmen Heavy chariot impetuous 10 0-4
+Seelinmen mediocre 5 7 Upgrade to elite +2
+ight infantry javelin 4 Replace Royal Guardsmen by
+Bachn initariy Sine . 0.2 Medjergelem guardsmen 11 All
+Heavy swordsmen impact elite
+a 3 0-2
+--------------------
+MATCH: [impetuous] PAGE: 17
+f guardsmen *
+Command +3 or +4 after 1000 BC
+dium swordsmen impact elite 9 Q-2
+wien pavise elite 10 This list represents the Jewish armies during the
+len ard other mercenaries 6 0-4 whole period of the Old Testament. After the rise of
+am swordsmen impetuous
+David chariots began to be used, but their use only
+4 warriors 6 0-4 became widespread under King Solomon.
+adium swordsmen
+ee javelinmen Troop type
+liinmen 7
+--------------------
+MATCH: [impetuous] PAGE: 18
+I)ART DE LA GUERRIÆ
+Gibborim warriors *
+Medium swordsmen elite 8
+Add armour +2
+Simeonites, Ephraintites (before 1000)
+Medium swordsmen impetuous
+Jewish warriors
+Medium swordsmen 6 4-24
+Javelinmen 7
+Cavalry (from 800 BC)
+Light cavalry javelin 6 0-2
+--------------------
+MATCH: [impetuous] PAGE: 18
+Wonten and children
+Levy mediocre
+Fortified camp 6
+Note
+* Light chariot javelin dismount as medi
+swordsmen impetuous.
+* Libyan allies (List #12 Libyan)
+25 - PHILISTINE
+1100 - 600 BC
+Plain
+Command +4
+--------------------
+MATCH: [impetuous] PAGE: 18
+Warriors on chariots *
+Light chariot javelin 8
+Upgrade to elite Note
+Retinue warriors * * Canaanite allies (List #22 Syria, Canaan & Ugarit)
+Medium swordsmen impet. elite 8 * Aramean allies (List #26 Aramean & Neo-Hittite)
+Heavy swordsmen impetuous elite! 10 * Phoenician allies (List #32 Phoenicians of
+Cyprus)
+Commion warriors
+Medium swordsmen impetuous
+103
+--------------------
+MATCH: [impetuous] PAGE: 18
+Retinue warriors * * Canaanite allies (List #22 Syria, Canaan & Ugarit)
+Medium swordsmen impet. elite 8 * Aramean allies (List #26 Aramean & Neo-Hittite)
+Heavy swordsmen impetuous elite! 10 * Phoenician allies (List #32 Phoenicians of
+Cyprus)
+Commion warriors
+Medium swordsmen impetuous
+103
+--------------------
+MATCH: [impetuous] PAGE: 21
+i ent chariots *
+ight chariot javelin 8 0-2 Downgrade to mediocre -2
+Wperade to elite +2 From 800 to 550 BC
+melry from 900 BC * Sardinian and Spanish mercenaries
+edium cavalry 7 0-4 Medium swordsmen 6 0-4
+bwnerade to mediocre -2 Medium swordsmen impetuous
+rriors * Spanish cavalry - 0-2
+edium swordsmen 6 6-24 Medium cavalry
+dd support (max 6) el!
+After 680 BC
+900 BC, replace up to half
+--------------------
+MATCH: [impetuous] PAGE: 21
+After 680 BC
+900 BC, replace up to half
+Replace some warriors 6 0-16
+Briors * 6 0-12
+Heavy spearmen mediocre :
+edium swordsmen impetuous |
+--------------------
+MATCH: [impetuous] PAGE: 22
+Light chariot javelin 8
+Command +3
+Upgrade to elite
+Nobles on foot *
+This list represents the armies of the Vedfig
+Medium swordsmen impetuous 6
+civilisation which dominated India after the Arvag
+Upgrade to elite
+invasions. The Aryans first occupied Punjab the
+Scouts
+took possession of all of northern India. At that ti
+--------------------
+MATCH: [impetuous] PAGE: 22
+Scouts
+took possession of all of northern India. At that ti
+Light cavalry javelin
+war chariots were the favourite weapon.
+Celtic warriors
+Medium swordsmen impetuous
+Troop type Pts Units
+Light infantry bow
+Chariots with 2 horses *
+Light infantry sling
+Light chariot bow 9 4-12
+--------------------
+MATCH: [impetuous] PAGE: 22
+Levy mediocre
+War elephants *
+Elephant i a "
+Note
+* Light chariot javelin dismount as medium Archers
+swordsmen impetuous. Bowmen e
+Downgrade to mediocre -2
+EARLY ASIA Warriors with two-handed sword
+Medium swordsmen 2HW
+Light infantry bow 4
+34 - INDUS VALLEY
+--------------------
+MATCH: [impetuous] PAGE: 23
+before 1300 BC 11 24 principal kingdoms.
+adium swordsmen bow elite
+; with dagger-axe 6 4-12
+ium swordsmen Chariots with 4 horses (before 770) *
+tors with bow = Par - Light chariot bow (max 4) 9 2-8
+en Heavy chariot impetuous 10
+Shia with dagger-axe Upgrade to elite (max 4) +2
+a : 4 0-6
+Satan swordsmen mediocre
+Tiger guards (before 770 BC) 9 02
+tha with bow Medium swordsmen impact elite |
+--------------------
+MATCH: [impetuous] PAGE: 23
+. ei Light infantry bow 4 0-6
+mpors with long spears
+ium spearmen Levy 3 0-4
+From 770 BC - Spring and Autumn
+allies (Jung, Di, Rong) Replace all chariots with 4 horses *
+iors * Heavy chariot impetuous 10 4-12
+Wecdium swordsmen impetuous 6 4-8 Upgrade to elite (max 4) +2
+Bperade to elite (max 1) +2 Replace all warriors with dagger-axe
+- lg mediocre 5 0-4 Medium swordsmen polearm 7 4-12
+mt infantry bow 4 Add support +1 |
+Tribal auxiliaries - 0-4
+--------------------
+MATCH: [impetuous] PAGE: 23
+mpors with long spears
+ium spearmen Levy 3 0-4
+From 770 BC - Spring and Autumn
+allies (Jung, Di, Rong) Replace all chariots with 4 horses *
+iors * Heavy chariot impetuous 10 4-12
+Wecdium swordsmen impetuous 6 4-8 Upgrade to elite (max 4) +2
+Bperade to elite (max 1) +2 Replace all warriors with dagger-axe
+- lg mediocre 5 0-4 Medium swordsmen polearm 7 4-12
+mt infantry bow 4 Add support +1 |
+Tribal auxiliaries - 0-4
+Medium swordsmen impetuous
+--------------------
+MATCH: [impetuous] PAGE: 23
+Wecdium swordsmen impetuous 6 4-8 Upgrade to elite (max 4) +2
+Bperade to elite (max 1) +2 Replace all warriors with dagger-axe
+- lg mediocre 5 0-4 Medium swordsmen polearm 7 4-12
+mt infantry bow 4 Add support +1 |
+Tribal auxiliaries - 0-4
+Medium swordsmen impetuous
+Barbarian allies (see list above)
+Zhou allies (List #37 Spring and Autumn Note
+Chinese) from 1100 BC ½ Barbarian allies (same list as for Erlitou Shang
+Chinese) before 770 BC
+╗ Shang allies (List #36 Erlitou Shang Chinese)
+--------------------
+MATCH: [impetuous] PAGE: 26
+Light infantry javelin (max 2) in 272 BC
+Cretan archers (except Lysimachus) 5 0-2 Replace some Greek peltasts by
+Light infantry bow elite thureophorei 7 04
+Elephant 13 0-1 Medium spearmen
+Heavy artillery 10 0-1 Galatians (after 277 BC)
+Heavy swordsmen impetuous 8 0-3
+Uperade to elite +2
+erc
+E
+oh
+a
+--------------------
+MATCH: [impetuous] PAGE: 27
+to form the Greco-Bactrian Kingdom and later it was After 245 BC
+the turn of the province of Parthia to rebel. The Galatian horsemen
+Parthians extended their influence gradually over the Medium cavalry elite 9 0-1
+eastern provinces of the empire. After their defeat at Heavy cavalry elite 11
+Magnesia in 189 BC against the Romans, the Galatian infantry
+Seleucids lost their provinces in Asia Minor to Heavy swordsmen impetuous 8 Q-2
+Rome's ally, Pergamon. The Seleucid dynasty ended Upgrade to elite +2
+m 64 BC when Pompey conquered Syria. After 205 BC
+Aetolian allies (List #61 Hellenistic Greek) from 191
+æoop type Pts Units to 190 BC
+Replace Coppa and Agena * 14 0-2
+--------------------
+MATCH: [impetuous] PAGE: 28
+Pikemen mediocre
+Thureophoroi or Thorakitai
+Medium spearmen 7
+Add armour (max 2)
+Galatian infantry
+Heavy swordsmen impetuous 8
+Upgrade to elite
+African elephants
+Elephant mediocre
+After 167 BC
+Imitation legionaries
+--------------------
+MATCH: [impetuous] PAGE: 28
+ni a
+Pirates and bandits
+Medium swordsmen 6
+Downgrade to mediocre -2
+Rioting mob
+Levy impetuous
+Thracian
+Medium swordsmen
+0-2
+Medium swordsmen 2HW
+Javelinmen
+--------------------
+MATCH: [impetuous] PAGE: 28
+306 - 272 BC
+Plain, Mountain
+Medium spearmen mediocre 0-2
+Command +4
+Nubian warriors Strategist: Pyrrhus (280-272 BC)
+Medium swordsmen impetuous
+Light infantry bow Pyrrhus, a distant relative of Alexander, became King
+Light infantry sling (max 2) of Epirus in 306 BC. He attempted to conquer the
+Cretan archers whole of Macedonia but expelled br
+was
+Light infantry bow elite Lysimachus. He then targeted Italy and recorded
+--------------------
+MATCH: [impetuous] PAGE: 29
+Ppbsce all Xystophoroi Medium swordsmen 2HW 7 0-4
+my cavalry 9 All Medium spearmen 7
+es ade to elite +2 Javelinmen 7
+ian infantry
+Galatians
+Fy swordsmen impetuous 8 0-4 Heavy swordsmen impetuous 8 0-2
+fade to elite +2 Upgrade to elite +2
+wlace some Greek hoplites by Light infantry javelin 4 13
+eoplioroi z Q-2 Upgrade to elite (If Agrianian) +1
+dium spearmen Light infantry bow 4 13
+|U pgrade to elite (If Cretan) +1
+--------------------
+MATCH: [impetuous] PAGE: 30
+Saka allies (List #76 Scythian)
+Xystophiaroi *
+Heavy cavalry impact 10 0-2
+Upgrade to elite +2
+Tranian lancers
+Heavy cavalry impetuous 9
+Upgrade to elite (max 2) +2
+Tranian lancers after 210 BC
+Cataphract 12
+Upgrade to elite (max 2) +2
+Bactrians
+--------------------
+MATCH: [impetuous] PAGE: 31
+Nobles before 500 BC *
+iors (all the same type) *
+Light chariot 9
+um swordsmen 6
+« . 8-24 Add armour +2
+mum swordsmen impetuous 6
+Nobles after 500 BC *
+rade to elite (max 4) #2
+Medium cavalry 7
+e some warriors
+Heavy cavalry 9
+--------------------
+MATCH: [impetuous] PAGE: 32
+2-8
+1% Class * Heavy spearmen 5
+Heavy spearmen armour Syracusait hoplites *
+Upgrade to elite Heavy spearmen mediocre
+2nd and 3░ Class Gallic mercenaries
+Heavy spearmen 8 4-16 Medium swordsmen impetuous 6
+Add armour (all or rane) Heavy swordsmen impetuous 8
+4th Class Spanish scutarit
+Javelinmen : 7 2-6 Medium swordsmen impetuous
+Light infantry javelin 4 Ligurians, Sardinians and Samnites
+5" Class Medium swordsmen 6
+--------------------
+MATCH: [impetuous] PAGE: 32
+1% Class * Heavy spearmen 5
+Heavy spearmen armour Syracusait hoplites *
+Upgrade to elite Heavy spearmen mediocre
+2nd and 3░ Class Gallic mercenaries
+Heavy spearmen 8 4-16 Medium swordsmen impetuous 6
+Add armour (all or rane) Heavy swordsmen impetuous 8
+4th Class Spanish scutarit
+Javelinmen : 7 2-6 Medium swordsmen impetuous
+Light infantry javelin 4 Ligurians, Sardinians and Samnites
+5" Class Medium swordsmen 6
+Light infantry javelin 4 Javelinmen a
+--------------------
+MATCH: [impetuous] PAGE: 32
+Upgrade to elite Heavy spearmen mediocre
+2nd and 3░ Class Gallic mercenaries
+Heavy spearmen 8 4-16 Medium swordsmen impetuous 6
+Add armour (all or rane) Heavy swordsmen impetuous 8
+4th Class Spanish scutarit
+Javelinmen : 7 2-6 Medium swordsmen impetuous
+Light infantry javelin 4 Ligurians, Sardinians and Samnites
+5" Class Medium swordsmen 6
+Light infantry javelin 4 Javelinmen a
+Light infantry sling (max 2)
+Mercenary Peltasts (before 275 BC)
+--------------------
+MATCH: [impetuous] PAGE: 34
+275 - 105 BC Heavy artillery 10 0-1
+Plain, Mountain Other auxiliaries
+Command +4
+Gallic warriors
+Strategist: Scipio Africanus (210-202 BC) and
+Medium swordsmen impetuous 6
+Marius (107-105 BC)
+Heavy swordsmen impetuous 8
+Spanish scutaril |
+After the wars against Pyrrhus the Roman army was
+Medium swordsmen impetuous
+--------------------
+MATCH: [impetuous] PAGE: 34
+Command +4
+Gallic warriors
+Strategist: Scipio Africanus (210-202 BC) and
+Medium swordsmen impetuous 6
+Marius (107-105 BC)
+Heavy swordsmen impetuous 8
+Spanish scutaril |
+After the wars against Pyrrhus the Roman army was
+Medium swordsmen impetuous
+reorganized. The Legion still fought in four lines and 0-2
+Greek or Elyrian thureophoroi
+--------------------
+MATCH: [impetuous] PAGE: 34
+Medium swordsmen impetuous 6
+Marius (107-105 BC)
+Heavy swordsmen impetuous 8
+Spanish scutaril |
+After the wars against Pyrrhus the Roman army was
+Medium swordsmen impetuous
+reorganized. The Legion still fought in four lines and 0-2
+Greek or Elyrian thureophoroi
+this army ensured the domination of Rome around
+Medium spearmen |
+the Mediterranean. The Romans were victorious
+--------------------
+MATCH: [impetuous] PAGE: 35
+Werade to mediocre -2 Heavy salaad
+mercenaries (after 410 BC) P 0.4 ae sce ;
+spearmen edium swordsmen impetus 6 0-3
+bx, Medium swordsmen impact 7
+a sieariien teddi 5 0-6 Gallic warriors (except in Spain)
+warriors (after 350 BC) Medium SWwOristien impetuous 6 0-6
+Meum swordsmen impetuous 6 0-2 Hipany swordsmen impetuous 8
+swordsmen impetuous 8 Eiguranas
+3 rr Medium swordsmen 6 0-3
+Bp scutarn 6 0-2 Javelinmen 7
+mm swordsmen impetuous ae - -
+--------------------
+MATCH: [impetuous] PAGE: 35
+mercenaries (after 410 BC) P 0.4 ae sce ;
+spearmen edium swordsmen impetus 6 0-3
+bx, Medium swordsmen impact 7
+a sieariien teddi 5 0-6 Gallic warriors (except in Spain)
+warriors (after 350 BC) Medium SWwOristien impetuous 6 0-6
+Meum swordsmen impetuous 6 0-2 Hipany swordsmen impetuous 8
+swordsmen impetuous 8 Eiguranas
+3 rr Medium swordsmen 6 0-3
+Bp scutarn 6 0-2 Javelinmen 7
+mm swordsmen impetuous ae - -
+Bs, Ligurians or Sardinians Militia (only in Africa) ; 5 0-6
+--------------------
+MATCH: [impetuous] PAGE: 35
+spearmen edium swordsmen impetus 6 0-3
+bx, Medium swordsmen impact 7
+a sieariien teddi 5 0-6 Gallic warriors (except in Spain)
+warriors (after 350 BC) Medium SWwOristien impetuous 6 0-6
+Meum swordsmen impetuous 6 0-2 Hipany swordsmen impetuous 8
+swordsmen impetuous 8 Eiguranas
+3 rr Medium swordsmen 6 0-3
+Bp scutarn 6 0-2 Javelinmen 7
+mm swordsmen impetuous ae - -
+Bs, Ligurians or Sardinians Militia (only in Africa) ; 5 0-6
+fieim swordsmen (max 2) 6 2-6 Medium speaenvert mediocre
+--------------------
+MATCH: [impetuous] PAGE: 35
+warriors (after 350 BC) Medium SWwOristien impetuous 6 0-6
+Meum swordsmen impetuous 6 0-2 Hipany swordsmen impetuous 8
+swordsmen impetuous 8 Eiguranas
+3 rr Medium swordsmen 6 0-3
+Bp scutarn 6 0-2 Javelinmen 7
+mm swordsmen impetuous ae - -
+Bs, Ligurians or Sardinians Militia (only in Africa) ; 5 0-6
+fieim swordsmen (max 2) 6 2-6 Medium speaenvert mediocre
+mmen 7 Balenrit slingers . 5 0-4
+5 Moors and Spanish Light infantry sling elite
+Snfantry javelin 4 2-4 Numidians, Libyans or Spanish
+--------------------
+MATCH: [impetuous] PAGE: 36
+From 235 to 201 BC in Spain and Africa
+of Massinissa, the Romans obliged his son Micipsa to
+Iberian allies (List #90 Ancient Spanish)
+divide the kingdom. In 113 BC Jugurtha rebelled and
+Celtiberian scutarii i 8 0-2 inflicted severe defeats on the Romans but was
+Heavy swordsmen impetuous
+betrayed and delivered to his enemies. King Juba |, a
+Hannibal in Italy from 216 to 203 BC
+supporter of Pompey, lost his kingdom in 46 BC
+Bruttian, Lucanian, Apulian or Campanian allies before it was finally restored to his son Juba II.
+(List #51 Campanian, Lucanian, Apulian and
+--------------------
+MATCH: [impetuous] PAGE: 36
+Hannibal in Italy from 216 to 203 BC
+supporter of Pompey, lost his kingdom in 46 BC
+Bruttian, Lucanian, Apulian or Campanian allies before it was finally restored to his son Juba II.
+(List #51 Campanian, Lucanian, Apulian and
+Bruttian)
+Only one Elephant. No artillery, no impetuous
+Numidian Nobles * |
+Scutarii, no Numidian or Iberian allies.
+Medium cavalry javelin 8 0-8
+Replace all African spearmen
+2-4 Upgrade to elite (max 4) +2
+--------------------
+MATCH: [impetuous] PAGE: 36
+Note Downgrade to mediocre -2
+* Only one commander can be included in a Bogud in 47 BC
+mercenariy hoplite unit before 235 BC.
+Spanish mercenaries
+* Numidian allies (List #56 Numidian) until 200
+Medium swordsmen impetuous
+BC.
+Juba I from 55 to 46 BC
+Gallic and Spanish guardsmen *
+Medium cavalry elite
+Labienus army at Ruspina in 46 BC
+--------------------
+MATCH: [impetuous] PAGE: 38
+Javelinmen Replace some foplites
+Light infantry javelin 4 ee
+Medium spearmen elite
+From 369 to 368 BC, Gallic and
+Note Spanish mercenaries from Syracuse
+* Blemmye allies (List #112 Blemmyes and Medium swordsmen impetuous
+Nobatae)} after 300 BC Heavy swordsmen impetuous
+Athenian
+GREECE AND DANUBE
+Paphlagonians and Thracians
+Light cavalry javelin
+--------------------
+MATCH: [impetuous] PAGE: 38
+Light infantry javelin 4 ee
+Medium spearmen elite
+From 369 to 368 BC, Gallic and
+Note Spanish mercenaries from Syracuse
+* Blemmye allies (List #112 Blemmyes and Medium swordsmen impetuous
+Nobatae)} after 300 BC Heavy swordsmen impetuous
+Athenian
+GREECE AND DANUBE
+Paphlagonians and Thracians
+Light cavalry javelin
+60 - CLASSICAL GREEK Light cavalry bow
+--------------------
+MATCH: [impetuous] PAGE: 41
+mstarnae allies (for Getae in 62-60 BC) Troop type
+ehariine cavalry ® Persian Guardsmen *
+a aan Kavabry z 0-2 Heavy cavalry bow elite - bee
+<2 ade to elite - +2 Persians and Medes *
+PenrtiAe WATTIONS ® 6 2-4 Medium cavalry bow 9
+ectium swordsmen impetuous Heavy cavalry bow (max 4) 4-8
+Upgrade to elite (max 4) +2
+Ch oose one opti1 On: h1il l tTrriibbeess,, 1oOWlloawlna nd tr1i bes , net:
+Getae, codiyaien Kingdom or Odrysian client of vem aly æ ae
+; owngrade to mediocre -2
+Rome. Odrysians count as a lowland tribe. Arachosians and Paropamisadae ; 5
+--------------------
+MATCH: [impetuous] PAGE: 42
+After 525 BC
+Troop type Pts Un
+Egyptian or Phoenician marines
+Lydian nobles (all the same type) *
+Medium swordsmen
+Heavy cavalry impetuous 9
+Downgrade to mediocre
+Heavy cavalry impact 10
+Indians archers
+Upgrade to elite (max 4) +2
+Bowmen 0-2
+--------------------
+MATCH: [impetuous] PAGE: 43
+edium cavalry Ñ;
+Heavy cavalry (max 2) 9 Light infantry bow 4 0-3
+iUperade to elite (max 4) +2 After 278 BC
+Galatians
+oh cavalry javelin 6 o-2
+Heavy swordsmen impetuous 8 0-2
+rriors 6 6-24 Upgrade to elite +2
+edium swordsmen
+After 265 BC
+Brriors with drepanon 7 Ou
+Replace some warriors by
+--------------------
+MATCH: [impetuous] PAGE: 45
+@eiarathes Il and successors from 255 BC Greek mercenaries P 02 j
+fergamene allies (List #73 Pergamon) in 180-129 BC Heavy spearmen
+º) Mercenary thureophoroi 7 0.2 After 41 AD
+Medium spearmen Roman allies (List #85 Early Imperial Roman)
+Gelatian mercenaries Alan allies (List #108 Alan)
+vy swordsmen impetuous 8 0-2 Replace all Greek militia
+ade to elite +2 Medium swordsmen impact 7 2-4
+Heavy swordsmen impact 9
+Fortifications I 0-6
+= Armenian allies (List #71 Armenian) only for ;
+Ariarathes II fern 300 to 255 BC ░ Heavy artillery 10 ot
+--------------------
+MATCH: [impetuous] PAGE: 45
+Pompey, Armenia submitted to Rome. In 301 AD it
+was the first kingdom to adopt Christianity. Armenia
+oop type Pts Units _, : .
+was divided between the Byzantines and the Persians
+lorsemen with spear * in 428 AD and lost its independance.
+edium cavalry impetuous 7 412
+eavy cavalry impetuous g Troop type
+perade to elite (max 4) +2. :
+Birse archers * Nebles (before 204 BC) *
+aght cavalry bow 6 2-12 Heavy, marae s
+fledium cavalry bow (max 4) 9 Upgrade to elite (max 4) +2
+--------------------
+MATCH: [impetuous] PAGE: 45
+was the first kingdom to adopt Christianity. Armenia
+oop type Pts Units _, : .
+was divided between the Byzantines and the Persians
+lorsemen with spear * in 428 AD and lost its independance.
+edium cavalry impetuous 7 412
+eavy cavalry impetuous g Troop type
+perade to elite (max 4) +2. :
+Birse archers * Nebles (before 204 BC) *
+aght cavalry bow 6 2-12 Heavy, marae s
+fledium cavalry bow (max 4) 9 Upgrade to elite (max 4) +2
+Greek militia Nobles (front 204 BC fo 244 AD) *
+--------------------
+MATCH: [impetuous] PAGE: 45
+Greek militia Nobles (front 204 BC fo 244 AD) *
+: 7 2-4 Cataphract 12 2-8
+Medium spearmen P .
+Bedi nnd Macotians Upgrade to elite (max 4) +2
+= 7 0-4 Nobles (frone 244 AD)*
+Beht infantry bow a Heavy cavalry impetuous 9
+Sandi and Mavotians Limprarde tovelite (na) =
+yelintien 7 0-4 Horse archers *
+Light infantry javelin 4 Light cavalry bow 6 4-12
+Bit infaniry sling i Pr rem caval bow (max 4) 9
+= eorgians or Albanians 9 0-2
+--------------------
+MATCH: [impetuous] PAGE: 45
+Sandi and Mavotians Limprarde tovelite (na) =
+yelintien 7 0-4 Horse archers *
+Light infantry javelin 4 Light cavalry bow 6 4-12
+Bit infaniry sling i Pr rem caval bow (max 4) 9
+= eorgians or Albanians 9 0-2
+Fortified camp 6 0-1 Heavy cavalry impetuous
+efore 10 AD Javelinmen 7 0-8
+Beythian allies (List #76 Scythian) Bowler 7
+Thracian or Celtic mercenaries Downgrade to mediocre 2 2-6
+Medium swordsmen 6 Light infantry bow 4
+Mfedium swordsmen impetucus 6 0-4 -
+--------------------
+MATCH: [impetuous] PAGE: 46
+Heavy cavalry (max 2) 9
+Upgrade to elite +2
+Scouts
+Light cavalry javelin
+Warriors before 62 BC *
+Heavy swordsmen impetuous 8
+Upgrade to elite (all, 2 or none) +2
+8-24
+Warriors from 62 BC *
+Heavy swordsmen impetuous 8
+Heavy swordsmen impact (max 8)
+--------------------
+MATCH: [impetuous] PAGE: 46
+Warriors before 62 BC *
+Heavy swordsmen impetuous 8
+Upgrade to elite (all, 2 or none) +2
+8-24
+Warriors from 62 BC *
+Heavy swordsmen impetuous 8
+Heavy swordsmen impact (max 8)
+Light infantry javelin 4
+Greece invasion in 279 BC
+Paionian allies (see list below)
+Greek horsemen
+--------------------
+MATCH: [impetuous] PAGE: 46
+Light infantry javelin 4
+Light infantry bow
+Light infantry sling
+Note
+½ Light chariots and Galatian cavalry dismount
+medium swordsmen impetuous with armour @
+heavy cavalry.
+Galatian warriess
+4 owe
+73 - PERGAMON
+262 - 133 BC
+--------------------
+MATCH: [impetuous] PAGE: 47
+ight cavalry javelin Cataphract 12
+Hhureophoroi and spearmen Upgrade to elite (max 2) +2
+edium spearmen 7 4-12 Horse archers * æ
+eavy spearmen 8 Light cavalry bow 6 2-12
+Galatians Medium cavalry bow (max 4) 9
+Heavy swordsmen impetuous 8 0-2 Bedouins
+pgrade to elite +2 Light camelry bow mediocre 5 0-2
+By militia 5 0-4 Medium camelry bow mediocre 8
+Sedium spearmen mediocre . Archers
+dysians and peltasts Bowmen 7 4-16
+avelinmen 7 2-8 Downgrade to mediocre -2
+--------------------
+MATCH: [impetuous] PAGE: 48
+Troop type
+Scythian nobles before 300 BC *
+Heavy cavalry bow 11
+Upgrade to elite +2
+Scythian nobles from 300 BC * a
+Heavy cavalry impetuous 9
+Upgrade to elite
+Horse archers *
+Light cavalry bow 6
+Light cavalry bow elite (max 12) 7
+Medium cavalry bow (max 12) 9
+--------------------
+MATCH: [impetuous] PAGE: 49
+ephant Replace all harsenten *
+Light cavalry javelin 6 0-4 Medium cavalry bow 9 6-18
+Bosrmen and warriors Heavy cavalry bow 11
+S dium spearmen 7 2-6 Upgrade to elite (max 6) +2
+a tium swordsmen 6 Other horsemen with long spear *
+Sounen 7 Medium cavalry impetuous 7 0-6
+Downgrade to mediocre -2 2-6 Leavy eavaley inipetacns z
+Light infantry bow 4 site
+* Herul allies (List #96 Gepid, Herul, Taifali and
+Note. . . Sciri) in 358 AD *
+= Asiatic Greek (List #60) Classical Greek) or * Quadi allies (List #97 Franks, Alemanni,
+--------------------
+MATCH: [impetuous] PAGE: 49
+amd settled in the Roman Empire. From the third
+a a
+sentury AD the Sarmatians were overrun, first by the
+oths and then by the Huns. arriors (all the same type) *
+Medium swordsmen 6 44
+roop type Pts Units Medium swordsmen impetuous 6
+mmatian Horsemen * Upgrade to elite (max 4) +2
+edium cavalry impetuous fd 6-24 Bowmen 7
+Heavy cavalry impetuous 9 Crossbowmen (after 300 BC) 7 2-12
+Sipgrade to elite (max 6) +2 Downgrade to mediocre eZ
+y ' se. archers 6 0-6 Light infantry bow 4 0-6
+--------------------
+MATCH: [impetuous] PAGE: 49
+sentury AD the Sarmatians were overrun, first by the
+oths and then by the Huns. arriors (all the same type) *
+Medium swordsmen 6 44
+roop type Pts Units Medium swordsmen impetuous 6
+mmatian Horsemen * Upgrade to elite (max 4) +2
+edium cavalry impetuous fd 6-24 Bowmen 7
+Heavy cavalry impetuous 9 Crossbowmen (after 300 BC) 7 2-12
+Sipgrade to elite (max 6) +2 Downgrade to mediocre eZ
+y ' se. archers 6 0-6 Light infantry bow 4 0-6
+weht cavalry bow Light infantry crossbow
+134
+--------------------
+MATCH: [impetuous] PAGE: 49
+oths and then by the Huns. arriors (all the same type) *
+Medium swordsmen 6 44
+roop type Pts Units Medium swordsmen impetuous 6
+mmatian Horsemen * Upgrade to elite (max 4) +2
+edium cavalry impetuous fd 6-24 Bowmen 7
+Heavy cavalry impetuous 9 Crossbowmen (after 300 BC) 7 2-12
+Sipgrade to elite (max 6) +2 Downgrade to mediocre eZ
+y ' se. archers 6 0-6 Light infantry bow 4 0-6
+weht cavalry bow Light infantry crossbow
+134
+--------------------
+MATCH: [impetuous] PAGE: 50
+kingdoms in 221 BC, This was the beginning of the
+Nobles *
+Qin Dynasty that only lasted until 206 BC.
+Light chariot bow 9
+0-4
+Heavy chariot impetuous 10
+Troop type Pts Units
+Upgrade to elite +2
+Horsemen * 4 horse's chariots *
+Medium cavalry 7 1-4 Heavy chariot impact 11 2-4
+Downgrade to mediocre -2 Upgrade to elite +2
+--------------------
+MATCH: [impetuous] PAGE: 51
+(CART DE LA GUERRE
+Fanatic warriors Kingdom in China (351-417 AD) - Later Period
+Medium swordsmen impetuous 6 0-2 Xianbei allies (List #117 Xianbei)
+Upgrade to elite +2 Replace all nobles *
+aeh infantry bow 4 0-4 Heavy cavalry impact 10 Oud
+ment infantry crossbow Cataphract 12
+Laght infantry javelin 4 0-2 Upgrade to elite +2
+7 ting peasants Chinese horsemen
+--------------------
+MATCH: [impetuous] PAGE: 51
+aeh infantry bow 4 0-4 Heavy cavalry impact 10 Oud
+ment infantry crossbow Cataphract 12
+Laght infantry javelin 4 0-2 Upgrade to elite +2
+7 ting peasants Chinese horsemen
+= 3 0-3 Heavy cavalry impact 10 0-2
+vy impetuous 4 Downprade to mediocre 2
+Light artillery 6 Chinese infantry .
+Heavy artillery 10 0-2 Heavy spearmen mediocre 6 24
+=a Heavy sword. polearm mediocre fd
+prtifications 1 0-8 Add support #1
+Fortified camp 6 0-1 Chineese archers
+--------------------
+MATCH: [impetuous] PAGE: 51
+=a Heavy sword. polearm mediocre fd
+prtifications 1 0-8 Add support #1
+Fortified camp 6 0-1 Chineese archers
+Phu and Yueh Bowmen mediocre 5 0-2
+Tribal auxiliaries Crossbtoiewn mrediocr
+Medium swordsmen impetuous | : : oe Levy 3 0-3
+thao and Han Fortified camp 6 0-1
+Replace all horse archers 6 0-6
+Light cavalry bow Note
+Min from 350 to 221 BC * Xiongnu allies (List #115 Xiongnu) before 155
+Replace all infantry with spears and AD
+--------------------
+MATCH: [impetuous] PAGE: 52
+Camels 15, 19 Height advantage 64 River 71
+Camps &, 66, 76 Hesitant 8&0 Road 72
+Cataphract 16 Hill 71 Rough (terrain) 70
+Cavalry ú5 Impact 18 Routed army 69
+Charge 42 Impassable (terrain) 70 Routed unit 9, 68
+Coastal zone 71 Impetuous 18 Sand dunes 72
+Cohesion (army) 69 In front 9 Sevthed chariots 16
+Cohesion (unit) 12 Incendiary 19, 59 Setting up 73
+Combat factor 12, 22, 63 Included commander 28 Shifting units ha
+Combat 60) Initiative 73 Shooting limitations 56
+Command paints (CP) 25 Interpenetration 39 Shooting overhead 59
+--------------------
+MATCH: [impetuous] PAGE: 63
+* Some LI are armed with grenades, flaming Highlanders or English longbowmen.
+naphtha pots or Greek fire. They then have the
+* Combat factor of +1 against all except
+Incendiary ability.
+cataphracts, heavy chariots and knights.
+* Non-impetuous medium swordsmen cancel the
+Loose Medium infantry (LMI)
+Impact ability of Impetuous infantry if they receive
+These are troops in loose formation that mainly use the charge on the front edge. They do not cancel
+shooting. They are not effective in close combat and the Furious charge effect.
+are at a particular disadvantage when it comes to
+--------------------
+MATCH: [impetuous] PAGE: 63
+* Combat factor of +1 against all except
+Incendiary ability.
+cataphracts, heavy chariots and knights.
+* Non-impetuous medium swordsmen cancel the
+Loose Medium infantry (LMI)
+Impact ability of Impetuous infantry if they receive
+These are troops in loose formation that mainly use the charge on the front edge. They do not cancel
+shooting. They are not effective in close combat and the Furious charge effect.
+are at a particular disadvantage when it comes to
+fighting heavy infantry or heavy mounted units such Medium spearmen: Medium spearmen are
+as heavy chariots, cataphracts or knights. equipped with a long spear and would close ranks
+--------------------
+MATCH: [impetuous] PAGE: 64
+LoART DP LA GEPRERL
+francisca or angon and those classified as impetuous Levy: These are civilians and combatants of little
+have the [nzpact ability. value or motivation, brought together in haste. They
+fight in close order with various weapons (hand
+* Combat factor +1 against all or +2 against LMI in
+weapons, spears, etc) but have a lower cohesion and
+open terrain or against LH. are Unmanceuvrable. [mpetuous levies represent
+--------------------
+MATCH: [impetuous] PAGE: 64
+have the [nzpact ability. value or motivation, brought together in haste. They
+fight in close order with various weapons (hand
+* Combat factor +1 against all or +2 against LMI in
+weapons, spears, etc) but have a lower cohesion and
+open terrain or against LH. are Unmanceuvrable. [mpetuous levies represent
+= Non-impetuous heavy swordsmen cancel the religious fanatics or revolting peasants, Mediocre
+Impact aÆility of Tmpetuous foot units if they levies are women and children and Expendable levies
+receive the charge on the front edge. They do not are hostages or war prisoners.
+cancel the Furtous charge effect.
+* Combat factor of zero against all or +1 against LI,
+Foot knights: This represents the heavy
+--------------------
+MATCH: [impetuous] PAGE: 65
+Babylonians. They automatically have the Armour
+in open terrain.
+ability as they are well protected. They are slower
+than light chariots and they are used as shock troops.
+Cavalry (Cv)
+They almost all have the Impact or Impetuous ability
+but they are less powerful than medieval knights.
+Cavalry is a very fast and maneuverable unit but is
+at a disadvantage in terrain and in frontal combat
+½ Combat factor of +2 against LMI and LH
+against heavy infantry or knights. Most horsemen
+--------------------
+MATCH: [impetuous] PAGE: 68
+½ The Impact ability of mounted troops (but not
+that of foot) is cancelled if they are fighting in
+Furious charge
+rough or difficult terrain.
+Some units rely on a particularly powerful charge to
+Impetuous
+rout their opponents swiftly. This is particularly true
+for Impetuous units or when mounted units charge
+Some units are undisciplined and likely to charge
+foot units. Furious charge applies only during the first
+without orders at any enemy within range. These
+--------------------
+MATCH: [impetuous] PAGE: 68
+Furious charge
+rough or difficult terrain.
+Some units rely on a particularly powerful charge to
+Impetuous
+rout their opponents swiftly. This is particularly true
+for Impetuous units or when mounted units charge
+Some units are undisciplined and likely to charge
+foot units. Furious charge applies only during the first
+without orders at any enemy within range. These
+round of a melee where the unit charges or receives a
+units rely on the shock power of their charge to
+--------------------
+MATCH: [impetuous] PAGE: 68
+round of a melee, it inflicts the loss of one additional
+cohesion point on the enemy.
+* The unit gains the Impact ability during the first
+round of a melee (except Scythed chariots).
+Troops with the Furious charge ability are:
+╗ The finpact bonus of Impetuous foot is cancelled
+= Impetuous foot (including levies) against foot
+when charging non-impetuous medium and
+units except WWe,
+heavy swordsmen on the front edge, as they are
+½= LH, Cv, HCh, Ct and Kn that are Impetuous or
+--------------------
+MATCH: [impetuous] PAGE: 68
+cohesion point on the enemy.
+* The unit gains the Impact ability during the first
+round of a melee (except Scythed chariots).
+Troops with the Furious charge ability are:
+╗ The finpact bonus of Impetuous foot is cancelled
+= Impetuous foot (including levies) against foot
+when charging non-impetuous medium and
+units except WWe,
+heavy swordsmen on the front edge, as they are
+½= LH, Cv, HCh, Ct and Kn that are Impetuous or
+better able to withstand this type of charge. The
+--------------------
+MATCH: [impetuous] PAGE: 68
+* The unit gains the Impact ability during the first
+round of a melee (except Scythed chariots).
+Troops with the Furious charge ability are:
+╗ The finpact bonus of Impetuous foot is cancelled
+= Impetuous foot (including levies) against foot
+when charging non-impetuous medium and
+units except WWe,
+heavy swordsmen on the front edge, as they are
+½= LH, Cv, HCh, Ct and Kn that are Impetuous or
+better able to withstand this type of charge. The
+Impact against all foot units except WWeg,
+--------------------
+MATCH: [impetuous] PAGE: 68
+╗ The finpact bonus of Impetuous foot is cancelled
+= Impetuous foot (including levies) against foot
+when charging non-impetuous medium and
+units except WWe,
+heavy swordsmen on the front edge, as they are
+½= LH, Cv, HCh, Ct and Kn that are Impetuous or
+better able to withstand this type of charge. The
+Impact against all foot units except WWeg,
+Intpact ability remains valid if these target troops
+=╗ All Cv, HCh and Kn non-Inipetuous and with no
+are charged on their flank or rear.
+--------------------
+MATCH: [impetuous] PAGE: 68
+Impact against all foot units except WWeg,
+Intpact ability remains valid if these target troops
+=╗ All Cv, HCh and Kn non-Inipetuous and with no
+are charged on their flank or rear.
+Impact but only against LMI,
+* Impetuous units gain the Furious charge ability in
+* LH against LL
+the first round of a melee.
+* Elephants and Scythed chariots against all foot
+= [ntpetuous troops are also Unmanoeuverable.
+units except LI and Javelinmen.
+--------------------
+MATCH: [impetuous] PAGE: 71
+LOAKT Ob LA GULRRE
+DISMOUNTED TROOPS cohesion points if the unit has [nipact ability or is
+Impetuous; otherwise as medium swordsmen.
+Sometimes mounted units prefer to fight on foot. Heavy cavalry or light chariot with Armour:
+Dismount as bowmen, xbowmen, handgunner
+Historically, some units were accustomed to
+dismounting and others did so only if the terrain or with Armour or medium swordsmen with Missile
+support and Armour if the unit has a missile
+--------------------
+MATCH: [impetuous] PAGE: 72
+Inipact excepvts LI, LH and Javelinmen
+0 vs all. Enemy factor is 0 in 1* round except LI,
+Scythed chariot SCh 0 i LH, LMI, WWgó or El, which keep their factors.
+Cancels enemyÆs support in the 1+ round.
+* Cancels Impact of mounted (except elephant) if receiving the charge on the front. Furious charge is still applicable.
+Ö Cancels Inipact of Impetuous swordsmen if receiving the charge on the front. Furjous charge is still applicable.
+@ +1] in 1ô round vs mounted (except elephants) if the unit received charge on the front.
+# Cancels linpact, Javelin and Furious charge, except if attacked by elephants.
+\WWe with blades have +2 vs elephants and cancel their faipact and Furtous charge.
+Ö Panic on mounted units with horses if camels, or with horses and camels if elephants.
+[x] The protection value already takes into account the Armour or Heavy armour abilities for these troops.
+--------------------
+MATCH: [impetuous] PAGE: 84
+difficult, the total expense is still only one additional
+CP.
+The following are difficult manoeuvres for all units:
+½ A third movement in the same phase except if
+the movement is performed by light troops or
+now impetuous cavalry.
+½ To exit an enemyÆs zone of control (see p 37)
+ction of a line of cavalry advancing 4 UD and
+except when performed by troops that can
+ting one unit on each wing.
+evade.
+--------------------
+MATCH: [impetuous] PAGE: 84
+½If a group contains one or more unmanoeuvrable
+cavalry), artillery and WWe cannot perform a
+units, the CP penalty for performing a difficult
+third movement.
+manoeuvre applies to the whole group.
+= All other troops (including Impetuous cavalry)
+* It may happen that a unit does not have enough
+can perform a third consecutive movement
+movement allowance to perform a difficult
+provided the corps commander accompanies the
+manoeuvre. For example, an lmpetuous HI trying
+--------------------
+MATCH: [impetuous] PAGE: 84
+to make a half-turn in a wood. In this case, the
+* A third movement is treated as a_ difficult
+movement is permitted but causes the unit to
+manoeuvre (see following section), except for
+become Disordered. If the unit was already
+light troops and non-impetuous cavalry.
+Disordered, it doesnÆt lose further cohesion.
+--------------------
+MATCH: [impetuous] PAGE: 85
+Pikemenor cataphracts: Pikemen and
+Definition
+cataphracts operate in very compact formations.
+Thus, they consider a quarter-turn or half-turn as a When a unit is very close to the front of an enemy its
+difficult manoeuvre. options for movement are restricted.
+Impetuous cavalry: Impetuous cavalry can
+*" A unit is in an enemy unit's zone of control (ZoC)
+perform a third movement even though these units if it is directly in front of an enemy and less than
+are unmanoeuvrable, The third movement is treated as one UD from the enemy front edge. All units
+a difficult manoeuvre. with at least part of their base in an enemy ZoC
+have their movements restricted (see below).
+--------------------
+MATCH: [impetuous] PAGE: 85
+individually, is limited to a maximum of 90░ and they can interpenetrate (for instance, an HI
+counts as a difficult manoeuvre. exerts a ZoC through a LI).
+Scythed chariots: Scythed chariots can only ZONE OF CONTROL
+perform simple movement including wheels and
+slides. All other manoeuvres are not allowed.
+Impetuous: When an Impetuous unit or group is
+within charge range of an enemy, any manoeuvre
+other than a charge or movement that ends in
+support of a friend in melee costs 3 CP (see p 45).
+Preventing an Inipetuous unit or group from charging
+the enemy also costs 3 CP.
+--------------------
+MATCH: [impetuous] PAGE: 92
+* Commanded: This is a normal charge, in which Other units
+the commander spends CPs. *╗ War wagons (except those with blades), artillery
+* Spontaneous: Carried out against enemies in the and Expendable levies can never charge or move
+charging unit's ZOC, without expending CPs into contact with enemy to provide a support.
+(see p 44).
+= Uncontrolled: When Impetuous units charge Charge range
+without orders (see p 45).
+A unit is within charge range if both of the following
+Special cases conditions are met:
+╗ The distance between the two closest points of
+* Acorner-to-corner contact is sufficient only if the
+--------------------
+MATCH: [impetuous] PAGE: 95
+situated in front or to the flank of the unit
+Some troops are very eager to fight and tend to
+considered. Enemy units situated entirely to
+attack even if they do not receive orders to do so. All
+rear the unit are ignored and do not provoke
+Impetuous troops have the potential to make
+uncontrolled charge.
+uncontrolied charges against the enemy in certain
+╗ Units making an uncontrolled charge are mov
+circumstances (see exceptions p 46).
+unit by unit from left to right or right to left
+--------------------
+MATCH: [impetuous] PAGE: 95
+uncontrolied charges against the enemy in certain
+╗ Units making an uncontrolled charge are mov
+circumstances (see exceptions p 46).
+unit by unit from left to right or right to left
+the player's choice.
+When any Impetuous unit, or group of [impetuous
+* Each unit making an uncontrolled char
+units is within charge range of an enemy (ignoring advances by the shortest route towards its tar:
+intervening friends), the following rules applies:
+in order to contact it. If the target is already im
+* Any manoeuvre other than a charge or a
+--------------------
+MATCH: [impetuous] PAGE: 95
+continue their charge up to their full adjusted
+difficult manoeuvre.
+movement allowance. They stop as soon as they
+* Tf the unit or group receives no orders, all
+are in melee with an enemy or in position to
+Impetuous units that are within charge range of
+support a friendly unit in melee.
+an enemy must make an uncontrolled charge.
+* Units who cannot contact enemy do not make an
+uncontrolled charge.
+Timing of an uncontrolled charge
+--------------------
+MATCH: [impetuous] PAGE: 95
+uncontrolled charge.
+Timing of an uncontrolled charge
+= Movements of units making uncontrolled
+╗ The check to see if a unit is subject to an charges must still respect the rules for enemy
+uncontrolled charge is made before moving the ZoCs.
+Iimpetuous unit, or at the end of its own corpsÆ
+movement phase if it did not move, rally or was Uncontrolled charges and combat
+not held in place by its commander.
+½ Units that make an uncontrolled charge lose
+╗ After friendly units have charged and enemy
+effectiveness due to the disorganised manner of
+--------------------
+MATCH: [impetuous] PAGE: 95
+movement phase if it did not move, rally or was Uncontrolled charges and combat
+not held in place by its commander.
+½ Units that make an uncontrolled charge lose
+╗ After friendly units have charged and enemy
+effectiveness due to the disorganised manner of
+units have evaded an Jimpetuous unit may their attack, fighting with a penalty of -1 in the
+become subject to an uncontrolled charge even
+first round of the melee.
+though it was not subject to one at the start of the
+½ This uncontrolled charge penalty is cumulative
+phase.
+--------------------
+MATCH: [impetuous] PAGE: 95
+=╗ Conversely, if an enemy unit that provokes an
+their special abilities if they are applicable.
+uncontrolled charge is forced to evade by the
+½ If the target of the charge is directly in front, and
+charge of another friendly unit, an Impefuous unit
+within one UD or less, Impetuous units can
+may no longer be subject to an uncontrolled
+always choose to make a Spontaneous charge (see
+charge -even though it was subject to it at the
+p 44), which does not incur any combat penalty.
+start of the phase.
+--------------------
+MATCH: [impetuous] PAGE: 96
+charging unit plus one UD must be considered
+become subject to Panic (see note}.
+before proceeding with the uncontrolled charge.
+* If the target enemy unit is light troops and the
+unit would need to interpenetrate or burst
+Example: Ant impetuous HI unit facing LI units will nat
+through friendly troops to reach them.
+have to make an uncontrolled charge if there is a mounted
+* If the charging unit is foot and the target is the
+unit or a difficult or rough terrain behind the LI, within 3
+front edge of enemy mounted troops (see note).
+--------------------
+MATCH: [impetuous] PAGE: 97
+* Light infantry and light cavalry,
+½ Javelinmen,
+╗ Cavalry with fmpact and also Bow, Crossbow, 2
+Bow or 2 Crossbow. A LH is charged by a Cy on its flank. It must make ½
+* All other cavalry (including camelry and light quarter-turn.
+chariots) without Inrpact or Impetuous ability.
+2 - Blocked evade move
+Evading is not allowed in the following cases: An evading unit may be blocked by something that
+* The unit is engaged in melee or in melee support prevents evade movement. If this is the case the
+against an enemy (see p 60). A unit providing
+evade move is cancelled. Evades can be blocked in
+--------------------
+MATCH: [impetuous] PAGE: 112
+an - 2 cohesion points charged on its front edge. If the combat takes place
+a or 6 pts - 3 cohesion points after conformation by units already in contact or in
+a pts and more Automatic rout melee (see p 51) or after a pursuit (see p 69), Furious
+charge does not apply.
+<r With a bit of practice, melee can be quickly resolved by a
+ks le differential calculation. Example: Impetuous heavy swordsmen charge heavy
+ily
+spearmen. The heavy swordsinen unit has a +1 bonus for
+* ple: A medium swordsmen unit with Impact fights impact ability on the first round of the melee. It rolls a 5
+= inst an Elite medium spearmen unit on a hull. Both modified to 6 and its adversary a 4. The difference is 2
+as its have a combat factor of +1. The swordsmen has +1 points and so the heavy spearmen lose one cohesion point.
+--------------------
+MATCH: [impetuous] PAGE: 119
+enemies on its flank or rear does not pursue. routed. This occurs when the armyÆs losses ane!
+Instead, it must immediately conform to face one equal to or greater than its cohesion value.
+of these enemies of its choice (see p 52). ╗ When an army has suffered a number of losses
+* War wagons, artillery and Expendable levies greater than or equal to its cohesion value it &
+never pursue. routed and the game ends.
+* Pursuit is optional for Non-impetuous units. * Sometimes both armies may be routed at the
+* Pursuit is mandatory for elephants and same time, in which case the game is a draw by
+Impetuous units except in the following cases: simultaneous rout.
+o The unit destroyed artillery, war wagon,
+scythed chariot or elephant, Army cohesion
+® Pursuit would result in the unit exiting the
+--------------------
+MATCH: [impetuous] PAGE: 119
+of these enemies of its choice (see p 52). ╗ When an army has suffered a number of losses
+* War wagons, artillery and Expendable levies greater than or equal to its cohesion value it &
+never pursue. routed and the game ends.
+* Pursuit is optional for Non-impetuous units. * Sometimes both armies may be routed at the
+* Pursuit is mandatory for elephants and same time, in which case the game is a draw by
+Impetuous units except in the following cases: simultaneous rout.
+o The unit destroyed artillery, war wagon,
+scythed chariot or elephant, Army cohesion
+® Pursuit would result in the unit exiting the
+* The total cohesion value of an army is equal
+table or entering terrain that would penalise
+--------------------
+MATCH: [impetuous] PAGE: 131
++1 if missile support or pavise
+He Py Ss e
+So Seals!) HI 7 7 ue +2 if armour or mixed unit, +3 if mixed unit with longbow
+Foot knights HI - 12 14 Already includes heavy armour and 2HW
+Pikemen HI 8 11 13. ½+7 if pavise
+Levies HI 2 3 - -lif expendable, +1 if impetuous
+War wagons WWg 8 12 - +2if light artillery, -4 with blades
+Light artillery Art - 6 - +1 if integrated light artillery
+Medium artillery Art ô 10 -
+Heavy artillery Art - 10 -
+Mounted units
+--------------------
+MATCH: [impetuous] PAGE: 131
+Oo Options
+Light cavalry LH 4 6 7 +1 if light camelry
+Medium cavalry Cy 5 7 9 +1 if impact, javelin, 42 bow or medium camelry
+Light chariots +2 if bow, crossbow, firearm or light chariot armour
+Heavy cavalry Cv 7 9 Ji +1 if impact or 4 bow, +2 if bow, crossbow, firearm
+Medium knights Kn - 9 Vio +2 if impact, +1 if impetuous
+Heavy knights Kn : 1106-13 +2 if impact, +1 if impetuous
+Cataphracts Ct - 12 14 Includes impact and heavy armour, +1 if camelry
+Heavy chariots HCh = 9 11 +2 if impact, +1 if impetuous
+Scythed chariots $Ch = 3 -
+Elephants El 1 13 16 +3 if armour or light artillery
+--------------------
+MATCH: [impetuous] PAGE: 131
+Light cavalry LH 4 6 7 +1 if light camelry
+Medium cavalry Cy 5 7 9 +1 if impact, javelin, 42 bow or medium camelry
+Light chariots +2 if bow, crossbow, firearm or light chariot armour
+Heavy cavalry Cv 7 9 Ji +1 if impact or 4 bow, +2 if bow, crossbow, firearm
+Medium knights Kn - 9 Vio +2 if impact, +1 if impetuous
+Heavy knights Kn : 1106-13 +2 if impact, +1 if impetuous
+Cataphracts Ct - 12 14 Includes impact and heavy armour, +1 if camelry
+Heavy chariots HCh = 9 11 +2 if impact, +1 if impetuous
+Scythed chariots $Ch = 3 -
+Elephants El 1 13 16 +3 if armour or light artillery
+º1
+--------------------
+MATCH: [impetuous] PAGE: 131
+Light chariots +2 if bow, crossbow, firearm or light chariot armour
+Heavy cavalry Cv 7 9 Ji +1 if impact or 4 bow, +2 if bow, crossbow, firearm
+Medium knights Kn - 9 Vio +2 if impact, +1 if impetuous
+Heavy knights Kn : 1106-13 +2 if impact, +1 if impetuous
+Cataphracts Ct - 12 14 Includes impact and heavy armour, +1 if camelry
+Heavy chariots HCh = 9 11 +2 if impact, +1 if impetuous
+Scythed chariots $Ch = 3 -
+Elephants El 1 13 16 +3 if armour or light artillery
+º1
+--------------------
+MATCH: [impetuous] PAGE: 135
+6@
+roll the die. distance when charging or evading.
+Take the card played by your opponent One of your corps gets the maximum CP
+7@H
+(not pictures) and add it in your hand. for that turn.
+Play after a unit has won a melee. It A group is not impetuous this turn or you
+8@
+becomes Elite for the rest of the game. have +1 CP for one corps of your choice.
+You have +1 bonus for all your rallying A group can do a free half-turn or
+9@
+attempts during a turn. quarter-turn during its movement.
+--------------------

@@ -139,7 +139,7 @@ export function createInitialMovementState() {
   };
 }
 
-function hasUnitFinishedMovementPhase(unit) {
+export function hasUnitFinishedMovementPhase(unit) {
   return Boolean(
     unit
       && (

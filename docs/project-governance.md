@@ -112,6 +112,7 @@ Minimum checks by work type:
 - Pure engine logic: unit tests, edge-case fixtures, deterministic replay checks where applicable.
 - Rule tables and data: schema validation, source-reference checks, golden examples from the rulebook or spreadsheet.
 - UI work: build, local browser smoke test, screenshot or Playwright interaction when useful.
+- Visual gameplay UI work such as battlefield overlays, guides, ghosts, reach corridors, target highlights, and conformation previews: focused automated render tests plus direct browser smoke verification whenever browser tooling is available in the session.
 - Multiplayer work: action-log and state-hash tests before any transport behavior is trusted.
 - Hidden-information work: player-view tests, reveal-trigger tests, replay visibility tests, and AI fairness tests where applicable.
 
@@ -138,6 +139,10 @@ For UI phases, the agent should be able to:
 - interact with menus, options, setup screens, and the battlefield;
 - capture screenshots for visual regressions;
 - verify that text, controls, overlays, and canvas content render correctly.
+
+For visual battlefield changes, browser verification is not optional when the session supports browser tools. The agent should compare the rendered result against the intended geometry, not only against data-model assumptions or unit tests.
+
+If browser tooling is unavailable in the current session, the agent must say so explicitly in the handoff, rely on the strongest available render tests and screenshots, and avoid implying that direct browser validation already happened.
 
 Browser checks do not replace engine tests. They prove the user-facing flow can exercise the engine safely.
 

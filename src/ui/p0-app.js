@@ -136,6 +136,14 @@ function matchesOverlayHotkey(eventKey, bindingValue) {
   return normalizeKeyInput(eventKey) === bindingValue;
 }
 
+function getClosestTargetMatch(target, selector) {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+
+  return target.closest(selector);
+}
+
 function clampViewportPan(surface, zoom, panX, panY) {
   const rect = surface.getBoundingClientRect();
   const maxPanX = Math.max(0, rect.width * (zoom - 1));
@@ -439,6 +447,7 @@ function renderNewGame(state) {
       <div class="screen-actions">
         <button class="shell-button is-active" type="button" data-action="start-new-game">Zum Setup</button>
         <button class="shell-button" type="button" data-action="start-direct-battle">Direkt zur Schlacht</button>
+        <button class="shell-button" type="button" data-action="start-charge-drill-battle">Charge Drill</button>
         <button class="ghost-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.MAIN_MENU}">Zurueck</button>
       </div>
     </section>
@@ -678,6 +687,13 @@ export function renderApp(container, state, dispatch) {
     });
   }
 
+  const startChargeDrillBattleButton = container.querySelector('[data-action="start-charge-drill-battle"]');
+  if (startChargeDrillBattleButton) {
+    startChargeDrillBattleButton.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
+    });
+  }
+
   container.querySelectorAll('[data-action="setup-previous"]').forEach((button) => {
     button.addEventListener('click', () => {
       dispatch({ type: ACTION_TYPES.GO_TO_PREVIOUS_SETUP_STEP });
@@ -857,6 +873,98 @@ export function renderApp(container, state, dispatch) {
       });
     });
   }
+
+  const chargePreviewButton = container.querySelector('[data-action="start-charge-preview"]');
+  if (chargePreviewButton) {
+    chargePreviewButton.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.START_CHARGE_PREVIEW,
+        unitId: state.game.selectedUnitId,
+      });
+    });
+  }
+
+  container.querySelectorAll('[data-action="resolve-charge-reaction"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+        decisionType: button.dataset.decisionType,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="resolve-secondary-charge-reaction"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION,
+        decisionType: button.dataset.decisionType,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="resolve-charge-branch-distance"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+        dieRoll: Number(button.dataset.dieRoll),
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="acknowledge-evade-choice-handoff"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
+    });
+  });
+
+  container.querySelectorAll('[data-action="start-adjusted-charge-distance-roll"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+    });
+  });
+
+  container.querySelectorAll('[data-action="preview-evade-avoidance-node"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.PREVIEW_EVADE_AVOIDANCE_NODE,
+        stepId: button.dataset.stepId || null,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="reset-evade-avoidance-path"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.RESET_EVADE_AVOIDANCE_PATH });
+    });
+  });
+
+  container.querySelectorAll('[data-action="select-evade-avoidance-choice"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+        choice: {
+          candidateId: button.dataset.candidateId || null,
+          side: button.dataset.side,
+          distanceUd: Number(button.dataset.distanceUd),
+        },
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="resolve-charge-continuation-choice"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({
+        type: ACTION_TYPES.RESOLVE_CHARGE_CONTINUATION_CHOICE,
+        option: button.dataset.option,
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="cancel-charge-preview"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      dispatch({ type: ACTION_TYPES.CANCEL_CHARGE_PREVIEW });
+    });
+  });
 
   const useFreeCommandPointToggle = container.querySelector('[data-action="toggle-use-free-command-point"]');
   if (useFreeCommandPointToggle) {
@@ -1090,12 +1198,32 @@ export function renderApp(container, state, dispatch) {
   bindWheelActionButtons({ container, dispatch, state });
 
   container.querySelectorAll('[data-action="select-unit"]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
       const attachPreviewActive = state.game.commanderFreeMovePreview?.status === 'targeting'
         && state.game.commanderFreeMovePreview?.mode === 'attach'
         && state.game.commanderFreeMovePreview?.unitId === state.game.selectedUnitId;
+      const chargeTargetingActive = state.game.chargePreview?.status === 'targeting'
+        && state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId;
+      const chargeContactSideChoice = getClosestTargetMatch(event.target, '[data-charge-contact-side-selectable]');
+
+      if (chargeContactSideChoice) {
+        dispatch({
+          type: ACTION_TYPES.SELECT_CHARGE_CONTACT_SIDE,
+          defenderId: button.dataset.unitId,
+          side: chargeContactSideChoice.dataset.chargeContactSide,
+        });
+        return;
+      }
+
       if (attachPreviewActive) {
         dispatch({ type: ACTION_TYPES.ATTACH_COMMANDER, unitId: button.dataset.unitId });
+        return;
+      }
+
+      if (chargeTargetingActive) {
+        if (button.dataset.unitId !== state.game.selectedUnitId) {
+          dispatch({ type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: button.dataset.unitId });
+        }
         return;
       }
 
@@ -1263,13 +1391,13 @@ export function renderApp(container, state, dispatch) {
       }
 
       if (
-        event.target.closest('[data-action="select-unit"]')
-        || event.target.closest('[data-advance-preview-handle]')
-        || event.target.closest('[data-slide-preview-handle]')
-        || event.target.closest('[data-wheel-handle]')
-        || event.target.closest('[data-debug-unit]')
-        || event.target.closest('[data-action="select-terrain-placeholder"]')
-        || event.target.closest('[data-action="select-setup-object"]')
+        getClosestTargetMatch(event.target, '[data-action="select-unit"]')
+        || getClosestTargetMatch(event.target, '[data-advance-preview-handle]')
+        || getClosestTargetMatch(event.target, '[data-slide-preview-handle]')
+        || getClosestTargetMatch(event.target, '[data-wheel-handle]')
+        || getClosestTargetMatch(event.target, '[data-debug-unit]')
+        || getClosestTargetMatch(event.target, '[data-action="select-terrain-placeholder"]')
+        || getClosestTargetMatch(event.target, '[data-action="select-setup-object"]')
       ) {
         return;
       }

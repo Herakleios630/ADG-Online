@@ -1,20 +1,23 @@
 # Standard 200-Point Format
 
-Status: planning profile with partial source verification; not a complete roster or setup extract.
+Status: RV2-04 source-lock baseline for default format profile and budget/setup anchors; army-list cross-check and exact table import still require later manual acceptance.
 
 ## Source References
 
-- `Rules.pdf`, budget section around page 81.
-- `Rules.pdf`, setup section around pages 73-79.
+- `docs/source/Rules_v2.md` `rv2.setup-terrain-selection-and-placement`, `rv2.ambushes-and-deployment`, `rv2.flank-marches-and-hesitant-corps`, and `rv2.budget-and-force-costing`.
+- Example crops: `rv2-p73-compulsory-terrain-table-a`, `rv2-p74-terrain-selection-table-a`, `rv2-p78-deployment-zones-a`, `rv2-p81-budget-commander-camp-a`, `rv2-p81-budget-foot-units-a`, `rv2-p81-budget-mounted-units-a`.
 - `Army_list_spreadsheet_V4 (1).xlsx`, `Standard format (200 pts)` sheet.
-- `Errata_ADG_V4_English.pdf` for corrections that affect setup, camps, deployment, or army-list interpretation.
-- `merged.pdf` as OCR helper only when locating matching rulebook or army-list passages.
+- `docs/rules/errata.md` for corrections affecting setup, camps, deployment, combat objects, and army-list interpretation.
 
-## Source Status
+## Scan-Confirmed Baseline
 
-- `verified`: the spreadsheet contains an explicit `Standard format (200 pts)` worksheet and the project default target is standard 200.
-- `needs-source-check`: exact budget-table values, list interactions, and setup restrictions still need authoritative rulebook plus errata confirmation.
-- `ocr-assisted`: OCR helpers may be used to locate candidate text, but they do not replace direct source verification.
+- Default core format is standard `200` points with `2` players, `3` corps per army, and a mandatory camp.
+- The standard battlefield profile is `120 x 80 cm` for `6-15 mm`, with `1 UD = 4 cm`.
+- Initiative before setup uses commander values, strategist bonus, and scouting, then determines region choice plus attacker/defender role.
+- Standard format setup includes battle plans, ambushes, visible deployment, flank marches, and dismounting as part of the baseline sequence, not optional add-ons.
+- The budget page on p.81 is the authoritative rules-side cost framework for commanders, camp variants, fortifications, obstacles, troop classes, qualities, and priced options.
+- The army-list corpus and spreadsheet remain necessary to determine legal troop availability and some list-specific structure, but p.81 is the format-side bridge between force construction and battlefield rules.
+- Optional reduced, big-battle, random-factor, reroll, card, and event systems belong to later variant profiles and must not leak into the default standard-200 ruleset.
 
 ## Project Default
 
@@ -31,7 +34,7 @@ Default assumptions:
 - standard 6-15 mm battlefield profile is 120 x 80 cm with UD = 4 cm;
 - armies often contain about 20-30 units, but exact legality comes from list and budget validation.
 
-These are planning defaults for AdG Online's first complete ruleset profile. They are sufficient for phase planning, but not yet a claim that all Standard 200 legality details have been fully verified.
+These are the default product-target assumptions for AdG Online. They are now source-locked at the profile level, but exact imported table values and army-list overlays still need later cross-check before implementation-grade builder claims.
 
 ## Profile Fields Required Later
 
@@ -53,20 +56,18 @@ The `standard-200` profile should eventually provide at least these data fields:
 - `setupFlowProfile`: reference to the verified Standard 200 setup sequence
 - `armyListSourceModel`: printed lists plus spreadsheet cross-check, with errata overlay support
 
-## Verified Planning Facts
-
-- AdG Online targets `standard-200` as the default product profile.
-- The project assumes `2` players, `200` points per army, `3` corps per army, and a mandatory camp as the planning baseline.
-- The standard battlefield planning target is `120 cm x 80 cm` for 6-15 mm with `1 UD = 4 cm`.
-- The spreadsheet source explicitly includes a `Standard format (200 pts)` worksheet, so the format exists as a structured source surface and not only as prose.
-
 ## Engine Invariants
 
-- `standard-200` is the default format unless the user explicitly selects another mode.
-- Roster validation must fail if the army exceeds 200 points.
-- Roster validation must require the standard corps/commander structure unless a verified rule exception applies.
-- Camp state must exist during setup and on the battlefield.
-- Army list minima/maxima and point costs must come from data, not from UI code.
+- `standard-200` is a rules profile, not a UI preset. Commander structure, camp requirements, budget hooks, battlefield profile, initiative inputs, and setup flow should reference this profile or linked tables.
+- Budget logic must be data-driven from p.81 plus army-list data; no UI path should hardcode costs for commanders, camps, fortifications, or troop options.
+- Optional format packages from p.82-85 must be modeled as separate variant overlays, not as silent switches inside standard-200 defaults.
+- Current army cohesion value, camp type, and commander/corps structure interact with later rout and victory logic and cannot be stored as isolated roster-only metadata.
+
+## Edge Cases And Test Hooks
+
+- Initiative tests: strategist bonus, scouting differential cap, attacker/defender choice, and region-choice handoff into setup.
+- Budget tests: standard versus fortified or sacred camp, included commanders, allied or unreliable commanders, fortifications, obstacles, and optional priced unit upgrades.
+- Profile-boundary tests: reduced/big-battle/event systems stay excluded unless the user explicitly selects another ruleset profile.
 
 ## Data Separation Implications
 
@@ -77,15 +78,9 @@ The `standard-200` profile should eventually provide at least these data fields:
 
 ## Open Verification
 
-- Exact commander/camp budget table values for standard 200.
-- Exact treatment of allied or unreliable commanders in 200-point format.
-- Exact camp, fortified camp, sacred camp, fortification, and obstacle point costs.
-- Any official tournament convention beyond the rulebook that should become a selectable ruleset profile.
-- Exact initiative inputs and attacker or defender decision hooks required before terrain and setup.
-- Whether any Standard 200 format exceptions depend on army-list family, allies, or campaign-specific notes.
+- `standard-200.budget-table.values`, `army-budget.core-vs-optional-profile-boundary`, and `standard-200.initiative-inputs` remain in `docs/rules/open-verification.md` as narrowed table-import, variant-boundary, and manual-acceptance checks.
+- Army-list-family exceptions and spreadsheet cross-checks remain open until RV2-05 and later army-builder alignment work is completed.
 
-## P1 Notes
+## Scope Note
 
-- This file is meant to give P2-P4 and P11 a stable profile target, not to finish army-builder legality in P1.
-- Unverified budget or list details must be tracked in `docs/rules/open-verification.md` before any implementation claims depend on them.
-- Terrain-region structure, camp-placement legality, and official deployment-zone math remain P3-sensitive blockers and should stay linked to `docs/rules/terrain-and-setup.md` plus `docs/rules/open-verification.md` until directly verified.
+- This file gives later setup, budget, rout, and army-builder work a stable default profile target; it does not by itself finish army-builder legality.

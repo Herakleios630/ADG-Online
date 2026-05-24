@@ -12,7 +12,11 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [x] P4 - Movement Commands
 - [x] P5 - ZOC + Movement Validation
 - [x] P6 - Corps + Command System
-- [ ] P7 - Charge + Conformation
+- [x] P7 - Charge Declaration + Target Reaction Gate
+- [x] P7A - Evade + Charge Movement Branches
+- [ ] P7A2 - Evade Move Completion Gate (in progress; core commit gate, defender handoff popup, first direct-blocker clearance slice, initial-branch-only evade choice, and distance-maximizing solver ranking validated)
+- [ ] P7B - Conformation + Shifting Foundation
+- [ ] P7C - Command Menu Hierarchy + Flow Cleanup
 - [ ] P8 - Shooting System
 - [ ] P9 - Melee Combat System
 - [ ] P10 - Rout, Pursuit, Army Cohesion + Victory
@@ -27,9 +31,15 @@ Development is phase-gated. Do not work on the next phase until the current phas
 
 The current P0-P16 roadmap should be treated as the first core playable beta / release-candidate track, not as a promise of tournament-complete AdG V4 coverage.
 
-By P16, the target is a coherent local game loop for the implemented rules subset: setup, core command/movement, ZOC, charge/conformation, shooting, melee, rout/victory, army creation, replay, multiplayer preparation, visual assets, and QA packaging. That milestone can be a beta candidate only if the release notes clearly identify implemented, verified, placeholder, and open rule areas.
+By P16, the target is a coherent local game loop for the implemented rules subset: setup, core command/movement, ZOC, charge declaration, basic evade, basic conformation, shooting, melee, rout/victory, army creation, replay, multiplayer preparation, visual assets, and QA packaging. That milestone can be a beta candidate only if the release notes clearly identify implemented, verified, placeholder, and open rule areas.
 
-After P16, plan a dedicated rules-completeness pass for the remaining details that are too large or source-sensitive for the first beta track. Likely post-P16 work includes full group movement, extension/contraction, difficult maneuvers, special troop exceptions, deeper terrain effects, full deployment legality, hidden reveal edge cases, advanced multiplayer privacy, AI fairness, and tournament polish.
+After P16, plan a dedicated rules-completeness pass for the remaining details that are too large or source-sensitive for the first beta track. Likely post-P16 work includes full group movement, multiple-move and tactical-distance completion, slide straight-advance qualification, strategist-grade command integration, group charges, group conformation, advanced evade chains, extension/contraction, difficult maneuvers, special troop exceptions, deeper terrain effects, full deployment legality, hidden reveal edge cases, advanced multiplayer privacy, AI fairness, and tournament polish.
+
+Post-P16 should be treated as three deliberate passes rather than one vague cleanup bucket:
+
+- Rules-completeness pass: close open verification, add source-backed edge cases, group behavior, terrain depth, and special exceptions.
+- Engine hardening/refactor pass: extract solvers that proved themselves during P7-P10, stabilize action/replay boundaries, and reduce prototype coupling.
+- UX and tournament-polish pass: improve visuals, review tools, training explanations, accessibility, and user-facing flow without changing legality.
 
 Do not describe the P16 output as tournament-complete unless the rule coverage matrix proves those details are implemented, source-verified, tested, and accepted.
 
@@ -47,6 +57,32 @@ Before every phase:
 - keep `roadmap.md` as the durable master plan and one active phase checklist such as `P0_todo.md` as the concrete execution list.
 - write every active phase checklist as an execution board with per-card goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
 - when preparing the next phase, GPT-5.5 should draft the next execution-board checklist such as `P1_todo.md`, `P2_todo.md`, or later phase boards; GPT-5.4 should then execute the approved active checklist card by card.
+- from P7 onward, complex confirmed actions and reducer pause decisions must preserve replay-ready serializable context even if the full replay/undo viewer remains scheduled for P13.
+- UI previews must remain read-only presentations of engine/reducer output; solver decisions for contact, reaction, conformation, shifting, combat, and legality do not belong in rendering code.
+
+## Source OCR Corpus Support Task
+
+Status: [ ] In progress - `SOURCE_OCR_todo.md` is active; SOCR-00/01/02 are complete, SOCR-03/04 are in progress, Ancient and Classical color-scan deep passes now live in separate period documents, and the Rules-v2 corpus is now technically clean enough to act as the working default source layer for hardened rule-sensitive planning while RV2-05A/RV2-06 manual acceptance and handoff remain open
+
+Purpose:
+- Create durable source corpus files for repeated rule lookup: broad routing files plus period-specific army-list documents and the Rules-v2 image-supported rules corpus.
+- Cover the source material comprehensively in original project wording with page/list references, structured tables, errata overlays, spreadsheet cross-checks, and verification status.
+- Reduce repeated ad hoc OCR work before P7A2, P7B, P8+, and later army-builder phases.
+
+Current state:
+- `docs/source/rules.md` exists and is strong enough for planning/source routing.
+- `docs/source/army-lists.md` exists as the broad all-period routing corpus.
+- `docs/source/Ancient_Period.md` is the canonical working source for Ancient lists `1-37`, driven by `docs/source/new scan/Ancient_Period.pdf`.
+- `docs/source/Classic_Period.md` is the canonical working source for Classical lists `38-82`, driven by `docs/source/new scan/Classical_Period.pdf`.
+- `docs/source/new scan/Rules_Color_300DPI.pdf` exists, has `86` pages, has a readable 300-DPI image on every page, and is good enough for the Rules-v2 extraction pass.
+- `RULES_V2_todo.md` now has routing, example inventory, completeness QA, a first full digest, source-lock workspace promotion, and the first recalibration slices agent-complete; manual acceptance and final handoff wording remain open.
+- `docs/source/Rules_v2.md` now contains a first full `p1-86` digest, and `docs/source/rules-v2-examples/index.md` records explicit page decisions across the whole book.
+- For hardened rule areas, `docs/source/Rules_v2.md` plus the matching `docs/rules/` source-lock notes are now the working default lookup layer for P7A2, P7B, P8, P9, P10, and P11 planning. Manual acceptance is still required before describing that source layer as fully accepted project-wide.
+
+Constraints:
+- The corpus is not engine implementation and does not itself advance a gameplay phase.
+- The original PDFs and errata remain authoritative.
+- The corpus should be complete in coverage but not a raw full-text reproduction of commercial PDFs.
 
 ## P0 - Product Shell Feasibility
 
@@ -396,29 +432,212 @@ Current planning state:
 - Free movement drag for non-included generals is now staged as a movement-phase commander path with a `5 UD` cap under active-player plus active-corps gating; this is an implementation bridge pending full command-cost validation.
 - Commander attach command flow is implemented and accepted as late-P6 work (`P6-09`); voluntary same-turn detach is treated as disallowed in the current slice, while combat-lock constraints and exact attach/end-of-turn pricing-timing remain explicitly deferred to later source-closed work.
 
-## P7 - Charge + Conformation
+## P7 - Charge Declaration + Target Reaction Gate
 
-Status: [ ] Not started
+Status: [x] Complete - accepted by user on 2026-05-20 after automated and browser validation of the implemented single-unit charge declaration and target reaction-gate flow
+Active task list: see `P7_todo.md`.
 
 Goals:
 - Charge declaration.
 - Contact detection.
-- Conformation preview.
-- Shifting.
-- Evade/reaction hooks where required by charge flow.
+- Reaction and evade interrupt model where required by charge flow.
+- Direction confirmation before the defender reaction gate.
+- Reaction decision state and no-evade handoff for the later evade/conformation phases.
+- Explanation and validation package for the charge declaration/reaction-gate foundation.
 
 Dependencies:
 - P6 approved.
-- Source-page verification for charge, contact, conformation, shifting, evasion, and errata.
+- Source-page verification for charge declaration, contact, target reaction, basic evasion hooks, and errata.
 - Movement validation stable enough to support charge paths.
 
 Success criteria:
 - Charge target, direction, range, movement, and contact are validated.
+- P7 is handled as a charge declaration and reaction-gate phase, not as a full conformation mega-phase.
 - Front, flank, rear, and corner contacts are classified.
-- Conformation preview shows alignment and blocked/incomplete cases.
-- Shifting follows priority and unshiftable-unit restrictions.
-- Explanations identify why conformation is complete, incomplete, blocked, or optional.
-- User approves P7 before P8 begins.
+- Defender reaction requests are visible, decision-owned, and serializable.
+- No-evade decisions can hand off cleanly to the next charge movement/conformation phases without resolving combat.
+- P7 actions and pause points preserve enough serializable context for later replay/undo work.
+- User approves P7 before P7A begins.
+
+Current planning state:
+- P7 planning was requested after P6 acceptance and the user has now explicitly started `P7-00` through `P7-04`.
+- The first P7 pass is single-unit-first. The user has now reprioritized basic evade and conformation before P16, but they should be split into P7A and P7B rather than kept inside P7.
+- Charge must be a dedicated command selected before movement, similar in UI placement to advance and wheel but not implemented as a normal movement chain.
+- A unit that has already moved, stayed, or finished movement in the current movement phase must not be allowed to start a charge; charge should be disabled with reducer-owned explanation.
+- Once charge is selected, the sequence must follow source-locked charge rules: show targets, select target, resolve legal charge-start shift/slide or wheel controls, freeze direction, preview straight-ahead charge movement, detect contact, classify contact, and open the target-reaction gate.
+- P7 must keep charge-start shift/slide separate from conformation shifting so the UI and engine do not confuse a charge-opening alignment step with shifting blockers during conformation.
+- The initial design direction is a deterministic charge simulation with explicit pause points and diagnostics, not a visual snap or end-position-only collision check.
+- P7-00 is complete as documentation/source-lock scaffolding: dedicated `docs/rules/charge.md` and `docs/rules/conformation.md` now exist and `docs/rules/open-verification.md` carries explicit P7 blocker IDs.
+- P7-01 is complete as a non-visual implementation spine: `src/engine/charge/` now provides serializable charge-preview model structures and the app reducer now owns a minimal `chargePreview` state with start/target/cancel transitions plus atomicity against unit switching.
+- P7-02 is complete as the first visible charge entry point: the battlefield command panel now renders a dedicated `Charge` button, reuses reducer-owned eligibility rules for disabled reasons, and keeps active charge preview state cancelable and selection-locking without allowing move-then-charge.
+- P7-03 is complete as the first battlefield target-selection slice: the reducer now computes `targetCandidates`, battlefield tokens render eligible versus blocked charge-target highlights from that snapshot, and clicking a provisional enemy target advances the preview into the next charge state while source-open range and prohibited-target rules stay explicitly marked as `needs-source-check`.
+- P7-04 is now replanned after user review: target selection must not rotate the tunnel toward the target; the visible charge tunnel must start forward from the charger/current charge-start pose and then be adjusted by charge-owned `Slide` or `Wheel` tools.
+- P7-04 is split into smaller execution cards before P7-05: charge drill scenario fixture, forward tunnel/start-tool rework, supported reachability candidate search, and browser/manual smoke.
+- P7-04A is now implemented: a dedicated `Charge Drill` direct-battle scenario can be loaded from the shell and provides stable unit IDs plus front, flank, rear, blocker, earlier-contact, ZOC, out-of-range, and future-terrain-hook anchors for regression checks.
+- P7-04B is now implemented: charge target selection keeps a forward tunnel from the charger/start pose, charge-owned `Slide`/`Wheel` tools reuse the existing drag/button surfaces without writing normal movement preview state, and edited charge-start poses now refresh selected-target legality instead of leaving stale pre-manoeuvre reachability.
+- P7-04C now separates full target-search eligibility from selected-current-tunnel legality: supported target search may find a legal avoiding start path, while the current straight tunnel is blocked if it crosses non-target enemy ZoC until the player selects the avoiding charge-start manoeuvre.
+- P7-04D browser/manual smoke is now accepted: current straight tunnel blocks through non-target ZoC, visible enemy ZoCs render during charge preview, a left charge-start slide can make the same target legal by avoiding that ZoC, and the dedicated pure-ZoC lane remains fully blocked under supported-family search.
+- P7-05 has started with a first reducer-owned contact slice: the current charge corridor is clipped to first contact on the current eligible path, `chargePreview.contactEvents` is now populated from deterministic path sampling, and blocked current tunnels do not surface false contact events through foreign-ZoC lanes.
+- P7-06 has now started with its first classification slice: `contactEvents` preserve a charge-owned classification derived from the attacker front edge at the stored charge-start pose against defender front/rear geometry, including a preserved `rear-or-flank` grey-zone result instead of collapsing that choice too early.
+- P7-07 has now started with an explicit reaction request model and `reaction-pending` pause skeleton; the remaining P7 closeout is direction confirmation, visible reaction modal/decision state, no-evade handoff, and validation.
+- P7-11 is now implemented and validated: `Richtung bestaetigen` freezes a declaration snapshot, opens the blocking reaction modal, stores reducer-owned reaction decisions, and enters explicit no-evade versus evade-required handoff states for P7A and P7B.
+- P7-12 validation is now complete on the agent side: the repository test suite and build are green, and browser smoke has exercised direct front-charge confirmation, reaction pause, both reaction decisions, reachable wheel/slide start-manoeuvre toggles, out-of-range targets, blocked path cases, and the dedicated ZoC-blocked lane.
+- The user then accepted P7 on 2026-05-20. P7 should now be described as an accepted single-unit charge declaration and reaction-gate foundation, not as full evade or conformation resolution.
+- P7A is the new before-P8 phase for basic evade and charge movement branches.
+- P7A2 is the new before-P7B gate for committing the actual evade move before adjusted charge distance and conformation.
+- P7B is the new before-P8 phase for basic conformation and shifting foundation after P7A2 closes.
+- P7C is the new small before-P8 UI-ordering phase for nested command menus and cleaner local hotseat flow once the P7/P7A/P7A2/P7B rule foundation is stable.
+- 1/4 turns, 1/2 turns, and full terrain effects are deferred to post-P16 or a later explicitly approved source-locked phase; P7 may keep hooks and `needs-source-check` diagnostics but must not invent their behavior.
+- Group movement is not pulled forward into the first P7 pass, but P7 data shapes must preserve a future seam for group charges/conformation so single-unit prototypes do not hardcode UI-only assumptions.
+- The full replay/undo feature remains P13, but P7 through P10 must avoid unreplayable side effects by storing action, random, contact, reaction, and conformation context at confirmation/pause boundaries.
+
+## P7A - Evade + Charge Movement Branches
+
+Status: [x] Complete for the accepted supported subset - user accepted P7A on 2026-05-21; `P7A_todo.md` is closed and P7B remains pending its own explicit start decision
+Active task list: see `P7A_todo.md`.
+
+Goals:
+- Basic target reaction decision consumption.
+- Source-shaped evade eligibility data for the supported unit subset.
+- Deterministic evade and adjusted-charge dice plumbing.
+- Isolated single-unit evade movement.
+- Adjusted charge follow-through after all initial targets evade.
+- Caught-evader hooks and blocked-evade diagnostics for the first supported cases.
+- Secondary-target event hook without full recursive chain completeness.
+
+Dependencies:
+- P7 approved.
+- Source-page verification for evade p.47-49 and charge procedure p.43 plus errata.
+- Dice/random action context accepted for replay-safe branch resolution.
+
+Success criteria:
+- A supported target can choose or be forced to evade through reducer-owned state.
+- Evade movement handles front/flank/rear initial reorientation for the supported single-unit subset.
+- Adjusted evade and charge distances are deterministic and replayable.
+- The charger can follow through after an evaded target and detect caught/not-caught outcomes.
+- Blocked-evade cases do not silently evade; they explain the blocked reason and continue through the supported branch.
+- Secondary target encounters create explicit pause/events instead of hidden contacts.
+- Browser/manual smoke demonstrates no-evade, may-evade, caught, not-caught, and blocked-evade supported cases.
+- User approves P7A before P7B begins.
+
+Current planning state:
+- P7A exists because the user wants basic evade before P16, but P7 should not be bloated further.
+- P7A remains single-unit-first. Group evade splitting, point 7 group partial-evade behavior, point 8 group continuation, recursive secondary-target chains, table-exit loss integration, and full terrain/interpenetration are deferred until explicitly source-locked and approved.
+- P7A must preserve all rolls, choices, caught status, and follow-through facts for P13 replay/undo and future multiplayer fairness.
+- P7 is now accepted, so P7A has moved from draft status into active execution under `P7A-03`, after the earlier source-lock, capability, and deterministic-roll cards were completed.
+- P7A-00 is now complete as documentation/source-lock work: the first supported evade subset, blocked-evade boundary, and adjusted-distance die mapping are aligned across planning docs.
+- P7A-01 is now complete and validated: charge reaction evaluation can derive first-pass evade categories from source-shaped capability data while preserving explicit drill/test overrides.
+- P7A-02 is now complete and validated: the charge preview carries replay-ready branch roll state for both evade distance and adjusted charge distance, preserves prior roll history across the second claim, and supports the heavy-infantry-style `neverReduce` adjusted-charge exception through reducer-owned deterministic resolution.
+- P7A-03 has now started with the first supported isolated evade-plan slice: front/flank/rear reorientation and straight end-pose calculation live in the charge engine, the reducer stores that plan into `chargePreview.evadePlan`, and simple table-edge plus overlap/interpenetration failures now escalate to explicit `needs-source-check` diagnostics.
+- P7A-03 now has the first actual manual hotseat test surface: after the reaction chooses `Ausweichen`, a deterministic D6 dialog resolves the pending evade-distance claim, and the current evade corridor plus end ghost then render directly from reducer-owned state without moving legality into the UI.
+- That same thin UI slice now also renders the intermediate evade reorientation pose, so the currently supported quarter-turn and half-turn cases are visible instead of being hidden inside engine state.
+- The first `P7A-06` blocked-evade slice is also in place: the reaction gate now suppresses a false evade choice when the initial reorientation would already finish inside enemy ZoC.
+- A dedicated Charge Drill lane now exists for that first blocked-evade slice, so the enemy-ZoC case can be smoke-tested manually instead of only through focused tests.
+- `P7A-04` and the current `P7A-07` secondary-target slice have both moved further beyond placeholder state: the adjusted charge follow-through now preserves reducer-owned distinctions between caught evader, earlier enemy contact, and friendly blocker, and the first supported secondary `evade` and `no-evade` answers both resolve through explicit local branch state instead of dead-end summaries.
+- The same secondary-target slice now keeps its active target anchor honest for the supported subset: when the first target has evaded and a second defender becomes the real contact anchor, `intent`, declaration snapshot, follow-through summary, side-panel target label, and battlefield selected-target highlight all move to that secondary defender instead of silently staying on the original declared target.
+- Current agent-side P7A closeout validation is green: `npm run test`, `npm run build`, and a focused localhost browser smoke all pass for the supported evade/follow-through subset, including the reanchored secondary-target `no-evade` handoff and the absence of a false second primary adjusted-charge action.
+- User manual acceptance for that supported subset is also complete as of 2026-05-21, so P7A now stands as an accepted single-unit evade and adjusted-charge foundation.
+- P7A closes intentionally short of full rule completeness: full obstacle/terrain handling, clearer blocked-versus-source-open continuation policy, recursive secondary-target chains, and later conformation/combat application remain deferred to later approved phases.
+
+## P7A2 - Evade Move Completion Gate
+
+Status: [ ] In progress - core commit gate, defender handoff popup, direction-wheel plus obstacle-wheel candidate slices, chained `direction wheel -> later slide/wheel` candidate support, supported later multi-wheel paths, first battlefield evade-choice ghosts/path trails/initial branch handles/node-by-node choice-tree progression, and the initial-branch-only distance-maximizing solver contract are validated; P7A2 is not accepted/closed until remaining fuller movement-style evade gestures, table-exit/end-half-turn, and manual-acceptance items are complete
+Active task list: see `P7A2_todo.md`.
+
+Goals:
+- Resolve and commit the evading unit's actual movement before adjusted charge distance.
+- Preserve free reorientation, adjusted evade distance, slide/block decisions, direction wheel, obstacle wheel, table exit, light-troop end half-turn, final pose, and diagnostics in replay-ready reducer state.
+- Apply supported slide, wheel, obstacle, and blocked-evade outcomes without UI-owned legality.
+- Move the canonical evader token or store a source-locked table-exit/loss hook before the charger continues.
+- Gate adjusted charge D6 on committed evade status.
+- Preserve cannot-shoot/repeated-evade hooks for later shooting and phase flow.
+
+Dependencies:
+- P7A accepted for the supported preview/follow-through subset.
+- Relevant charge/evade source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/charge.md` and the narrowed charge/evade items in `docs/rules/open-verification.md`.
+- Source-page verification for charge procedure p.43 and evade p.47-49 plus errata.
+- Current P7A charge preview, reaction, D6, and secondary-target state.
+
+Success criteria:
+- A supported evader cannot remain ghost-only once the branch is ready for adjusted charge distance.
+- The player chooses only the initial evade branch. Within that branch, the solver should maximize legal distance from the charger automatically and use deterministic tie-breaks only when the branch remains exactly equal.
+- If an evade has no player choice and no source warning, the UI shows a notice and then auto-commits.
+- Direction wheel, obstacle wheel, table exit, light-troop end half-turn, cannot-shoot hooks, and repeated-evade hooks are part of the P7A2 source-lock and implementation plan.
+- If an evade is blocked or source-open, the UI and reducer do not allow it to be confirmed as a legal committed evade.
+- `START_ADJUSTED_CHARGE_DISTANCE_ROLL` is impossible until the evade move is committed or explicitly resolved by a source-locked non-board-pose outcome.
+- Follow-through contact detection uses the committed post-evade board state.
+- Browser/manual smoke demonstrates straight evade commit, slide/block behavior, and adjusted-charge button timing.
+- User approves P7A2 before P7B begins.
+
+Current planning state:
+- P7A2 exists because P7A's accepted subset stores and renders an `evadePlan` but does not yet update `game.units` before adjusted charge distance.
+- P7A2 remains single-unit-first and intentionally defers interpenetration, group evade, full terrain, full secondary recursion, conformation, melee, pursuit, downstream army-cohesion/victory accounting, and tournament-complete evade coverage unless explicitly expanded.
+- 2026-05-23 implementation slice: `evadeMove` now records committed evade movement, source-closed no-choice evades mutate canonical `game.units`, a single legal final-overlap slide can auto-commit with slide distance deducted, adjusted charge D6 is gated on committed evade status, and follow-through uses committed post-evade state. Full tests and build are green; browser tooling reached the live Charge Drill reaction flow but did not complete a stable D6 end-to-end smoke, so manual acceptance remains open.
+
+## P7B - Conformation + Shifting Foundation
+
+Status: [ ] Not started - draft board exists in `P7B_todo.md`, gated on P7A2 user approval and completion
+Active task list: see `P7B_todo.md`.
+
+Goals:
+- Basic single-unit conformation candidate model.
+- Front, flank, rear, and selected `rear-or-flank` conformation candidates.
+- Complete, incomplete, blocked, optional, and `needs-source-check` conformation diagnostics.
+- Source-locked simple shifting skeleton for conformation blockers.
+- Conformation preview UI and final charge-completion state for later melee.
+
+Dependencies:
+- P7A approved.
+- P7A2 approved and accepted, so evading targets are committed to canonical board state before adjusted charge distance and conformation.
+- Relevant conformation source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/conformation.md`, `docs/rules/zoc.md`, and the narrowed conformation/ZOC items in `docs/rules/open-verification.md`.
+- Source-page verification for conformation p.50-54 and errata.
+- Contact/classification snapshots from P7 and reaction/evade branch state from P7A.
+
+Success criteria:
+- Conformation candidates are generated by engine code and rendered read-only by UI.
+- Front, flank, rear, and selected `rear-or-flank` contacts can produce complete or explicit incomplete/blocked outcomes for the supported subset.
+- Shifting is modeled as a conformation micro-operation, not normal movement or charge-start slide.
+- Shifted-unit lock hooks are stored where source-locked.
+- Confirmed charge state preserves contact/conformation metadata for P9 melee and P13 replay.
+- Browser/manual smoke demonstrates front, flank, rear, `rear-or-flank`, incomplete, blocked, and simple-shift supported cases.
+- User approves P7B before P8 begins.
+
+Current planning state:
+- P7B exists because conformation is foundational for later melee and should not wait until a vague post-P16 cleanup.
+- P7B remains single-unit-first. Group conformation, full support networks, special-base cases, full terrain optional-choice UI, and advanced shifting chains remain deferred unless explicitly approved.
+
+## P7C - Command Menu Hierarchy + Flow Cleanup
+
+Status: [ ] Not started - draft board exists in `P7C_todo.md`, pending user review after P7B closes
+Active task list: see `P7C_todo.md`.
+
+Goals:
+- Reorganize battlefield command actions into a nested command hierarchy.
+- Separate top-level intent selection from second-level action controls.
+- Keep the existing reducer-owned movement, charge, commander-move, and attach logic while making the UI flow clearer.
+- Prepare clean command-group seams for later `1/4 turn`, `1/2 turn`, extend, and other move-family additions.
+
+Dependencies:
+- P7B approved.
+- Existing movement, charge, and attach flows stable enough that P7C can remain a UI-structure phase instead of reopening legality.
+- Command panel state ownership boundaries preserved: legality remains reducer/engine-owned.
+- If P7C exposes any newly discovered movement family or rule branch, that work is split back to a Rules-v2 source-locked rules phase instead of being implemented as UI cleanup.
+
+Success criteria:
+- For non-commander units, the first command layer offers `Move`, `Charge`, and `Stay`.
+- For commanders, the first command layer offers `Move`, `Attach`, and `Stay`.
+- Entering `Move` reveals the second-level controls instead of showing all detailed movement controls immediately after selection.
+- Entering `Charge` or `Attach` reveals only the controls relevant to that branch.
+- Existing confirm/cancel behavior still routes through the current reducer actions.
+- Browser/manual smoke confirms the nested flow is clearer without changing movement, charge, or attach legality.
+- User approves P7C before P8 begins.
+
+Current planning state:
+- P7C is a UI information-architecture and interaction-flow cleanup phase, not a rule-expansion phase.
+- P7C must not move legality, CP, contact, reaction, conformation, or attach validation into rendering code.
+- P7C should introduce a reducer-owned or reducer-projected command-menu mode only if needed to keep the nested command state serializable and replay-safe.
+- P7C should preserve the current direct-manipulation commander drag flow; only the visible command entry structure changes.
+- P7C is the right place to prepare clean submenu seams for later movement families such as `1/4 turn`, `1/2 turn`, group extensions, or other source-locked additions, without exposing them early.
 
 ## P8 - Shooting System
 
@@ -431,8 +650,8 @@ Goals:
 - Shooting modifiers and results.
 
 Dependencies:
-- P7 approved.
-- Verified shooting rules, terrain cover rules, and errata.
+- P7C approved.
+- Relevant shooting source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/shooting.md`, `docs/rules/terrain-and-setup.md`, and the narrowed shooting items in `docs/rules/open-verification.md`.
 - Deterministic dice/random module.
 
 Success criteria:
@@ -456,7 +675,7 @@ Goals:
 
 Dependencies:
 - P8 approved.
-- Verified combat factor and modifier tables.
+- Relevant melee source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/melee.md`, `docs/rules/conformation.md`, and the narrowed melee items in `docs/rules/open-verification.md`.
 - Contact and support classification from conformation.
 - Rule table data model for combat factors.
 
@@ -481,7 +700,7 @@ Goals:
 
 Dependencies:
 - P9 approved.
-- Verified rout, pursuit, army cohesion, rally, and victory rules.
+- Relevant rout/pursuit/victory baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/rout-and-pursuit.md`, `docs/rules/standard-200.md`, `docs/rules/terrain-and-setup.md`, and the narrowed end-of-sequence items in `docs/rules/open-verification.md`.
 - Replayable action and random model.
 
 Success criteria:
@@ -506,6 +725,7 @@ Dependencies:
 - Army builder schema accepted.
 - At least one source army list manually verified.
 - Unit catalog and points data model available.
+- Relevant format/setup budget baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/standard-200.md`, `docs/rules/terrain-and-setup.md`, `docs/rules/command.md`, and the narrowed setup/budget items in `docs/rules/open-verification.md`.
 
 Success criteria:
 - Armies are loaded from JSON, not hardcoded.
@@ -543,13 +763,14 @@ Success criteria:
 Status: [ ] Not started
 
 Goals:
-- Action logging.
+- Full action-log productization.
 - Undo.
 - Replay viewer.
 - Post-game review.
 
 Dependencies:
 - P12 approved.
+- P7-P12 have preserved replay-ready serializable context for complex confirmed actions and pause decisions.
 - All implemented systems use actions and deterministic random claims.
 - State hash and snapshot strategy defined.
 
@@ -558,6 +779,7 @@ Success criteria:
 - Replaying from initial state reproduces the same state hash.
 - Undo works to approved checkpoints.
 - Replay viewer can step through setup, movement, command, shooting, combat, rout, and victory actions implemented so far.
+- Any prototype-era action-context gaps from P7-P12 are either migrated or listed as release blockers before multiplayer preparation begins.
 - User approves P13 before P14 begins.
 
 ## P14 - Multiplayer Preparation

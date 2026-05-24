@@ -1,0 +1,410 @@
+﻿--- Page 89 ---
+PART DF LA GUERRE 
+INTERPENETRATION 
+Interpenetration allows some troops to pass through 
+others. An interpenetration is allowed during a 
+movement, a charge or an evade move. 
+Permitted interpenetrations 
+The only permitted interpenetrations are: 
+* 
+Non-included commanders can pass through 
+and be passed through by all friendly troops in 
+any direction. 
+½ 
+Light infantry can pass through all other friendly 
+troops in any direction. 
+╗ 
+All troops can pass through friendly light 
+infantry in any direction. 
+* 
+Light cavalry can pass through other friendly 
+mounted troops, provided they are oriented in 
+the same or opposite direction. 
+* 
+All mounted troops can pass through friendly 
+light cavalry, provided they are oriented in the 
+same or opposite direction, 
+* 
+LMI can pass through friendly LMI, provided 
+they are oriented in the same or opposite 
+direction. 
+* 
+Knights on foot, and heavy or medium 
+swordsmen that are non-Inppetuous, can pass 
+through friendly bowmen, crossbowmen or 
+handgunners (and vice versa) provided they are 
+oriented in the same or opposite direction. This 
+represents the ability of swordsmen to fight in 
+coordination with shooter units. Mixed units 
+cannot interpenetrate or be interpenetrated in 
+this manner. 
+* 
+Foot units can pass through friendly artillery in 
+any direction or through friendly war wagons by 
+their long edge (i.e. across the narrowest part). 
+Special cases 
+* 
+Interpenetration is not allowed if the friendly 
+unit to be passed through is in melee or is 
+providing support to a friendly unit in melee. 
+* 
+Mounted units cannot interpenetrate mounted 
+that cause them panic. If mounted units are 
+interpenetrated by other mounted that cause 
+panic they lose one cohesion point. 
+* 
+Units of an unreliable allied corps cannot be 
+interpenetrated. 
+* 
+A friendly or enemy camp can never be passed 
+through. 
+* 
+If units in ambush are interpenetrated the 
+ambush is immediately revealed. 
+39 
+Adjusting positions 
+During interpenetration, the movement allowance of 
+the unit passing through friends must allow it to at 
+least partially reach the other side of those friends. If 
+the unit passed through cannot be fully crossed the 
+positions of the units are adjusted in the following 
+╗ 
+If the unit passing through is light troops or a 
+non-included commander, it is advanced the 
+minimum distance necessary to fully cross the 
+friendly unit. 
+╗ 
+If the unit passed through is heavy artillery, war 
+wagons or a unit behind a fortification or 
+obstacle, the unit crossing must have enough 
+movement to completely clear the base of the 
+crossed unit (including any fortification or 
+obstacle), otherwise the interpenetration is not 
+allowed, 
+* 
+In other cases the crossed unit is moved back or 
+pushed the minimum necessary to make room 
+for the crossing unit. 
+* 
+Only 
+those 
+units 
+ interpenetrated ù or 
+interpenetrating are adjusted, which can lead to 
+a moving group becoming broken up. If so, the 
+cost in CP is unchanged. 
+* 
+Light troops that have been interpenetrated may 
+still move or rally. 
+* 
+Other units may not move or rally after 
+interpenetration if they have been pushed or 
+moved back. 
+If the movement distance is too short to cross the 
+unit at least partially, or if there is not enough space 
+to adjust the positions of the units involved, the 
+interpenetration is not allowed. 
+INTERPENETRATION 
+The swordsmen can anly 
+partially 
+cross the 
+bowmen, They therefore advance by 2 UD and the 
+bowmen are moved back by the minimum distance 
+needed to make room for the swordsmen.
+
+--- Page 90 ---
+Burst through 
+A burst through 
+is 
+a_ 
+particular form of 
+wmerpenetration in which a unit forces its way 
+through friendly units that it is not normally allowed 
+to interpenetrate. 
+* 
+Being burst through can happen when a unit 
+makes an uncontrolled charge or when a unit 
+flees due to the arrival of a flank march. 
+* 
+<A 
+burst 
+through 
+proceeds 
+like 
+an 
+interpenetration but can be done in any 
+direction, including sliding through another 
+unit. 
+* 
+All units can be burst through except pikemen, 
+elephants, war wagons and the camp. 
+* Units cannot burst through if they would cross 
+obstacles or fortifications. 
+= A burst through is not allowed if the unit to be 
+crossed is in melee or is providing support to a 
+friend in melee. 
+= Units that are burst through lose one cohesion 
+point and can no longer move or rally during the 
+sequence (even if light troops). This can cause 
+them to Rout if they had only one cohesion point 
+left. 
+« [f a unit is burst through by several units in the 
+same sequence the effects do not accumulate and 
+it loses only one cohesion point. 
+* 
+In a burst through, positions of units can be 
+adjusted to make room in the same way as 
+happens in interpenetrations. 
+DISENGAGE 
+This move allows a unit or a group that is in melee or 
+im melee support with the enemy to disengage from 
+e½embat and fall back. 
+A disengage move is a difficult manoeuvre for 
+seemanoenvrable units and the commander must 
+therefore spend 2 CPs to order it, 
+LARP DE LA GUPREET 
+Allowed cases 
+Disengaging is possible only in the following cases: 
+½ 
+Light infantry fighting foot or elephant units. 
+* 
+Light infantry fighting mounted units in terrain 
+that penalises the mounted unit in combat. 
+* 
+Mounted units, except elephants and scythed 
+chariots, fighting foot or slower mounted units. 
+* 
+ Javelinmen fighting heavy infantry or elephants. 
+* 
+Any unit fighting war wagons, artillery or an 
+enemy across a fortification/ obstacle. 
+Exceptions 
+Disengaging is not allowed if: 
+½ 
+The front of an enemy is in contact with the 
+unitÆs flank or rear. 
+* 
+The unit is in the ZoC of another enemy unit to 
+it's flank or its rear. 
+½ 
+If any of the following is less than one UD 
+directly behind the unit: an enemy unit, a 
+friendly unit that cannot be interpenetrated, an 
+impassable terrain or a table edge 
+Disengage move 
+½= 
+A unit or group that disengages moves directly 
+backwards while still facing towards the enemy. 
+It must move its full movement allowance minus 
+one UD. 
+= 
+It stops if it meets an enemy unit, a friendly unit 
+that cannot be interpenetrated, an impassable 
+terrain, a table edge or an enemy ZoC. The 
+disengaging unit may not contact any enemy, 
+even the camp. 
+½ 
+A disengaging unit ignores the ZoC of the 
+enemy from which it is disengaging. 
+½It is possible to interpenetrate friendly units to 
+the rear while disengaging, 
+* 
+The disengaging unit and the enemy unit with 
+which it was in melee cannot shoot. 
+* 
+The enemy with which the disengaging unit was 
+in melee does not move. 
+French Brigans of tre Hundred Years War
+
+--- Page 91 ---
+IOAKP DE LA GL ERRE 
+CONTACTING ENEMY 
+General principles 
+A unit that comes into contact with a new enemy, 
+even with a single corner contact, engages in combat 
+with that enemy. The unit must then conform (see p 
+50). Contact can take place in the following cases: 
+* 
+During a charge (see p 42). 
+╗ 
+When moving to contact an enemy already in 
+melee to support a friendly unit (see p 60). 
+* 
+During a pursuit after combat (see p 69). 
+Sliding along the enemy 
+A unit is allowed to slide along the flank or rear of 
+an enemy (or a column of enemies) only in the 
+following cases: 
+* 
+The enemy unit (or the front unit of a column) is 
+already in melee and the sliding unit is charging, 
+pursuing or is providing support. 
+* 
+The sliding unit is already in contact with this 
+enemy at the beginning of its move and either: is 
+no longer in contact at the end of its movement, 
+charges, contacts another enemy, or pursues. 
+* 
+The unit charges tle most threatening enenty. This 
+is the only case when a unit can slide along the 
+front edge of another less threatening enemy. 
+SLIDING ALONG THE ENEMY 
+ù 
+A2 can slide along Bo and B1 to charge B2 because Bo 
+is in melee and BI in the column. 
+A3 cannot slide along B2 and B4 to charge B3 
+because when it contacts B2 and B4 by its corner, it is 
+not vet in the ZeC of BS. [f BS was a little forward, it 
+would be Me most tHireatennig enemy and AS could 
+charge him by sliding along B2-B4. 
+A4 can slide along BS to charge B4 as it is already in 
+contact with B5 at the beginning of the movement. 
+41 
+Type of contact 
+A unit can contact an enemy's front, flank, or rear 
+edges with its front edge under the following 
+conditions. 
+Front contact: A unit can contact the front edge of 
+an enemy if it begins its movement with its front 
+edge either entirely or partially in front of the 
+straight line extending the enemy's front edge. 
+Flank contact: A unit can contact the flank edge of 
+an enemy if it begins its movement with its front 
+edge either entirely or partially directly behind the 
+straight line extending the front of the enemy unit 
+and provided no part of the attacking unitÆs front 
+edge is directly in front of the enemyÆs front or rear 
+edge. 
+Rear contact: A unit can contact the rear edge of 
+an enemy if it begins its movement with its front 
+edge either entirely or partially behind the straight 
+line extending the enemyÆs rear edge. 
+TYPES OF CONTACT 
+A can contact only the enemyÆs front. 
+Bl can contact only the enemyÆs front. 
+B2 can contact only the enemyÆs flank. 
+Cl can contact only the enemyÆs front as part of its 
+front edge ts directly in front of the enemy. 
+C2 can contact the enemyÆs flank only. 
+D can contact the enemy's rear only. 
+E can contact either the enemyÆs flank or rear. 
+Note: Group B1-B2 can charge straight ahead and 
+conform frontally or wheel and charge en the flank. 
+Group Cl-C2 can charge and conform on the front 
+only.
+
+--- Page 92 ---
+ar 
+of 
+mt 
+the 
+nit 
+ynt 
+Par 
+of 
+ont 
+ht 
+IOARTDP TAGLERRE 
+SPECIAL MOVEMENTS 
+Hold out baits to entice the enemy. Feign disorder, and crush him. Sun Tzu 
+CHARGE 
+Definition 
+A charge is 
+a move in which a unit engages in 
+combat with an enemy. The units must contact the 
+enemy with part of its front edge (even a single 
+corner). The charge stops once contact with the target 
+is made. The charging unit or group must then 
+conform (see p 50). A charge allows units to claim 
+those bonuses that are only valid during the first 
+round of a melee. 
+There are three types of charges: 
+* 
+Commanded: This is a normal charge, in which 
+the commander spends CPs. 
+* 
+Spontaneous: Carried out against enemies in the 
+charging unit's ZOC, without expending CPs 
+(see p 44). 
+= 
+Uncontrolled: When Impetuous units charge 
+without orders (see p 45). 
+Special cases 
+* 
+Acorner-to-corner contact is sufficient only if the 
+unit can then conform at least partially. 
+* 
+If units are already in contact (even by a single 
+corner), they cannot charge each other, but they 
+can conform to engage in melee (see p 50). 
+* 
+Contacting an enemy already in melee to 
+support a friendly unit is net a charge but a 
+movement. 
+Contact restrictions 
+Most troops can freely contact enemy units. Some 
+troops however were not primarily intended to 
+engage in combat, and such units can only contact 
+enemy units under certain conditions: 
+Light infantry 
+* 
+In open terrain light infantry can only charge an 
+enemy if, after conformation, they would be in 
+melee with light infantry, light cavalry, elephant, 
+scythed chariot, artillery or the enemy camp or 
+they would be in a support position. 
+* 
+In rough or difficult terrain light infantry may 
+charge any enemy who is either; penalised in 
+combat in that terrain, is in Disorder, or to contact 
+them on their flank or rear. If the enemy being 
+charged is a heavy troop which would destroy LI 
+in open terrain (see p 62) the entire front edge of 
+the LI must end in the terrain after conformation 
+for the charge to be allowed. 
+* 
+If, during a charge move, a light infantry would 
+enter in melee with a unit it is not allowed to, the 
+charge move stops just before (i.e. a few 
+millimeters) contact. 
+* 
+Light infantry can always contact enemy (even 
+heavy troops) already in melee to provide simple 
+or melee support. 
+Other units 
+*╗ 
+War wagons (except those with blades), artillery 
+and Expendable levies can never charge or move 
+into contact with enemy to provide a support. 
+Charge range 
+A unit is within charge range if both of the following 
+conditions are met: 
+╗ 
+The distance between the two closest points of 
+the units is less than or equal to the movement 
+allowance of the charging unit. 
+* 
+The charging unit can make a charge movement 
+(see point 4 p 42) that will contact the target unit: 
+o 
+If the movement includes a wheel, 4 or 2 
+turn, the movement allowance of the unit is 
+reduced accordingly. 
+o 
+If the movement includes a slide, the 
+movement allowance is not reduced. 
+Additional points 
+" 
+It is permitted to measure distances before 
+charging to check if an enemy is within range. 
+*" 
+A group can charge if at least one unit of the 
+group is within charge range of the enemy. 
+However, only those units of the group that start 
+within charge range will be able to conform with 
+the enemy (see p 50). 
+* 
+A charge can take place on the enemy's front, 
+flank or rear depending on the initial position of 
+the charging unit (see p 41). 
+

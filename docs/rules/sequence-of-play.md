@@ -1,12 +1,13 @@
 # Sequence Of Play
 
-Status: state-machine planning extract; exact official order still requires source verification before implementation.
+Status: RV2-04 source-lock baseline for high-level sequence; detailed shooting, melee, rout, pursuit, and victory timing still require their own later RV2-04 passes before implementation-complete claims.
 
 ## Source References
 
-- `Rules.pdf`, overview and introduction around pages 5-8.
-- `Rules.pdf`, command and phase sections around pages 24-28.
-- `Rules.pdf`, setup section around pages 73-79.
+- `docs/source/Rules_v2.md` `rv2.sequence-and-turn-structure`, from `Rules_Color_300DPI.pdf` p.23.
+- `docs/source/Rules_v2.md` `rv2.command-and-commanders`, from `Rules_Color_300DPI.pdf` p.24-28.
+- `docs/source/Rules_v2.md` setup entries from `Rules_Color_300DPI.pdf` p.73-80.
+- `docs/rules/open-verification.md` IDs `turn.loop.phase-order`, `movement.active-player-and-phase-legality`, and setup hidden-information IDs.
 
 ## Pre-Battle Sequence
 
@@ -177,15 +178,18 @@ The handoff must preserve visibility-scoped hidden information rather than flatt
 
 ## Turn Loop
 
-The battle turn must be modeled as a strict sequence once verified:
+Rules-v2 p.23 now supports this battle-turn baseline:
 
-- active player and corps activation;
-- CP roll and command context;
-- charges, reactions, evades, and movement;
-- shooting;
-- melee combat;
-- routs, pursuits, cohesion, rally, and cleanup;
-- victory checks and end turn.
+- initiative fixes attacker and defender before the battle starts;
+- the attacker takes the first player sequence, then play alternates in fixed order;
+- each game-turn contains one player sequence for each side;
+- the active side is the phasing player during that sequence;
+- during the movement part of the sequence, the phasing player activates corps one at a time, completing one corps before another is activated;
+- each corps may be activated only once in the player sequence;
+- after movement and corps activation, the sequence proceeds through shooting, combat, rout or pursuit resolution, victory check, and end-of-game handling;
+- shooting and combat results are simultaneous even when the phasing player chooses local resolution order.
+
+The exact internal timing of shooting, melee, rout/pursuit, army-cohesion accounting, and victory remains tied to the later RV2-04 passes for those rule areas.
 
 ## Turn-Loop Planning States
 
@@ -219,10 +223,12 @@ For each later implementation phase, the engine should know:
 - A setup state must expose whether its outputs are public, private, or visibility-scoped.
 - Start-battle transition must fail if any mandatory setup decision is incomplete.
 - Later states must reference locked outputs from earlier states rather than re-deriving or silently replacing them.
+- Battle state must store `gameTurn`, `phasingPlayerId`, `activeCorpsId`, per-corps activation completion, and phase segment rather than deriving them from UI button state.
+- A corps activation is an atomic command context for that corps: CP generation, movement orders, charges, and rally attempts must consume that corps' available command state before another corps is activated.
+- Simultaneous result phases need deterministic resolution logs so user-selected resolution order never changes the underlying simultaneous casualty logic.
 
 ## Open Verification
 
-- Exact names and order of official battle phases.
-- Whether any phase is simultaneous or has player-selected order.
-- Which decisions are locked, public, private, or reversible.
-- Exact handoff point from setup completion to the first battle phase.
+- `turn.loop.phase-order`: narrowed to exact official wording and later chapter alignment for shooting, melee, rout/pursuit, victory, and simultaneous result ordering.
+- `movement.active-player-and-phase-legality`: narrowed to active-player, active-corps, and one-activation-per-corps enforcement for movement legality.
+- Setup public/private and lock-state questions remain in `docs/rules/open-verification.md` until the setup/terrain RV2-04 pass closes them.
