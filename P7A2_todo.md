@@ -569,6 +569,7 @@ Progress 2026-05-24:
 - The battlefield candidate layer is generic over the supported candidate types: the current tests cover acknowledged slide-choice ghosts and wheel-style obstacle-wheel ghosts from the same candidate pipeline.
 - Focused browser smoke on the shared page confirmed the real hotseat flow: the slide candidates appeared as battlefield ghosts after `OK`, clicking one committed the evader, and the adjusted-charge roll button appeared only afterwards.
 - The all-targets-evade follow-through preview now also renders the mounted/foot minimum continuation as its own battlefield preview while the `Stop` versus `Continue` choice is still open, so the minimum path is no longer hidden behind the maximum-distance ghost.
+- Queued next UI polish: strengthen the visual separation between `Continue` and `Stop` follow-through previews, preferably by either a stronger color split or a direct `2 UD` badge on the minimum line/ghost.
 
 Still open before this card can close:
 
