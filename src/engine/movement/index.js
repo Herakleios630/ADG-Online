@@ -6,6 +6,7 @@ export {
   createWheelSegment,
   getWheelAngleRadiansForDistanceUd,
   getWheelDistanceUdForAngleRadians,
+  getWheelEndPose,
 } from './wheel.js';
 
 export {

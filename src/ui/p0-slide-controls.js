@@ -10,6 +10,9 @@ const battlefieldSlideDragSession = {
   startPreviewUd: 0,
   battlefieldProfile: null,
   onSuppressNextSurfaceClick: null,
+  chargeModeActive: false,
+  lastChargeSlideSide: MOVEMENT_SLIDE_SIDES.RIGHT,
+  lastChargeDistanceUd: 0,
 };
 
 function clamp(value, min, max) {
@@ -22,6 +25,9 @@ export function stopBattlefieldSlideDragSession() {
   battlefieldSlideDragSession.surfaceRect = null;
   battlefieldSlideDragSession.battlefieldProfile = null;
   battlefieldSlideDragSession.onSuppressNextSurfaceClick = null;
+  battlefieldSlideDragSession.chargeModeActive = false;
+  battlefieldSlideDragSession.lastChargeSlideSide = MOVEMENT_SLIDE_SIDES.RIGHT;
+  battlefieldSlideDragSession.lastChargeDistanceUd = 0;
 }
 
 function handleBattlefieldSlideDragMove(event) {
@@ -36,16 +42,40 @@ function handleBattlefieldSlideDragMove(event) {
   }
 
   const signedDistanceUd = battlefieldSlideDragSession.startPreviewUd + ((event.clientX - battlefieldSlideDragSession.startMouseX) / pixelsPerUd);
+  const slideSide = signedDistanceUd < 0 ? MOVEMENT_SLIDE_SIDES.LEFT : MOVEMENT_SLIDE_SIDES.RIGHT;
+  const distanceUd = clamp(Math.abs(signedDistanceUd), 0, 1);
+
+  if (battlefieldSlideDragSession.chargeModeActive) {
+    battlefieldSlideDragSession.lastChargeSlideSide = slideSide;
+    battlefieldSlideDragSession.lastChargeDistanceUd = distanceUd;
+    battlefieldSlideDragSession.dispatch({
+      type: ACTION_TYPES.PREVIEW_CHARGE_START_MANOEUVRE,
+      manoeuvreType: 'shift-slide',
+      slideSide,
+      distanceUd,
+    });
+    return;
+  }
+
   battlefieldSlideDragSession.dispatch({
     type: ACTION_TYPES.SET_SLIDE_PREVIEW_DISTANCE,
-    slideSide: signedDistanceUd < 0 ? MOVEMENT_SLIDE_SIDES.LEFT : MOVEMENT_SLIDE_SIDES.RIGHT,
-    distanceUd: clamp(Math.abs(signedDistanceUd), 0, 1),
+    slideSide,
+    distanceUd,
   });
 }
 
 function handleBattlefieldSlideDragEnd() {
   if (!battlefieldSlideDragSession.active) {
     return;
+  }
+
+  if (battlefieldSlideDragSession.chargeModeActive && battlefieldSlideDragSession.dispatch) {
+    battlefieldSlideDragSession.dispatch({
+      type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+      manoeuvreType: 'shift-slide',
+      slideSide: battlefieldSlideDragSession.lastChargeSlideSide,
+      distanceUd: battlefieldSlideDragSession.lastChargeDistanceUd,
+    });
   }
 
   battlefieldSlideDragSession.onSuppressNextSurfaceClick?.();
@@ -70,7 +100,12 @@ export function tryStartBattlefieldSlideDrag({
     return false;
   }
 
-  if (!state.game.slideModeActive || state.game.selectedUnitId !== unitId) {
+  const chargeStartControlsActive = state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId
+    && (state.game.chargePreview?.status === 'manoeuvre-selecting' || state.game.chargePreview?.status === 'ready');
+  const chargeSlideActive = chargeStartControlsActive
+    && state.game.chargePreview?.intent?.startManoeuvre?.type === 'shift-slide';
+
+  if ((!state.game.slideModeActive && !chargeSlideActive) || state.game.selectedUnitId !== unitId) {
     return false;
   }
 
@@ -82,10 +117,20 @@ export function tryStartBattlefieldSlideDrag({
   battlefieldSlideDragSession.zoom = state.game.viewport.zoom;
   battlefieldSlideDragSession.battlefieldProfile = battlefieldProfile;
   battlefieldSlideDragSession.startMouseX = event.clientX;
-  battlefieldSlideDragSession.startPreviewUd = state.game.slidePreviewSide === MOVEMENT_SLIDE_SIDES.LEFT
-    ? -(state.game.slidePreviewUd ?? 0)
-    : (state.game.slidePreviewUd ?? 0);
+  battlefieldSlideDragSession.startPreviewUd = chargeSlideActive
+    ? ((state.game.chargePreview?.intent?.startManoeuvre?.slideSide === MOVEMENT_SLIDE_SIDES.LEFT ? -1 : 1)
+      * Number(state.game.chargePreview?.intent?.startManoeuvre?.slideDistanceUd ?? 0))
+    : (state.game.slidePreviewSide === MOVEMENT_SLIDE_SIDES.LEFT
+      ? -(state.game.slidePreviewUd ?? 0)
+      : (state.game.slidePreviewUd ?? 0));
   battlefieldSlideDragSession.onSuppressNextSurfaceClick = onSuppressNextSurfaceClick;
+  battlefieldSlideDragSession.chargeModeActive = chargeSlideActive;
+  battlefieldSlideDragSession.lastChargeSlideSide = chargeSlideActive
+    ? (state.game.chargePreview?.intent?.startManoeuvre?.slideSide ?? MOVEMENT_SLIDE_SIDES.RIGHT)
+    : MOVEMENT_SLIDE_SIDES.RIGHT;
+  battlefieldSlideDragSession.lastChargeDistanceUd = chargeSlideActive
+    ? Number(state.game.chargePreview?.intent?.startManoeuvre?.slideDistanceUd ?? 0)
+    : 0;
   return true;
 }
 
@@ -93,6 +138,20 @@ export function bindSlideActionButtons({ container, dispatch, state }) {
   const slideButton = container.querySelector('[data-action="toggle-slide-mode"]');
   if (slideButton) {
     slideButton.addEventListener('click', () => {
+      const chargeStartControlsActive = state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId
+        && (state.game.chargePreview?.status === 'manoeuvre-selecting' || state.game.chargePreview?.status === 'ready');
+      if (chargeStartControlsActive) {
+        stopBattlefieldSlideDragSession();
+        const currentStart = state.game.chargePreview?.intent?.startManoeuvre;
+        dispatch({
+          type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+          manoeuvreType: 'shift-slide',
+          slideSide: currentStart?.type === 'shift-slide' ? currentStart.slideSide : MOVEMENT_SLIDE_SIDES.RIGHT,
+          distanceUd: currentStart?.type === 'shift-slide' ? currentStart.slideDistanceUd : 0,
+        });
+        return;
+      }
+
       stopBattlefieldSlideDragSession();
       dispatch({ type: ACTION_TYPES.SET_SLIDE_MODE, isActive: !state.game.slideModeActive });
     });

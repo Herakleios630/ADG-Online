@@ -43,7 +43,7 @@ function getWheelSignedAngleRadians(pivotSide, angleRadians) {
   return pivotSide === MOVEMENT_PIVOT_SIDES.LEFT ? -Math.abs(angleRadians) : Math.abs(angleRadians);
 }
 
-function getWheelEndPose(unit, pivotSide, angleRadians) {
+export function getWheelEndPose(unit, pivotSide, angleRadians) {
   const pivotLocalPoint = getWheelPivotLocalPoint(unit, pivotSide);
   const pivotWorldPoint = localPointToWorldPoint(
     {

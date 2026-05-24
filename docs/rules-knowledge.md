@@ -17,6 +17,10 @@ The project needs AI-readable rule knowledge in addition to the original PDFs. T
 ## Target Rule Knowledge Structure
 
 ```text
+docs/source/
+  rules.md
+  army-lists.md
+
 docs/rules/
   index.md
   errata.md
@@ -36,6 +40,33 @@ docs/rules/
   army-lists.md
   open-verification.md
 ```
+
+`docs/source/rules.md` and `docs/source/army-lists.md` are the planned durable source corpus files from the intensive OCR pass. They should be complete in coverage, written in original project wording, and source-referenced. For rules work, `docs/source/rules.md` remains the broad routing and backfill corpus, while `docs/source/Rules_v2.md` is the working default lookup layer for hardened rule-sensitive areas once the relevant RV2 source-lock notes exist.
+
+SOCR-04 QA note:
+
+- The source corpus files now contain explicit QA snapshot sections and should be treated as the first lookup layer for planning even before every subsection is verified.
+- `docs/source/rules.md` is the broad planning-first rule corpus and backfill layer for non-hardened areas.
+- `docs/source/Rules_v2.md` is the active color-scan rules corpus for RV2 work and the working default source layer for hardened rule-sensitive planning; for P7A2/P7B/P8+ planning, prefer it plus `docs/source/rules-v2-examples/index.md` over the older OCR-era `docs/source/rules.md` wherever the relevant RV2-04 area has been hardened.
+- `docs/source/army-lists.md` is the planning-first army-list corpus.
+- `docs/rules/open-verification.md` remains the single unresolved-source tracker that gates which corpus entries are still unsafe for implementation.
+- When a topic file in `docs/rules/` summarizes a rule area, it should prefer linking or pointing to the corpus section and open-verification IDs instead of restating uncertain OCR-derived details.
+
+SOCR-04 corpus-to-blocker mapping:
+
+- Hardened `sequence`, `command`, `movement`, `zoc`, `charge`, `conformation`, `shooting`, `melee`, `rout-pursuit`, `terrain/setup`, and `standard-200` questions should start from `docs/source/Rules_v2.md`, `docs/source/rules-v2-examples/index.md`, and the matching `docs/rules/` source-lock notes, then be checked against the matching blocker IDs in `docs/rules/open-verification.md`.
+- Non-hardened or broad backfill rules questions may still start from `docs/source/rules.md`, but that OCR-era corpus no longer outranks the Rules-v2 source-lock surface in hardened areas.
+- `army-lists`, list restrictions, ally windows, replacements, and commander-linked list notes should start from `docs/source/army-lists.md` and then be checked against the corresponding `army-lists` blocker IDs in `docs/rules/open-verification.md`.
+- If a phase only needs one narrow source area, upgrade that local corpus section and blocker state first instead of widening the OCR pass.
+
+RV2-04 source-lock note:
+
+- `docs/rules/sequence-of-play.md`, `docs/rules/command.md`, `docs/rules/movement.md`, and `docs/rules/zoc.md` are the Rules-v2-facing workspace notes for the sequence/command/movement/ZOC block.
+- `docs/rules/shooting.md`, `docs/rules/melee.md`, `docs/rules/rout-and-pursuit.md`, `docs/rules/terrain-and-setup.md`, and `docs/rules/standard-200.md` now extend that source-lock surface through combat, terrain/setup, and default format-profile anchors.
+- These files record scan-confirmed baselines and keep exact errata/manual-acceptance questions in `docs/rules/open-verification.md`.
+- The older `docs/source/rules.md` remains useful as a broad routing/backfill corpus, but for these hardened areas it no longer outranks the Rules-v2 source-lock surface.
+
+The topic files under `docs/rules/` remain implementation-facing summaries and rule-area workspaces. They should link back to the source corpus rather than duplicating long extracted sections.
 
 Structured data derived from those markdown files should later live under `src/data/rules/`, but implementation and data files are phase work, not part of the current planning pass.
 
@@ -92,6 +123,41 @@ Status meaning:
 8. Add open verification notes for unclear diagrams, ambiguous wording, or OCR uncertainty.
 9. Review the result with AdG-Rules-Engine-Agent.
 10. Use extracted rules to design tests before implementation.
+
+For the one-time intensive OCR corpus pass, use `SOURCE_OCR_todo.md` as the execution board. The target files are exactly:
+
+- `docs/source/rules.md`
+- `docs/source/army-lists.md`
+
+These corpus files should not be raw full-text reproductions of the commercial PDFs. They should be complete project digests with source references, structured tables, errata overlays, and verification status.
+
+SOCR-00 page-map rule:
+
+- `merged.pdf` pages 1-51 correspond to `ArmyLists1-82.pdf` pages 1-51.
+- `merged.pdf` pages 52-135 correspond to `Rules.pdf` pages 1-84.
+- Rule lookup from OCR helper uses `Rules.pdf page = merged.pdf page - 51`.
+- Army-list lookup from OCR helper uses the same page number as the original army-list PDF.
+
+SOCR-01 tooling decision:
+
+- Use existing `merged.pdf` OCR text as the first extraction helper.
+- Use `pdfplumber` or PyMuPDF for text extraction.
+- Use `openpyxl` for army-list spreadsheet cross-checks.
+- Defer installing a fresh OCR stack until a specific source section cannot be resolved from `merged.pdf`, original PDF page review, errata, and spreadsheet checks.
+
+SOCR army-list reading rules:
+
+- For army-list pages, visual page structure outranks raw OCR line order. Bold subsection headers, color bands, and visible block separation control scope.
+- On two-column army-list spreads, treat each column as its own page for reading order. Read one full column top-to-bottom, then move to the next column in printed-page order; do not merge rows across columns just because their OCR `top` values align.
+- When the user cites army-list page numbers during calibration, interpret them as the printed footer page numbers in the book unless stated otherwise.
+- A bold subsection header applies to the following rows and notes until the next bold subsection header unless the page explicitly breaks that rule.
+- Visually separate color-bounded row groups must not be merged just because OCR interleaves them.
+- `replace all` usually means the new troop type inherits the min/max slot of the replaced troop block unless the page explicitly gives new min/max values.
+- Related modifiers such as `replace 1/2`, `min halve`, and `max halve` should be read as transformations of the inherited slot, not as creation of a new independent slot by default.
+- Terrain or subgroup labels in army-list headers often scope terrain, allies, and explicitly named troop hooks only; they should not be assumed to bind unrelated troop blocks unless the page layout shows that binding.
+- When OCR and visible layout disagree, prefer the page image and mark the corpus row as needing source check rather than forcing a precise but unstable normalization.
+- Apply these reading rules retroactively to existing army-list corpus entries, not only to new extraction work. Older entries that rely on page continuation, interleaved columns, bold subsection scope, or replacement inheritance should be re-audited before they are treated as stable planning anchors.
+- Verified calibration examples so far: `List 68 - Later Achaemenid Persian` for bold subsection scoping and special-case notes; `List 75 - Early Arab` for color/section block order and inherited min/max under `replace all warriors`; `List 76/77 - Scythian/Sarmatian` for column-as-page reading order across a two-column spread.
 
 `docs/rules/open-verification.md` is the only central unresolved-source tracker. Rule-area files should point to it, not duplicate unresolved-source lists independently.
 
