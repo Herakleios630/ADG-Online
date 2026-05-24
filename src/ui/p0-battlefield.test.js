@@ -1126,6 +1126,8 @@ test('battlefield renders the current adjusted charge follow-through after the s
 
   assert.match(html, /data-charge-follow-through-corridor/);
   assert.match(html, /data-charge-follow-through-ghost/);
+  assert.match(html, /data-charge-follow-through-minimum-corridor/);
+  assert.match(html, /data-charge-follow-through-minimum-ghost/);
   assert.match(html, /data-charge-follow-through-source-status="verified"/);
 });
 

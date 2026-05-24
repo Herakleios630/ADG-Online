@@ -706,6 +706,12 @@
   background: rgba(231, 176, 74, 0.18);
 }
 
+.battlefield-charge-follow-through-reach.is-minimum {
+  border-color: rgba(255, 230, 152, 0.92);
+  background: rgba(255, 230, 152, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 220, 0.2), 0 0 10px rgba(255, 230, 152, 0.16);
+}
+
 .battlefield-zoc-band {
   position: absolute;
   z-index: 2;
@@ -803,6 +809,11 @@
 .battlefield-charge-follow-through-ghost.is-source-open {
   border-color: rgba(231, 176, 74, 0.92);
   background: rgba(231, 176, 74, 0.16);
+}
+
+.battlefield-charge-follow-through-ghost.is-minimum {
+  border-color: rgba(255, 230, 152, 0.94);
+  background: rgba(255, 230, 152, 0.16);
 }
 
 .battlefield-command-link.is-in-command {
