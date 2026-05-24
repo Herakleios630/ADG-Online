@@ -1885,6 +1885,18 @@ export function renderBattlefieldScreen(state) {
   const chargeMovementPlanReachStyle = chargeMovementPlanSegment && chargeMovementPlanUnit
     ? createLinearReachStyle(chargeMovementPlanSegment, chargeMovementPlanUnit, battlefieldProfile)
     : '';
+  const chargeContinuationMinimumSegment = chargeMovementPlan?.continuationChoice?.required
+    && !chargeMovementPlan?.continuationChoice?.selectedOption
+    && chargeMovementPlan?.continuationChoice?.minimumEndPose
+    && chargeMovementPlanUnit
+    ? createChargeMovementPlanSegment({
+      ...chargeMovementPlan,
+      distanceUd: chargeMovementPlan.continuationChoice.minimumDistanceUd,
+    })
+    : null;
+  const chargeContinuationMinimumReachStyle = chargeContinuationMinimumSegment && chargeMovementPlanUnit
+    ? createLinearReachStyle(chargeContinuationMinimumSegment, chargeMovementPlanUnit, battlefieldProfile)
+    : '';
   const commanderAttachRangeStyle = commanderAttachTargetingActive
     ? [
         `left:${(selectedUnit.xUd / battlefieldProfile.widthUd) * 100}%`,
@@ -2178,6 +2190,22 @@ export function renderBattlefieldScreen(state) {
                   data-charge-follow-through-ghost
                   data-charge-follow-through-source-status="${chargeMovementPlan?.sourceStatus ?? 'verified'}"
                   style="${createPreviewGhostStyle(chargeMovementPlan.endPose, chargeMovementPlanUnit, battlefieldProfile)}"
+                ></div>
+              ` : ''}
+              ${chargeContinuationMinimumSegment && chargeMovementPlanUnit ? `
+                <div
+                  class="battlefield-advance-reach battlefield-charge-follow-through-reach is-minimum ${chargeMovementPlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-charge-follow-through-minimum-corridor
+                  data-charge-follow-through-source-status="${chargeMovementPlan?.sourceStatus ?? 'verified'}"
+                  style="${chargeContinuationMinimumReachStyle}"
+                ></div>
+                <div
+                  class="battlefield-unit-preview battlefield-charge-follow-through-ghost is-minimum ${chargeMovementPlanUnit.baseShape === 'circle' ? 'is-circle-base' : ''} ${chargeMovementPlan?.sourceStatus === 'needs-source-check' ? 'is-source-open' : ''}"
+                  aria-hidden="true"
+                  data-charge-follow-through-minimum-ghost
+                  data-charge-follow-through-source-status="${chargeMovementPlan?.sourceStatus ?? 'verified'}"
+                  style="${createPreviewGhostStyle(chargeMovementPlan.continuationChoice.minimumEndPose, chargeMovementPlanUnit, battlefieldProfile)}"
                 ></div>
               ` : ''}
               ${advanceModeActive ? `<div class="battlefield-advance-reach" aria-hidden="true" style="${advanceReachStyle}"></div>` : ''}
