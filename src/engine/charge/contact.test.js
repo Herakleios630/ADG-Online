@@ -122,14 +122,93 @@ test('charge contact state reports an earlier enemy contact before the selected 
     units: [charger, earlierEnemy, target],
   });
 
-  assert.equal(contactState.contactEvents.length, 1);
+  assert.equal(contactState.contactEvents.length, 2);
   assert.equal(contactState.contactEvents[0].type, CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT);
   assert.equal(contactState.contactEvents[0].defenderId, 'earlier-enemy');
+  assert.equal(contactState.contactEvents[1].type, CHARGE_CONTACT_EVENT_TYPES.TARGET_CONTACT);
+  assert.equal(contactState.contactEvents[1].defenderId, 'target');
   assert.match(contactState.diagnostics[0]?.text ?? '', /earlier-enemy/);
   assert.ok(contactState.contactEvents[0].guideDistanceUd < startResult.pathSegments[0].distanceUd);
   assert.equal(contactState.contactEvents[0].contactSnapshot?.selectedTargetPose?.yUd, target.yUd);
   assert.equal(contactState.contactEvents[0].contactSnapshot?.defenderPose?.yUd, earlierEnemy.yUd);
   assert.equal(contactState.contactEvents[0].classification?.type, CHARGE_CONTACT_CLASSIFICATION_TYPES.FRONT);
+});
+
+test('charge contact state preserves multiple earlier enemy contacts in path order', () => {
+  const charger = {
+    id: 'charger',
+    owner: 'player-1',
+    troopType: 'cavalry',
+    xUd: 5,
+    yUd: 17,
+    widthUd: 1,
+    depthUd: 0.75,
+    baseShape: 'rectangle',
+    rotationRadians: 0,
+  };
+  const earlierEnemyA = {
+    id: 'earlier-enemy-a',
+    owner: 'player-2',
+    troopType: 'cavalry',
+    xUd: 5,
+    yUd: 14.9,
+    widthUd: 1,
+    depthUd: 0.75,
+    baseShape: 'rectangle',
+    rotationRadians: Math.PI,
+  };
+  const earlierEnemyB = {
+    id: 'earlier-enemy-b',
+    owner: 'player-2',
+    troopType: 'cavalry',
+    xUd: 5,
+    yUd: 13.4,
+    widthUd: 1,
+    depthUd: 0.75,
+    baseShape: 'rectangle',
+    rotationRadians: Math.PI,
+  };
+  const target = {
+    id: 'target',
+    owner: 'player-2',
+    troopType: 'cavalry',
+    xUd: 5,
+    yUd: 11.2,
+    widthUd: 1,
+    depthUd: 0.75,
+    baseShape: 'rectangle',
+    rotationRadians: Math.PI,
+  };
+  const startResult = buildChargeStartSelectionResult({
+    selectedUnit: charger,
+    targetSnapshot: { unitId: target.id, xUd: target.xUd, yUd: target.yUd },
+    manoeuvreType: CHARGE_START_MANOEUVRE_TYPES.NONE,
+    battlefieldProfile: BATTLEFIELD_PROFILE,
+  });
+
+  const contactState = resolveChargeContactState({
+    selectedUnit: charger,
+    targetUnit: target,
+    pathSegments: startResult.pathSegments,
+    battlefieldProfile: BATTLEFIELD_PROFILE,
+    units: [charger, earlierEnemyA, earlierEnemyB, target],
+  });
+
+  assert.deepEqual(
+    contactState.contactEvents.map((event) => event.defenderId),
+    ['earlier-enemy-a', 'earlier-enemy-b'],
+  );
+  assert.deepEqual(
+    contactState.contactEvents.map((event) => event.type),
+    [
+      CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT,
+      CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT,
+    ],
+  );
+  assert.equal(
+    contactState.pathSegments.find((segment) => segment.kind === 'charge-direction-guide')?.distanceUd,
+    contactState.contactEvents[1].guideDistanceUd,
+  );
 });
 
 test('charge contact state refines first touch instead of stopping at the next coarse path sample', () => {
@@ -338,7 +417,9 @@ test('charge contact state resolves equal-distance overlaps deterministically by
     units: [charger, blockerB, target, blockerA],
   });
 
-  assert.equal(contactState.contactEvents.length, 1);
+  assert.equal(contactState.contactEvents.length, 2);
   assert.equal(contactState.contactEvents[0].type, CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT);
   assert.equal(contactState.contactEvents[0].defenderId, 'alpha-enemy');
+  assert.equal(contactState.contactEvents[1].type, CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT);
+  assert.equal(contactState.contactEvents[1].defenderId, 'beta-enemy');
 });

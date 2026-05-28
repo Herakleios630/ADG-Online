@@ -1,4 +1,5 @@
 import { createCommandPointState as createEngineCommandPointState, evaluateInCommand, generateCommandPoints } from '../engine/command/index.js';
+import { toCorpsSlotId } from './p0-corps-slot.js';
 
 export const COMMAND_CONTEXT_SOURCE_STATUSES = {
   PLACEHOLDER: 'placeholder',
@@ -117,21 +118,6 @@ function createCommanderLabel(commanderUnit) {
   const quality = commanderUnit.commanderQuality ?? 'unknown quality';
   const range = Number.isFinite(commanderUnit.commandRangeUd) ? `${commanderUnit.commandRangeUd} UD` : 'unknown range';
   return `${role}: ${quality} / ${range}`;
-}
-
-function toCorpsSlotId(corpsId) {
-  const raw = String(corpsId ?? '').toLowerCase();
-  if (!raw) {
-    return null;
-  }
-
-  const normalized = raw.replaceAll('_', '-');
-  const match = normalized.match(/corps-(\d+)/);
-  if (!match) {
-    return null;
-  }
-
-  return `corps-${match[1]}`;
 }
 
 function getCommanderUnitForActiveCorps(gameState, activeCorpsId = gameState.commandContext.activeCorpsId) {

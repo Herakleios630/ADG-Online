@@ -27,6 +27,8 @@ The engine must be deterministic. Given the same initial state, action log, rand
 
 The engine must be explainable. Every validation result must include rule-grounded reasons, references, computed measurements, and the exact state facts used in the decision.
 
+The engine must be instrumentable. Every complex rule module should expose structured decision evidence that can be routed into filtered debug logs by rule area and detail level. Logging is an observation layer over engine/reducer facts; it must not decide legality or mutate state.
+
 The engine must be modular. UI, rendering, multiplayer transport, state persistence, and rule logic must remain separate. No canvas event should directly mutate game state. No combat rule should know how a panel is rendered.
 
 The engine must be incremental. Work proceeds from P0 upward. A phase cannot start until the prior phase has been demonstrated and approved by the user.
@@ -40,6 +42,10 @@ The project must stay modular. JavaScript files target fewer than 800 lines and 
 Before every feature phase, the team performs a short brainstorming and rule-verification pass: re-check concepts, source rules, errata, data needs, UI expectations, edge cases, and tests.
 
 See `docs/project-governance.md` for workflow, testing, memory, branch, commit, push, and PR rules.
+
+See `LOGGING_todo.md` for the cross-cutting logging and browser diagnostics support plan.
+
+See `UNIT_CAPABILITIES_todo.md` for the profile-first unit capability support plan.
 
 See `docs/rules-knowledge.md` for the plan to turn image-heavy PDFs into AI-readable markdown and structured rule tables.
 
@@ -221,6 +227,18 @@ No single test layer should be treated as sufficient by itself once the engine g
 
 `assets` and `data/assets` own visual mapping from unit definitions to rectangles, PNG sprites, sprite atlases, masks, and player-color palettes. Asset data never changes rules.
 
+### Readable Base Visual Contract
+
+Readable battlefield bases are a rendering layer over engine-owned geometry, not a substitute for it.
+
+- Legal width, depth, rotation, contact, ZOC, command range, and conformation remain owned by unit state plus engine geometry.
+- DOM button tokens remain the authoritative interaction and accessibility surface even if later slices add inner CSS visuals or cached atlas art.
+- Visual family identity should be driven by inert render/visual descriptors such as `visualProfileId`, `baseSilhouette`, `figureSilhouette`, and `formationHint`, not by rule code in UI components.
+- The preferred implementation ladder is CSS/DOM first, then optional cached atlas output only if it improves readability without harming overlays or hitboxes.
+- If `OffscreenCanvas` is unavailable, readable-base rendering must fall back to an in-document cache or CSS silhouette treatment rather than replacing the token architecture.
+
+See `docs/battlefield-visuals.md` for the current readable-base contract and first-pass family priorities.
+
 `ui` owns rendering and input translation. It can ask the engine for previews and explanations, but cannot decide legality.
 
 `multiplayer` owns transport, server action submission, canonical action receipts, reconciliation, and lobby/session shape. It never bypasses engine validation.
@@ -302,6 +320,8 @@ The split is strict and intentional:
 - global rule tables define derived allowances, factors, restrictions, and results.
 
 Anything that can change during play belongs on instances or other match state. Anything that is a reusable rule fact belongs in shared data or rule tables, not copied onto every unit.
+
+Artificial fixtures follow the same rule: a Charge Drill unit may have a scenario role and artificial placement, but its normal evade, movement, shooting, combat, base, and visual facts should come from shared unit profiles or rule tables. Direct fixture overrides are reserved for labeled test/fault-injection cases.
 
 `FormatProfile` is the match-level rules/profile surface:
 
@@ -843,6 +863,13 @@ Movement interaction:
 4. Show distance, ZOC, terrain, contact, and conformation overlays.
 5. Display validation result and rule explanation.
 6. Confirm action only if validation is legal or if the rule requires a player choice.
+
+Battlefield command-menu interaction:
+
+1. First-level command intent such as `Move`, `Charge`, `Attach`, or `Stay` may be represented by a small reducer-owned, serializable menu-mode seam when the chosen branch changes visible interaction state before a preview exists.
+2. Branch contents remain projections of reducer-owned movement, charge, commander, and conformation preview state; rendering may group or hide controls, but it must not decide legality.
+3. Cancel and back navigation must return to deterministic higher-level menu states without discarding or inventing reducer-owned preview facts.
+4. Presentation-only grouping may simplify the visible control set, but the underlying gameplay actions remain the same reducer-owned actions used by debug replay and browser automation.
 
 Combat interaction:
 

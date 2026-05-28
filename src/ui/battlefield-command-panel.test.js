@@ -2,9 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { getBattlefieldProfile, BATTLEFIELD_PROFILE_IDS } from '../data/battlefield-profiles.js';
-import { CHARGE_BRANCH_ROLL_REASONS } from '../engine/charge/index.js';
+import {
+  CHARGE_BRANCH_ROLL_REASONS,
+  CHARGE_CONTACT_CLASSIFICATION_TYPES,
+  EVADE_CHOICE_HANDOFF_STATUSES,
+  EVADE_MOVE_RESOLUTION_STATUSES,
+  createChargeBranchRollResult,
+  resolveIsolatedSingleUnitEvadePlan,
+} from '../engine/charge/index.js';
 import { getAdvancePreviewPresentation, renderAdvanceCommandPanel } from './battlefield-command-panel.js';
-import { ACTION_TYPES, BATTLE_PHASE_IDS, createInitialAppState, reduceAppState } from '../state/p0-state.js';
+import { ACTION_TYPES, BATTLE_PHASE_IDS, SETUP_VIEW_MODES, createInitialAppState, reduceAppState } from '../state/p0-state.js';
 import { MOVEMENT_SLIDE_SIDES } from '../state/p0-slide.js';
 
 function advanceToBattlefield(state = createInitialAppState()) {
@@ -28,6 +35,90 @@ function advanceToBattlefield(state = createInitialAppState()) {
 
 function selectTestUnit(state) {
   return reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+}
+
+function createSyntheticFrontLaneEvadeChoicePlan(reactingUnit, battlefieldProfile) {
+  const plan = resolveIsolatedSingleUnitEvadePlan({
+    reactingUnit: {
+      ...reactingUnit,
+      xUd: 10,
+      yUd: 10,
+      rotationRadians: 0,
+      widthUd: 1,
+      depthUd: 0.75,
+      baseShape: 'rectangle',
+    },
+    contactClassification: {
+      type: CHARGE_CONTACT_CLASSIFICATION_TYPES.FLANK,
+      flankSide: 'right',
+    },
+    contactSnapshot: {
+      defenderPose: {
+        xUd: reactingUnit.xUd,
+        yUd: reactingUnit.yUd,
+        rotationRadians: reactingUnit.rotationRadians,
+      },
+    },
+    chargeDirectionRadians: Math.PI,
+    distanceRollResult: createChargeBranchRollResult({ dieRoll: 6, baseDistanceUd: 4 }),
+    battlefieldProfile,
+    units: [
+      {
+        id: 'synthetic-front-evade-choice-blocker',
+        xUd: 9.25,
+        yUd: 11,
+        widthUd: 1,
+        depthUd: 1,
+        baseShape: 'rectangle',
+        rotationRadians: 0,
+      },
+    ],
+    ignoredUnitIds: [reactingUnit.id],
+  });
+
+  assert.equal(plan.choiceRequired, true);
+  assert.equal(plan.avoidanceCandidates.length, 2);
+  return plan;
+}
+
+function applyPendingEvadeChoiceHandoffState(state, battlefieldProfile) {
+  const reactingUnit = state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target');
+  assert.ok(reactingUnit);
+  const evadePlan = createSyntheticFrontLaneEvadeChoicePlan(reactingUnit, battlefieldProfile);
+
+  return {
+    ...state,
+    game: {
+      ...state.game,
+      setupViewMode: SETUP_VIEW_MODES.HOTSEAT_HANDOFF,
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan,
+        evadeMove: {
+          ...state.game.chargePreview.evadeMove,
+          status: EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED,
+          reactingUnitId: evadePlan.reactingUnitId,
+          finalPose: evadePlan.endPose,
+          distanceUd: evadePlan.distanceUd,
+          avoidanceCandidates: evadePlan.avoidanceCandidates,
+          pathSegments: evadePlan.pathSegments,
+          choiceRequired: true,
+          notice: 'Evade movement requires a defender choice before it can be committed.',
+          sourceStatus: evadePlan.sourceStatus,
+        },
+        evadeChoiceHandoff: {
+          ...state.game.chargePreview.evadeChoiceHandoff,
+          status: EVADE_CHOICE_HANDOFF_STATUSES.PENDING,
+          reactingUnitId: evadePlan.reactingUnitId,
+          reactingPlayerId: 'player-2',
+          targetLabel: 'P2 Front Target',
+          prompt: 'Spieler B waehlt jetzt den Ausweichzug fuer P2 Front Target.',
+          nextViewMode: SETUP_VIEW_MODES.PLAYER_TWO,
+          returnViewMode: SETUP_VIEW_MODES.CANONICAL,
+        },
+      },
+    },
+  };
 }
 
 test('advance presentation keeps free slide out of the remaining advance range', () => {
@@ -118,9 +209,11 @@ test('command panel renders diagnostics and a dedicated cancel preview action', 
     canMarkStay: presentation.canMarkStay,
     canShowMovementButtons: false,
     movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
   });
 
-  assert.match(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
   assert.doesNotMatch(html, /data-action="toggle-advance-mode"/);
   assert.match(html, /General-Budget: 5 UD/i);
   assert.match(html, /data-action="cancel-movement-preview"/);
@@ -129,8 +222,278 @@ test('command panel renders diagnostics and a dedicated cancel preview action', 
   assert.match(html, /Auswahl fixiert/);
   assert.match(html, /noch nicht bestaetigte Bewegung/);
   assert.match(html, /Bewegung beenden/);
+  assert.match(html, /data-command-menu-level="branch"/);
+  assert.match(html, /data-command-menu-branch="move"/);
+  assert.doesNotMatch(html, /data-testid="command-attach-branch-button"/);
+  assert.doesNotMatch(html, /data-action="set-command-menu-branch" data-branch="move"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
   assert.ok(html.indexOf('data-action="toggle-advance-mode"') < html.indexOf('Diagnostics'));
   assert.match(html, /<details class="battlefield-collapsible-card battlefield-command-details">/);
+});
+
+test('commander command panel exposes root move attach and stay actions before entering a branch', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    canUseFreeCommandPoint: presentation.canUseFreeCommandPoint,
+    useFreeCommandPoint: presentation.useFreeCommandPoint,
+    chargePreviewActive: presentation.chargePreviewActive,
+    chargeStartControlsActive: presentation.chargeStartControlsActive,
+    chargeStartOptions: presentation.chargeStartOptions,
+    selectedChargeStartType: presentation.selectedChargeStartType,
+    canStartCharge: presentation.canStartCharge,
+    chargeDisabledReason: presentation.chargeDisabledReason,
+    canAttachCommander: true,
+    movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.equal(presentation.commandMenuLevel, 'root');
+  assert.equal(presentation.commandMenuBranch, null);
+  assert.match(html, /data-action="set-command-menu-branch" data-branch="move"/);
+  assert.match(html, /data-testid="command-attach-branch-button"/);
+  assert.match(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="toggle-advance-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-wheel-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-slide-mode"/);
+  assert.doesNotMatch(html, /battlefield-command-actions/);
+});
+
+test('commander move branch hides root actions until a free-move preview is active', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_COMMAND_MENU_BRANCH, branch: 'move' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    canUseFreeCommandPoint: presentation.canUseFreeCommandPoint,
+    useFreeCommandPoint: presentation.useFreeCommandPoint,
+    chargePreviewActive: presentation.chargePreviewActive,
+    chargeStartControlsActive: presentation.chargeStartControlsActive,
+    chargeStartOptions: presentation.chargeStartOptions,
+    selectedChargeStartType: presentation.selectedChargeStartType,
+    canStartCharge: presentation.canStartCharge,
+    chargeDisabledReason: presentation.chargeDisabledReason,
+    canAttachCommander: true,
+    movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.equal(presentation.commandMenuLevel, 'branch');
+  assert.equal(presentation.commandMenuBranch, 'move');
+  assert.match(html, /data-testid="command-branch-back-button"/);
+  assert.doesNotMatch(html, /data-testid="command-attach-branch-button"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /battlefield-command-actions/);
+});
+
+test('command panel exposes root command menu state before entering a branch', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: true,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    canUseFreeCommandPoint: presentation.canUseFreeCommandPoint,
+    useFreeCommandPoint: presentation.useFreeCommandPoint,
+    chargePreviewActive: presentation.chargePreviewActive,
+    chargeStartControlsActive: presentation.chargeStartControlsActive,
+    chargeStartOptions: presentation.chargeStartOptions,
+    selectedChargeStartType: presentation.selectedChargeStartType,
+    canStartCharge: presentation.canStartCharge,
+    chargeDisabledReason: presentation.chargeDisabledReason,
+    movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.equal(presentation.commandMenuLevel, 'root');
+  assert.equal(presentation.commandMenuBranch, null);
+  assert.match(html, /data-command-menu-level="root"/);
+  assert.match(html, /data-command-menu-branch="none"/);
+  assert.match(html, /data-action="set-command-menu-branch" data-branch="move"/);
+  assert.match(html, /data-action="start-charge-preview"/);
+  assert.match(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="toggle-advance-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-wheel-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-slide-mode"/);
+  assert.doesNotMatch(html, /data-action="start-charge-preview"[^>]*data-testid="command-charge-button"/);
+  assert.doesNotMatch(html, /battlefield-command-actions/);
+});
+
+test('command panel reveals only move controls inside the move branch for normal units', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_COMMAND_MENU_BRANCH, branch: 'move' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: true,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    canUseFreeCommandPoint: presentation.canUseFreeCommandPoint,
+    useFreeCommandPoint: presentation.useFreeCommandPoint,
+    chargePreviewActive: presentation.chargePreviewActive,
+    chargeStartControlsActive: presentation.chargeStartControlsActive,
+    chargeStartOptions: presentation.chargeStartOptions,
+    selectedChargeStartType: presentation.selectedChargeStartType,
+    canStartCharge: presentation.canStartCharge,
+    chargeDisabledReason: presentation.chargeDisabledReason,
+    movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.equal(presentation.commandMenuLevel, 'branch');
+  assert.equal(presentation.commandMenuBranch, 'move');
+  assert.match(html, /data-action="toggle-advance-mode"/);
+  assert.match(html, /data-action="toggle-wheel-mode"/);
+  assert.match(html, /data-action="toggle-slide-mode"/);
+  assert.match(html, /data-action="set-command-menu-branch" data-branch=""/);
+  assert.match(html, /battlefield-command-actions/);
+  assert.doesNotMatch(html, /data-action="start-charge-preview"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="reset-test-units"/);
 });
 
 test('command panel renders the attach commander action from reducer-owned flags', () => {
@@ -260,7 +623,21 @@ test('command panel enables the charge button before any movement is taken', () 
   assert.equal(presentation.chargePreviewActive, false);
   assert.equal(presentation.chargeDisabledReason, null);
   assert.match(html, /data-action="start-charge-preview"/);
-  assert.doesNotMatch(html, /data-action="start-charge-preview"[^>]*disabled/);
+  assert.match(html, /data-action="mark-unit-stay"/);
+  assert.match(html, /data-action="reset-test-units"/);
+});
+
+test('confirming a move returns the normal unit command menu to the root level', () => {
+  let state = advanceToBattlefield();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_COMMAND_MENU_BRANCH, branch: 'move' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_MODE, isActive: true });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_ADVANCE_PREVIEW_DISTANCE, distanceUd: 1 });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_ADVANCE });
+
+  assert.equal(state.game.commandMenu.activeBranch, null);
 });
 
 test('command panel locks and allows cancel while a charge preview is active', () => {
@@ -311,6 +688,8 @@ test('command panel locks and allows cancel while a charge preview is active', (
     canStartCharge: presentation.canStartCharge,
     chargeDisabledReason: presentation.chargeDisabledReason,
     movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
   });
 
   assert.equal(presentation.chargePreviewActive, true);
@@ -319,7 +698,13 @@ test('command panel locks and allows cancel while a charge preview is active', (
   assert.equal(presentation.selectionLockActive, true);
   assert.match(presentation.helperCopy, /Charge aktiv/);
   assert.match(presentation.selectionLockCopy, /Charge-Vorschau/);
-  assert.match(html, /class="[^"]*is-active[^"]*"[^>]*data-action="start-charge-preview"/);
+  assert.match(html, /data-testid="command-charge-target-hint"/);
+  assert.match(html, /Ziel waehlen/);
+  assert.doesNotMatch(html, /data-action="toggle-advance-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-wheel-mode"/);
+  assert.doesNotMatch(html, /data-action="toggle-slide-mode"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="reset-test-units"/);
   assert.doesNotMatch(html, /data-action="cancel-movement-preview"[^>]*disabled/);
 });
 
@@ -1000,7 +1385,7 @@ test('command panel distinguishes a secondary target pause from a caught evader 
   assert.doesNotMatch(secondaryEvadeResolvedHtml, /Adjusted Charge wuerfeln/);
 });
 
-test('command panel explains forced impetuous full continuation without showing stop-or-continue buttons', () => {
+test('command panel hides stop-or-continue buttons after forced impetuous full continuation auto-commits', () => {
   let state = advanceToBattlefield();
   const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
 
@@ -1091,8 +1476,9 @@ test('command panel explains forced impetuous full continuation without showing 
   });
 
   assert.equal(presentation.canResolveChargeContinuationChoice, false);
-  assert.equal(state.game.chargePreview.chargeMovementPlan?.continuationChoice?.selectedOption, 'continue');
-  assert.match(presentation.helperCopy, /impetuose .* voll weiterziehen .* 4 UD/i);
+  assert.equal(state.game.chargePreview.status, 'idle');
+  assert.equal(state.game.lastChargeCompletion?.chargeMovementPlan?.continuationChoice?.selectedOption, 'continue');
+  assert.equal(state.game.lastChargeCompletion?.chargeMovementPlan?.continuationChoice?.required, false);
   assert.doesNotMatch(html, /data-action="resolve-charge-continuation-choice"/);
 });
 
@@ -1148,17 +1534,26 @@ test('command panel shows charge-start controls after selecting a charge target'
     canStartCharge: presentation.canStartCharge,
     chargeDisabledReason: presentation.chargeDisabledReason,
     movementBudgetLabel: presentation.movementBudgetLabel,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
   });
 
   assert.equal(presentation.chargeStartControlsActive, true);
+  assert.equal(presentation.commandMenuLevel, 'branch');
+  assert.equal(presentation.commandMenuBranch, 'charge');
   assert.equal(presentation.chargeStartOptions.length, 3);
   assert.match(presentation.helperCopy, /Charge-Ziel gesetzt/);
   assert.match(presentation.helperCopy, /Tunnel bleibt vorwaerts/);
+  assert.doesNotMatch(html, /data-action="set-command-menu-branch" data-branch="move"/);
+  assert.doesNotMatch(html, /data-action="start-charge-preview"[^>]*data-testid="command-charge-button"/);
+  assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
+  assert.doesNotMatch(html, /data-action="reset-test-units"/);
   assert.doesNotMatch(html, /data-action="select-charge-start-manoeuvre"/);
   assert.doesNotMatch(html, /battlefield-charge-start-controls/);
+  assert.doesNotMatch(html, /data-action="toggle-advance-mode"/);
   assert.doesNotMatch(html, /data-action="toggle-slide-mode"[^>]*disabled/);
   assert.doesNotMatch(html, /data-action="toggle-wheel-mode"[^>]*disabled/);
-  assert.match(html, /data-action="toggle-advance-mode"[^>]*disabled/);
+  assert.match(html, /data-command-menu-branch="charge"/);
 });
 
 test('command panel shows the next corps button during corps movement when no popup is open', () => {
@@ -1196,6 +1591,106 @@ test('command panel shows the next corps button during corps movement when no po
   assert.match(html, /Naechstes Corps/);
 });
 
+test('command panel surfaces conformation and shift explanations from the preview state', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      chargePreview: {
+        ...state.game.chargePreview,
+        status: 'no-evade-handoff',
+        intent: { unitId: 'test-unit-1' },
+        conformationPlan: {
+          status: 'ready',
+          sourceStatus: 'verified',
+          selectedCandidateId: 'front-primary',
+          candidates: [{
+            id: 'front-primary',
+            status: 'complete',
+            contactSide: 'front',
+            sourceStatus: 'verified',
+            finalPose: { xUd: 5, yUd: 5, rotationRadians: 0 },
+            diagnostics: [{ message: 'Complete conformation is available.' }],
+          }],
+          shiftingPlan: {
+            status: 'ready',
+            sourceStatus: 'verified',
+            steps: [{ unitId: 'test-unit-2', direction: 'rear', distanceUd: 1.005 }],
+            lockEffects: [{ unitId: 'test-unit-2', movedOrRalliedLock: true, lightTroopsException: false }],
+            diagnostics: [{ message: 'Shift ready.' }],
+          },
+          diagnostics: [{ message: 'Complete conformation is available.' }],
+        },
+      },
+    },
+  };
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    canUseFreeCommandPoint: presentation.canUseFreeCommandPoint,
+    useFreeCommandPoint: presentation.useFreeCommandPoint,
+    chargePreviewActive: presentation.chargePreviewActive,
+    chargeStartControlsActive: presentation.chargeStartControlsActive,
+    chargeStartOptions: presentation.chargeStartOptions,
+    selectedChargeStartType: presentation.selectedChargeStartType,
+    canStartCharge: presentation.canStartCharge,
+    chargeDisabledReason: presentation.chargeDisabledReason,
+    canStartAdjustedChargeDistanceRoll: presentation.canStartAdjustedChargeDistanceRoll,
+    canResolveChargeContinuationChoice: presentation.canResolveChargeContinuationChoice,
+    minimumChargeContinuationDistanceUd: presentation.minimumChargeContinuationDistanceUd,
+    maximumChargeContinuationDistanceUd: presentation.maximumChargeContinuationDistanceUd,
+    chargeWhyItems: presentation.chargeWhyItems,
+    confirmActionLabel: presentation.confirmActionLabel,
+    confirmActionTitle: presentation.confirmActionTitle,
+    movementBudgetLabel: presentation.movementBudgetLabel,
+  });
+
+  assert.equal(presentation.chargeWhyItems.some((item) => item.label === 'Konformation' && /Bereit/.test(item.value)), true);
+  assert.equal(presentation.chargeWhyItems.some((item) => item.label === 'Shift' && /test-unit-2: rear 1.0 UD/i.test(item.value)), true);
+  assert.equal(presentation.chargeWhyItems.some((item) => item.label === 'Shift-Folgen' && /move\/rally lock/i.test(item.value)), true);
+  assert.equal(presentation.canConfirmMovement, true);
+  assert.equal(presentation.confirmActionLabel, 'Konformation bestaetigen');
+  assert.match(html, /data-action="confirm-movement"/);
+  assert.match(html, /Konformation bestaetigen/);
+  assert.match(html, /Konformation:/);
+  assert.match(html, /Shift-Folgen:/);
+});
+
 test('setup command panel renders only the top next-step action', () => {
   const html = renderAdvanceCommandPanel({
     selectedUnit: null,
@@ -1226,6 +1721,8 @@ test('setup command panel renders only the top next-step action', () => {
   });
 
   assert.match(html, /data-action="setup-next"/);
+  assert.match(html, /data-testid="setup-primary-button"/);
+  assert.match(html, /data-automation-id="setup-next"/);
   assert.match(html, /Naechster Schritt/);
   assert.doesNotMatch(html, /data-action="mark-unit-stay"/);
   assert.doesNotMatch(html, /data-action="reset-test-units"/);
@@ -1503,13 +2000,20 @@ test('command panel gates evade slide choice buttons behind the hotseat handoff 
   const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
 
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
-  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-front-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-evade-blocker-charger' });
   state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
-  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-front-target' });
-  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-flank-target' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'wheel',
+    pivotSide: 'left',
+    angleRadians: 0.6277694966173915,
+  });
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
   state = reduceAppState(state, { type: ACTION_TYPES.RESOLVE_CHARGE_REACTION, decisionType: 'evade' });
   state = reduceAppState(state, { type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE, dieRoll: 6 });
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED);
+  assert.equal(state.game.chargePreview.evadeChoiceHandoff?.status, EVADE_CHOICE_HANDOFF_STATUSES.PENDING);
 
   const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
   const presentation = getAdvancePreviewPresentation({
@@ -1547,10 +2051,45 @@ test('command panel gates evade slide choice buttons behind the hotseat handoff 
   });
 
   assert.match(acknowledgedHtml, /data-action="select-evade-avoidance-choice"/);
-  assert.match(acknowledgedHtml, /data-side="left"/);
-  assert.match(acknowledgedHtml, /data-side="right"/);
+  assert.match(acknowledgedHtml, /Aktuelle Orientierung beibehalten/);
+  assert.match(acknowledgedHtml, /Mit Direction-Wheel anpassen/);
   assert.match(acknowledgedHtml, /data-candidate-id="/);
   assert.doesNotMatch(acknowledgedHtml, /Adjusted Charge wuerfeln/);
+});
+
+test('command panel surfaces adjusted charge for the repaired drill front lane after the evade slide commits', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-front-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-front-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, { type: ACTION_TYPES.RESOLVE_CHARGE_REACTION, decisionType: 'evade' });
+  state = reduceAppState(state, { type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE, dieRoll: 6 });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    ...presentation,
+  });
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(presentation.canStartAdjustedChargeDistanceRoll, true);
+  assert.match(presentation.helperCopy, /Ausweichen ist committed/i);
+  assert.match(html, /data-action="start-adjusted-charge-distance-roll"/);
+  assert.match(html, /Adjusted Charge wuerfeln/);
 });
 
 test('command panel renders generic evade choice labels for direction-wheel candidates', () => {
@@ -1735,4 +2274,320 @@ test('command panel renders an evade tree reset action when a node path is activ
 
   assert.match(html, /data-action="reset-evade-avoidance-path"/);
   assert.match(html, /Knotenpfad reset/);
+});
+
+test('command panel explains a generic committed table-exit fixture before adjusted charge without implying the live reducer path', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      chargePreview: {
+        ...state.game.chargePreview,
+        status: 'evade-required',
+        intent: {
+          unitId: 'test-unit-1',
+          targetUnitId: 'test-unit-4',
+        },
+        evadePlan: {
+          reactingUnitId: 'test-unit-4',
+        },
+        branchDistanceRoll: {
+          history: [],
+          claim: {
+            reason: CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
+            targetUnitId: 'test-unit-4',
+          },
+          result: {
+            distanceOutcome: 'normal-movement',
+          },
+        },
+        evadeMove: {
+          status: 'committed',
+          reactingUnitId: 'test-unit-4',
+          tableExit: {
+            exitsTable: true,
+            removeFromPlay: true,
+            exitEdges: ['north'],
+          },
+        },
+      },
+    },
+  };
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+
+  assert.match(presentation.helperCopy, /verlaesst ueber die Nordkante den Tisch/i);
+  assert.match(presentation.helperCopy, /P10-Abrechnung bleibt nur als Hook vorgemerkt/i);
+});
+
+test('command panel explains committed light-troop end half-turn evade before adjusted charge', () => {
+  let state = advanceToBattlefield();
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'test-unit-1' });
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      chargePreview: {
+        ...state.game.chargePreview,
+        status: 'evade-required',
+        intent: {
+          unitId: 'test-unit-1',
+          targetUnitId: 'test-unit-4',
+        },
+        evadePlan: {
+          reactingUnitId: 'test-unit-4',
+        },
+        branchDistanceRoll: {
+          history: [],
+          claim: {
+            reason: CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
+            targetUnitId: 'test-unit-4',
+          },
+          result: {
+            distanceOutcome: 'normal-movement',
+          },
+        },
+        evadeMove: {
+          status: 'committed',
+          reactingUnitId: 'test-unit-4',
+          distanceUd: 4,
+          finalPose: {
+            xUd: 12,
+            yUd: 8,
+            rotationRadians: Math.PI,
+          },
+          endHalfTurnHook: {
+            available: true,
+            applied: true,
+            reason: 'light-troop-end-half-turn',
+          },
+          cannotShootHook: true,
+        },
+      },
+    },
+  };
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+
+  assert.match(presentation.helperCopy, /Light-Troop-End-Half-Turn/i);
+  assert.match(presentation.helperCopy, /4 UD Evade-Distanz/i);
+  assert.match(presentation.helperCopy, /kostenlos/i);
+  assert.match(presentation.helperCopy, /spaeteres Schiessen/i);
+});
+
+test('shooting command panel collapses to the lean choose-shooter rail in the shooting drill', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'shooting-drill-p1-light-foot-shooter' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    chargeWhyItems: presentation.chargeWhyItems,
+    canShowShootingButton: presentation.canShowShootingButton,
+    shootingPreviewActive: presentation.shootingPreviewActive,
+    shootingTargetingActive: presentation.shootingTargetingActive,
+    canStartShootingDeclaration: presentation.canStartShootingDeclaration,
+    canCancelShootingDeclaration: presentation.canCancelShootingDeclaration,
+    canConfirmShootingDeclaration: presentation.canConfirmShootingDeclaration,
+    shootDisabledReason: presentation.shootDisabledReason,
+    shootingWhyItems: presentation.shootingWhyItems,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.match(html, /data-testid="shooting-procedure-rail"/);
+  assert.match(html, /data-testid="shooting-procedure-banner"/);
+  assert.match(html, /Schiessen|Waehle Schuetzen/);
+  assert.doesNotMatch(html, /data-action="confirm-movement"/);
+});
+
+test('shooting command panel renders why surface and declaration action after target selection', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'shooting-drill-p1-light-foot-shooter' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET, targetUnitId: 'shooting-drill-p2-front-target' });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    chargeWhyItems: presentation.chargeWhyItems,
+    canShowShootingButton: presentation.canShowShootingButton,
+    shootingPreviewActive: presentation.shootingPreviewActive,
+    shootingTargetingActive: presentation.shootingTargetingActive,
+    canStartShootingDeclaration: presentation.canStartShootingDeclaration,
+    canCancelShootingDeclaration: presentation.canCancelShootingDeclaration,
+    canConfirmShootingDeclaration: presentation.canConfirmShootingDeclaration,
+    shootDisabledReason: presentation.shootDisabledReason,
+    shootingWhyItems: presentation.shootingWhyItems,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.match(html, /data-shooting-why-card/);
+  assert.match(html, /Shoot-Status/);
+  assert.match(html, /P2 Front Target/);
+  assert.match(html, /data-action="confirm-shooting-declaration"/);
+  assert.match(html, /Schiessen/);
+});
+
+test('shooting command panel hands bounded roll result control off to the popup flow after declaration', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+  const battlefieldProfile = getBattlefieldProfile(BATTLEFIELD_PROFILE_IDS.STANDARD_200_6_15_MM);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'shooting-drill-p1-light-foot-shooter' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET, targetUnitId: 'shooting-drill-p2-front-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_PROTECTION, resolvedTargetProtectionValue: 1 });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_SHOOTER_DIE, dieRoll: 5 });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE, dieRoll: 3 });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.ok(selectedUnit);
+
+  const presentation = getAdvancePreviewPresentation({
+    state,
+    selectedUnit,
+    isSetupActive: false,
+    canDragUnitsInSetup: false,
+    battlefieldProfile,
+  });
+  const html = renderAdvanceCommandPanel({
+    selectedUnit,
+    isSetupActive: false,
+    canIssueMovementCommands: false,
+    advanceModeActive: presentation.advanceModeActive,
+    slideModeActive: presentation.slideModeActive,
+    wheelModeActive: presentation.wheelModeActive,
+    wheelPivotSide: presentation.wheelPivotSide,
+    advancePreviewUd: presentation.advancePreviewUd,
+    slidePreviewUd: presentation.slidePreviewUd,
+    wheelPreviewAngleRadians: presentation.wheelPreviewAngleRadians,
+    wheelDistanceUd: presentation.wheelDistanceUd,
+    previewDistanceUd: presentation.previewDistanceUd,
+    slideAvailable: presentation.slideAvailable,
+    remainingAdvanceBudgetUd: presentation.remainingAdvanceBudgetUd,
+    maxAdvanceUd: presentation.maxAdvanceUd,
+    helperCopy: presentation.helperCopy,
+    diagnostics: presentation.diagnostics,
+    canCancelMovement: presentation.canCancelMovement,
+    canConfirmMovement: presentation.canConfirmMovement,
+    selectionLockActive: presentation.selectionLockActive,
+    selectionLockCopy: presentation.selectionLockCopy,
+    canMarkStay: presentation.canMarkStay,
+    canShowMovementButtons: presentation.canShowMovementButtons,
+    chargeWhyItems: presentation.chargeWhyItems,
+    canShowShootingButton: presentation.canShowShootingButton,
+    shootingPreviewActive: presentation.shootingPreviewActive,
+    shootingTargetingActive: presentation.shootingTargetingActive,
+    canStartShootingDeclaration: presentation.canStartShootingDeclaration,
+    canCancelShootingDeclaration: presentation.canCancelShootingDeclaration,
+    canConfirmShootingDeclaration: presentation.canConfirmShootingDeclaration,
+    hasDeclaredShotToResolve: presentation.hasDeclaredShotToResolve,
+    resolvedShotRecord: presentation.resolvedShotRecord,
+    resolutionDraftActive: presentation.resolutionDraftActive,
+    canStartShootingResolution: presentation.canStartShootingResolution,
+    canConfirmShootingResolution: presentation.canConfirmShootingResolution,
+    shootingResolutionDraft: presentation.shootingResolutionDraft,
+    shootingResolutionPreview: presentation.shootingResolutionPreview,
+    shootDisabledReason: presentation.shootDisabledReason,
+    shootingWhyItems: presentation.shootingWhyItems,
+    shootingFlowActive: presentation.shootingFlowActive,
+    commandMenuBranch: presentation.commandMenuBranch,
+    commandMenuLevel: presentation.commandMenuLevel,
+  });
+
+  assert.match(html, /Schussdialog offen/);
+  assert.doesNotMatch(html, /data-action="set-shooting-resolution-protection"/);
+  assert.doesNotMatch(html, /Roll\/Result bestaetigen/);
 });

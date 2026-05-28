@@ -212,6 +212,56 @@ Use this compact entry format for new items:
 	Why it matters: P4-P10 need a stable lifecycle skeleton before detailed validators are attached.
 	Next check: use the p.23 sequence as the working baseline and re-check shooting, melee, rout/pursuit, and victory chapters during their RV2-04 passes before implementation-complete claims.
 
+## UCD0 Unit Capability Data Notes
+
+- ID: unit-capabilities.light-troops-family-boundary
+	Status: errata-check
+	Area: charge
+	Sources: `docs/rules/charge.md`, `docs/rules/movement.md`, `docs/rules/errata.md`, `Rules.pdf` p.43-49, `Errata_ADG_V4_English.pdf`
+	Question: which exact troop families count as the rules' `light troops` subset for the free end-half-turn after evade and related movement hooks, and where does that boundary differ from the broader evade-capable family set?
+	Why it matters: `UCD-00` can safely plan `light-infantry` as the first representative profile, but `UCD-01` and `UCD-02` must not collapse all evade-capable troops into a single `light-troops` ability flag by guesswork.
+	Next check: cross-check the direct evade wording and errata against the movement chapter's light-troop free-turn wording before freezing the default ability list for `light-infantry`, `cavalry-bow`, or future `light-cavalry` / `javelinmen` profiles.
+
+- ID: unit-capabilities.base-profile-family-catalog
+	Status: open
+	Area: army-lists
+	Sources: `docs/rules/units-and-bases.md`, `docs/army-builder.md`, `ArmyLists1-82.pdf`, `Rules.pdf`, `Reglettes.pdf`
+	Question: which base sizes and shapes can be standardized immediately as shared family-level `BaseProfile` records for the first representative unit profiles, and which cases still depend on later army-list or source-table extraction?
+	Why it matters: `UCD-00` can name planning-level base profile IDs such as mounted, formed foot, deep foot, or elephant, but `UCD-01` must not present placeholder geometry as a fully source-closed base catalog.
+	Next check: verify the first minimal shared base catalog directly against the base/ruler material before treating `bp-foot-light`, `bp-foot-formed`, `bp-foot-deep`, `bp-mounted`, or `bp-elephant` as implementation-closed measurements.
+
+- ID: unit-capabilities.evade-mounted-subfamily-split
+	Status: open
+	Area: charge
+	Sources: `docs/rules/charge.md`, `docs/source/Ancient_Period.md`, `docs/source/Classic_Period.md`, `Rules.pdf` p.43-49, `ArmyLists1-82.pdf`, `Reglettes.pdf`
+	Question: for future capability tables and Charge Drill lanes, which evade-relevant mounted or loose-foot families need distinct representative profiles beyond the first `cavalry` and `cavalry-bow` anchors, specifically `light-cavalry`, `javelinmen`, `camelry`, and `light-chariot`, and which of them overlap with the rules' `light troops` subset?
+	Why it matters: `CD2-00` can safely start from the first seven-profile matrix, but later drill expansion and capability defaults must not collapse all evade-capable mounted or loose-foot exceptions into one generic mounted profile.
+	Next check: keep the first matrix on the approved seven UCD families, then split additional evade-relevant families only when the next lane needs them and the direct charge wording plus representative list examples are source-checked.
+
+- ID: unit-capabilities.formed-foot-family-split
+	Status: open
+	Area: combat
+	Sources: `docs/source/Ancient_Period.md`, `docs/source/Classic_Period.md`, `docs/rules/movement.md`, `Rules.pdf`, `ArmyLists1-82.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: how should the long-term catalog separate generic movement anchors such as `medium infantry` and `heavy infantry` from the later combat-facing family rows `medium swordsmen`, `medium spearmen`, `heavy swordsmen`, `heavy spearmen`, `foot knights`, `pikemen`, and `levy` without duplicating movement/combat tables on every unit definition?
+	Why it matters: the user needs both the generic MI/HI layer for movement and the weaponed family layer for real rule distinctions. The data spine must support both without collapsing them or overfitting the first drill subset.
+	Next check: cross-check movement-family anchors against representative army-list rows and the later combat source-lock passes before freezing `troopFamilyId` versus `movementProfileId` boundaries.
+
+- ID: unit-capabilities.missile-family-taxonomy
+	Status: open
+	Area: shooting
+	Sources: `docs/rules/shooting.md`, `docs/source/Ancient_Period.md`, `docs/source/Classic_Period.md`, `Rules.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: which missile-bearing troop families and weapon packages need distinct capability rows or ordered modifiers in the long-term catalog, specifically `javelin`, `sling`, `bow`, `crossbow`, `handgun`, artillery grades, war wagon fire, and missile support?
+	Why it matters: user-facing unit identity and future shooting legality cannot be modeled safely if missile distinctions stay trapped inside render labels or generic `hasBow` booleans.
+	Next check: P8-00 narrows the first implementation subset to `sp-light-missile-foot`, `sp-mounted-bow`, and `sp-none`; keep the broader taxonomy open until representative list entries and special weapon packages are source-checked.
+
+- ID: unit-capabilities.special-ability-catalog
+	Status: open
+	Area: combat
+	Sources: `docs/rules/errata.md`, `docs/rules/shooting.md`, `docs/source/Ancient_Period.md`, `docs/source/Classic_Period.md`, `Rules.pdf`, `Errata_ADG_V4_English.pdf`
+	Question: which printed special abilities should become stable first-class `abilityIds` in the unit-definition/catalog layer, specifically `armour`, `heavy armour`, `two-handed weapon`, `polearm`, `furious charge`, `impact`, `impetuous`, `incendiary`, `panic`, `pavise`, `stakes`, `expendables`, `missile support`, and `mixed units`, and which require ordered rule-table treatment instead of simple flags?
+	Why it matters: the user's long-term list already exceeds the first Charge Drill subset, and the project needs a durable capability vocabulary before P8-P11 start layering more bespoke tags onto fixtures or roster data.
+	Next check: harvest representative named abilities from source-locked rule chapters and army-list entries, then split simple boolean-like abilities from ordered modifier stacks and structural unit-type markers.
+
 ## P1-05 Terrain And Setup Blockers
 
 - ID: terrain.region-table-and-quotas
@@ -554,7 +604,23 @@ Use this compact entry format for new items:
 	Sources: `docs/source/Rules_v2.md` p.47-49, `docs/source/rules-v2-examples/index.md`, `Rules_Color_300DPI.pdf` p.47-49, `Errata_ADG_V4_English.pdf`, `docs/charge-phase-procedure-concept.md`
 	Question: what is the smallest honest evade subset that P7A may implement first without inventing rules?
 	Why it matters: P7A needs a stable delivery boundary before code starts, especially for `may-evade`, `must-evade`, `cannot-evade`, and `blocked-evade`.
-	Next check: the scan-confirmed Rules-v2 evade pass now supports the complete supported single-unit P7A2 flow as the working baseline. For P7A2, treat wheel geometry as inherited from the scan-confirmed movement wheel baseline unless evade wording or errata overrides it, and treat table exit as immediate removal plus a deferred P10 accounting hook. Keep this item open only for the remaining direct errata confirmation points: exact light-troop family wording, any evade-specific wheel-cost wording that overrides the general wheel baseline, and any exception that narrows the supported single-unit subset.
+	Next check: the scan-confirmed Rules-v2 evade pass now supports the current supported single-unit P7A2/P7B baseline for may/must/cannot/blocked evade, branch commitment, and full-evade follow-through commit into canonical unit state. Wheel geometry still inherits the scan-confirmed movement wheel baseline unless evade wording or errata overrides it. Table-edge evade remains source-open in the active subset for now: current reducer/solver behavior surfaces `charge.evade.table-edge` instead of auto-committing removal, so keep this item open for direct errata/page confirmation of table-exit handling in addition to the remaining exact light-troop-family and evade-specific wheel-cost checks.
+
+- ID: charge.evade-after-effects-and-reset-timing
+	Status: resolved
+	Area: charge
+	Sources: `docs/source/Rules_v2.md` p.47-49 and p.58-63, `Rules_Color_300DPI.pdf` p.47-49 and p.58-63, `Errata_ADG_V4_English.pdf`, `docs/rules/charge.md`, `docs/rules/shooting.md`
+	Question: when exactly do the after-evade hooks reset, especially `cannot shoot after evading` and repeated-evade eligibility or counters, and does the printed `same sequence` shooting wording require a reset earlier than the current reducer `ROUND_BEGIN` placeholder?
+	Why it matters: P7A2 now records these hooks in reducer-owned state, but later shooting, movement, and replay logic need exact reset boundaries instead of ad hoc cleanup.
+	Next check: resolved for the current project baseline from the maintained shooting/evade corpus plus the user-confirmed page reading on 2026-05-26. The decisive interpretation is sequence-scoped: a unit that evaded cannot shoot in the immediately following shooting phase of that same player sequence, and because shooting includes both active and passive fire, the evading passive unit misses only that upcoming shooting phase. The reducer reset at that player's next `ROUND_BEGIN` therefore matches the intended boundary for the next own sequence. Re-open only if a later direct errata/page quotation broadens the restriction beyond the current player sequence.
+
+- ID: charge.light-troop-end-half-turn-family-boundary
+	Status: resolved
+	Area: charge
+	Sources: `docs/source/Rules_v2.md` p.29-31 and p.47-49, `Rules_Color_300DPI.pdf` p.29-31 and p.47-49, `Errata_ADG_V4_English.pdf`, `docs/rules/movement.md`, `docs/rules/errata.md`
+	Question: does the free end-of-evade half-turn belong to the normal rules `light troops` subset as defined in the troop and movement chapters, or is the evade wording/errata narrower than that generic light-troop turn privilege?
+	Why it matters: P7A2 already treats the end-half-turn as source-backed scope, but the capability flag must bind to the correct family boundary before the project claims rule-safe coverage beyond the current targeted drill fixtures.
+	Next check: resolved for the current project baseline from the direct 300-DPI scan check on 2026-05-26 plus the maintained Rules-v2 corpus. The troop-category corpus maps the rules' `light troops` subset to `LI` and `LH`, the movement chapter grants light troops a free half-turn or quarter-turn at the beginning or end of a move, and the evade page explicitly states `Light troops can perform an additional free half-turn at the end of their evade move.` No narrower evade or errata family wording was identified in this pass. Treat the evade end-half-turn privilege as applying to the normal `light troops` subset, i.e. `LI` plus `LH`, not to all evade-capable troops.
 
 - ID: charge.secondary-target-vs-new-target-trigger
 	Status: errata-check
@@ -578,7 +644,7 @@ Use this compact entry format for new items:
 	Sources: `docs/source/Rules_v2.md` p.50-54, `docs/source/rules-v2-examples/index.md`, `Rules_Color_300DPI.pdf` p.50-54, `Errata_ADG_V4_English.pdf`
 	Question: how should a single charging unit choose between complete, incomplete, blocked, and optional conformation outcomes after front, flank, rear, or corner contact?
 	Why it matters: P7 cannot reduce conformation to a visual snap; it needs candidate generation and deterministic selection with diagnostics.
-	Next check: the scan-confirmed pass now supports these baseline solver rules: most-threatening-enemy-driven conformation, slide-then-pivot after charge, front-edge/front-corner support geometry, rear-corner blocked-flank handling, incomplete fallback, terrain-based optionality, and principal-opponent rejection of candidates that end more aligned with the wrong enemy. Current working measurement is contact completeness, then contact span, then lateral misalignment, then deterministic enemy id. Keep this item open only for direct errata confirmation and for pinning those rules to exact geometry predicates.
+	Next check: the scan-confirmed pass now supports the approved P7B first-subset baseline: most-threatening-enemy-driven conformation, slide-then-pivot after charge, front-edge/front-corner support geometry, rear-corner blocked-flank handling, incomplete fallback, terrain-based optionality, and principal-opponent rejection of candidates that end more aligned with the wrong enemy. Current working measurement is contact completeness, then contact span, then lateral misalignment, then deterministic enemy id. Keep this item open only for direct errata confirmation and for pinning those ranking rules to exact geometry predicates during later solver hardening; it does not block `P7B-01` through the first supported candidate slices.
 
 - ID: source-corpus.rules-ocr-layout-risk
 	Status: open
@@ -595,7 +661,7 @@ Use this compact entry format for new items:
 	Sources: `docs/source/Rules_v2.md` p.53-55, `Rules_Color_300DPI.pdf` p.53-55, `Errata_ADG_V4_English.pdf`
 	Question: which units may be shifted, which are unshiftable, what minimality and priority rules apply, and what post-shift movement/rally locks must be recorded?
 	Why it matters: P7 shifting must be deterministic and minimal, and later melee/rally phases need correct state flags instead of ad hoc UI assumptions.
-	Next check: the scan-confirmed pass now supports minimum-units minimum-distance shifting, rear-before-flank priority, support-preservation for shifted supports, and the moved-or-rally lock with the light-troop exception. Keep this item open for direct errata confirmation of non-shiftable unit families and any narrower exception wording.
+	Next check: the scan-confirmed pass now supports minimum-units minimum-distance shifting, rear-before-flank priority, support-preservation for shifted supports, and the moved-or-rally lock with the light-troop exception. Keep this item open for direct errata confirmation of non-shiftable unit families and any narrower exception wording, but treat the simple one-blocker shifting skeleton as source-backed enough for the first P7B implementation subset.
 
 - ID: charge.support-position-vs-contact-boundary
 	Status: errata-check
@@ -675,7 +741,7 @@ Use this compact entry format for new items:
 	Sources: `docs/source/Rules_v2.md` `rv2.shooting-core`, `Rules_Color_300DPI.pdf` p.56-59, shooting example crops, `Errata_ADG_V4_English.pdf`
 	Question: do errata or exact diagram reading alter the scan-confirmed shooting baseline for target priority, line of sight, range, cover, and melee/support exclusions?
 	Why it matters: the corpus now records several hard shooting prohibitions, but P8 shooting validators and UI target aids need a complete rule-owned target and LOS model instead of hand-built exclusions.
-	Next check: use `docs/rules/shooting.md` as the working baseline and keep this open only for ordered modifier stack, overhead-fire, and exact diagram-predicate confirmation.
+	Next check: P8-00 permits only the normal-zone, unit-blocker, basic-priority first subset; keep this open for ordered modifier stack, overhead-fire, terrain/cover/ambush LOS, special zones, stable target retention, and exact diagram-predicate confirmation.
 
 - ID: melee.main-unit-support-multiple-attack-and-modifiers
 	Status: errata-check

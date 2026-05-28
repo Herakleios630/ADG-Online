@@ -26,8 +26,7 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(43, 30, 18, 0.38);
-  backdrop-filter: blur(3px);
+  background: rgba(43, 30, 18, 0.58);
 }
 
 .battlefield-round-dialog {
@@ -246,6 +245,14 @@
 .battlefield-command-button {
   width: 100%;
   min-height: 42px;
+}
+
+.battlefield-command-branch-hint {
+  grid-column: 1 / -1;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  pointer-events: none;
 }
 
 .battlefield-command-actions {
@@ -686,7 +693,7 @@
   z-index: 2;
   border: 1px dashed rgba(96, 208, 171, 0.78);
   background: rgba(96, 208, 171, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(235, 255, 249, 0.18), 0 0 12px rgba(96, 208, 171, 0.18);
+  contain: paint;
 }
 
 .battlefield-evade-preview-reach.is-source-open {
@@ -698,7 +705,7 @@
   z-index: 2;
   border: 1px dashed rgba(235, 118, 83, 0.8);
   background: rgba(235, 118, 83, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(255, 242, 236, 0.18), 0 0 12px rgba(235, 118, 83, 0.18);
+  contain: paint;
 }
 
 .battlefield-charge-follow-through-reach.is-source-open {
@@ -707,9 +714,11 @@
 }
 
 .battlefield-charge-follow-through-reach.is-minimum {
-  border-color: rgba(255, 230, 152, 0.92);
-  background: rgba(255, 230, 152, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(255, 248, 220, 0.2), 0 0 10px rgba(255, 230, 152, 0.16);
+  z-index: 4;
+  border-width: 2px;
+  border-color: rgba(255, 226, 122, 0.96);
+  background: rgba(255, 226, 122, 0.24);
+  contain: paint;
 }
 
 .battlefield-zoc-band {
@@ -781,6 +790,7 @@
   border-style: dashed;
   border-color: rgba(96, 208, 171, 0.86);
   background: rgba(96, 208, 171, 0.14);
+  contain: paint;
 }
 
 .battlefield-evade-preview-reorientation {
@@ -788,6 +798,7 @@
   border-style: dashed;
   border-color: rgba(123, 214, 235, 0.88);
   background: rgba(123, 214, 235, 0.12);
+  contain: paint;
 }
 
 .battlefield-evade-preview-reorientation.is-source-open {
@@ -804,6 +815,7 @@
   border-style: dashed;
   border-color: rgba(235, 118, 83, 0.88);
   background: rgba(235, 118, 83, 0.14);
+  contain: paint;
 }
 
 .battlefield-charge-follow-through-ghost.is-source-open {
@@ -812,8 +824,97 @@
 }
 
 .battlefield-charge-follow-through-ghost.is-minimum {
-  border-color: rgba(255, 230, 152, 0.94);
-  background: rgba(255, 230, 152, 0.16);
+  z-index: 5;
+  border-width: 2px;
+  border-color: rgba(255, 226, 122, 0.98);
+  background: rgba(255, 226, 122, 0.22);
+}
+
+.battlefield-conformation-ghost {
+  z-index: 4;
+  border-style: dashed;
+  border-width: 2px;
+  border-color: rgba(76, 154, 240, 0.9);
+  background: rgba(76, 154, 240, 0.14);
+  box-shadow: 0 0 0 1px rgba(19, 54, 92, 0.18), 0 0 12px rgba(76, 154, 240, 0.18);
+  contain: paint;
+}
+
+.battlefield-conformation-ghost.is-incomplete {
+  border-color: rgba(237, 181, 71, 0.92);
+  background: rgba(237, 181, 71, 0.18);
+}
+
+.battlefield-conformation-ghost.is-optional {
+  border-color: rgba(108, 186, 114, 0.9);
+  background: rgba(108, 186, 114, 0.16);
+}
+
+.battlefield-conformation-ghost.is-source-open {
+  border-color: rgba(231, 176, 74, 0.92);
+  background: rgba(231, 176, 74, 0.16);
+}
+
+.battlefield-conformation-shift-ghost {
+  z-index: 5;
+  border-style: dotted;
+  border-width: 2px;
+  border-color: rgba(66, 195, 158, 0.94);
+  background: rgba(66, 195, 158, 0.16);
+  box-shadow: 0 0 0 1px rgba(21, 72, 61, 0.2), 0 0 14px rgba(66, 195, 158, 0.2);
+  contain: paint;
+}
+
+.battlefield-conformation-shift-ghost.is-source-open {
+  border-color: rgba(231, 176, 74, 0.92);
+  background: rgba(231, 176, 74, 0.16);
+}
+
+.battlefield-preview-badge {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, calc(-100% - 10px));
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(76, 47, 12, 0.32);
+  background: rgba(255, 248, 236, 0.96);
+  color: rgba(76, 47, 12, 0.98);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.battlefield-preview-badge-minimum {
+  border-color: rgba(171, 108, 13, 0.42);
+  background: rgba(255, 238, 179, 0.98);
+  color: rgba(88, 53, 6, 0.98);
+}
+
+.battlefield-preview-badge-evade-commit {
+  border-color: rgba(53, 139, 106, 0.4);
+  background: rgba(228, 247, 240, 0.98);
+  color: rgba(28, 90, 65, 0.98);
+}
+
+.battlefield-preview-badge-evade-commit.is-table-exit {
+  border-color: rgba(146, 87, 28, 0.42);
+  background: rgba(255, 241, 219, 0.98);
+  color: rgba(110, 66, 14, 0.98);
+}
+
+.battlefield-preview-badge-conformation {
+  border-color: rgba(48, 99, 174, 0.42);
+  background: rgba(233, 242, 255, 0.98);
+  color: rgba(23, 62, 119, 0.98);
+}
+
+.battlefield-preview-badge-shift {
+  border-color: rgba(39, 121, 98, 0.4);
+  background: rgba(228, 248, 241, 0.98);
+  color: rgba(23, 91, 72, 0.98);
 }
 
 .battlefield-command-link.is-in-command {
@@ -909,6 +1010,7 @@
 }
 
 .battlefield-unit-token {
+  --unit-base-shadow: 0 2px 6px rgba(30, 28, 16, 0.14);
   position: absolute;
   min-width: 18px;
   min-height: 9px;
@@ -919,20 +1021,212 @@
   overflow: hidden;
   border-radius: 0;
   border: none;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--token-color) 72%, white), var(--token-color));
-  box-shadow: inset 0 0 0 1px rgba(43, 34, 21, 0.78), 0 4px 10px rgba(30, 28, 16, 0.2);
+  background: transparent;
   padding: 0;
 }
 
 .battlefield-unit-token::before {
-  content: '';
+  content: none;
+}
+
+.battlefield-unit-visual {
   position: absolute;
-  left: 1px;
-  right: 1px;
-  top: 1px;
-  height: 30%;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.battlefield-unit-visual-base,
+.battlefield-unit-visual-figures,
+.battlefield-unit-visual-accent,
+.battlefield-unit-visual-facing,
+.battlefield-unit-visual-bow-marker {
+  position: absolute;
+  pointer-events: none;
+}
+
+.battlefield-unit-visual-base {
+  inset: 0;
+  border: 1px solid rgba(20, 20, 20, 0.78);
+  background: #55a85d;
+  box-shadow: var(--unit-base-shadow);
+}
+
+.battlefield-unit-visual.is-base-depth-half .battlefield-unit-visual-base {
+  inset: 18% 4%;
+}
+
+.battlefield-unit-visual.is-base-depth-three-quarter .battlefield-unit-visual-base {
+  inset: 0;
+}
+
+.battlefield-unit-visual.is-base-depth-full .battlefield-unit-visual-base {
+  inset: 0;
+}
+
+.battlefield-unit-visual.is-base-depth-deep .battlefield-unit-visual-base {
+  inset: 0;
+}
+
+.battlefield-unit-visual.is-base-loose-foot .battlefield-unit-visual-base,
+.battlefield-unit-visual.is-base-formed-foot .battlefield-unit-visual-base,
+.battlefield-unit-visual.is-base-deep-foot .battlefield-unit-visual-base {
+  border-radius: 2px;
+}
+
+.battlefield-unit-visual.is-base-mounted .battlefield-unit-visual-base {
+  border-radius: 2px;
+}
+
+.battlefield-unit-visual.is-base-elephant .battlefield-unit-visual-base {
+  border-radius: 2px;
+}
+
+.battlefield-unit-visual.is-base-commander .battlefield-unit-visual-base {
+  border-radius: 999px;
+}
+
+.battlefield-unit-visual-figures {
+  inset: 10% 8%;
+  z-index: 1;
+}
+
+.battlefield-unit-visual.is-base-depth-half .battlefield-unit-visual-figures {
+  inset: 22% 12%;
+}
+
+.battlefield-unit-visual.is-base-depth-three-quarter .battlefield-unit-visual-figures {
+  inset: 12% 8%;
+}
+
+.battlefield-unit-visual.is-base-depth-full .battlefield-unit-visual-figures {
+  inset: 12% 8%;
+}
+
+.battlefield-unit-visual.is-base-depth-deep .battlefield-unit-visual-figures {
+  inset: 10% 8%;
+}
+
+.battlefield-unit-figure-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--token-color);
+  border: 2px solid #111111;
+}
+
+.battlefield-unit-figure-marker.is-marker-circle {
+  width: 16%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+}
+
+.battlefield-unit-figure-marker.is-marker-oval {
+  width: 16%;
+  height: 62%;
+  border-radius: 999px;
+}
+
+.battlefield-unit-figure-marker.is-figure-light-foot {
+  width: 16%;
+}
+
+.battlefield-unit-figure-marker.is-figure-ordered-foot {
+  width: 15%;
+}
+
+.battlefield-unit-figure-marker.is-figure-heavy-foot,
+.battlefield-unit-figure-marker.is-figure-pike-front {
+  width: 14%;
+}
+
+.battlefield-unit-figure-marker.is-figure-mounted,
+.battlefield-unit-figure-marker.is-figure-mounted-bow {
+  width: 16%;
+  height: 64%;
+}
+
+.battlefield-unit-figure-marker.is-figure-elephant-mass {
+  width: 42%;
+  height: 42%;
+}
+
+.battlefield-unit-figure-marker.is-figure-leader-stand {
+  width: 24%;
+  height: 24%;
+}
+
+.battlefield-unit-visual-accent {
+  display: none;
+}
+
+.battlefield-unit-visual.is-accent-base-rim .battlefield-unit-visual-accent {
+  inset: auto 8% 6% 8%;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--token-color) 72%, white);
+}
+
+.battlefield-unit-visual.is-accent-saddle-cloth .battlefield-unit-visual-accent,
+.battlefield-unit-visual.is-accent-howdah-cloth .battlefield-unit-visual-accent {
+  inset: 42% 24% 20% 24%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--token-color) 78%, white);
+}
+
+.battlefield-unit-visual.is-accent-command-ring .battlefield-unit-visual-accent {
+  inset: 4%;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--token-color) 76%, white);
+}
+
+.battlefield-unit-visual-facing {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 7%;
+  background: #f7f7f7;
+  z-index: 2;
+}
+
+.battlefield-unit-visual-facing[data-front-status="pending"] {
+  background: rgba(245, 210, 32, 0.98);
+}
+
+.battlefield-unit-visual-facing[data-front-status="done"] {
+  background: rgba(44, 193, 94, 0.98);
+}
+
+.battlefield-unit-visual-facing[data-front-status="mandatory"] {
+  background: rgba(217, 63, 63, 0.98);
+}
+
+.battlefield-unit-visual.is-facing-front-notch .battlefield-unit-visual-facing {
   border-radius: 0;
-  background: rgba(255, 248, 231, 0.82);
+}
+
+.battlefield-unit-visual.is-facing-front-wedge .battlefield-unit-visual-facing,
+.battlefield-unit-visual.is-facing-front-chevron .battlefield-unit-visual-facing {
+  border-radius: 0;
+}
+
+.battlefield-unit-visual.is-facing-front-cap .battlefield-unit-visual-facing {
+  border-radius: 0;
+}
+
+.battlefield-unit-visual-bow-marker {
+  right: 10%;
+  bottom: 12%;
+  width: 8px;
+  height: 10px;
+  border: 1px solid #111111;
+  border-left-color: transparent;
+  border-radius: 0 999px 999px 0;
+  background: transparent;
+}
+
+.battlefield-unit-token.is-circle-base .battlefield-unit-visual {
+  inset: 3px;
 }
 
 .battlefield-charge-contact-sides {
@@ -1000,52 +1294,150 @@
 }
 
 .battlefield-unit-token:hover {
-  box-shadow: inset 0 0 0 1px rgba(43, 34, 21, 0.78), inset 0 0 0 2px rgba(244, 237, 208, 0.6), 0 6px 12px rgba(30, 28, 16, 0.22);
+  --unit-base-shadow: 0 0 0 1px rgba(244, 237, 208, 0.72), 0 6px 12px rgba(30, 28, 16, 0.22);
 }
 
 .battlefield-unit-token.is-active-corps-unit {
-  box-shadow: inset 0 0 0 1px rgba(244, 237, 208, 0.76), inset 0 0 0 2px rgba(244, 237, 208, 0.2), 0 5px 11px rgba(30, 28, 16, 0.2);
+  --unit-base-shadow: 0 0 0 1px rgba(244, 237, 208, 0.76), 0 5px 11px rgba(30, 28, 16, 0.2);
 }
 
 .battlefield-unit-token.is-corps-unit-pending {
-  box-shadow: inset 0 0 0 2px rgba(245, 210, 32, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
+  --unit-base-shadow: 0 0 0 2px rgba(245, 210, 32, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
 }
 
 .battlefield-unit-token.is-corps-unit-done {
-  box-shadow: inset 0 0 0 2px rgba(44, 193, 94, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
+  --unit-base-shadow: 0 0 0 2px rgba(44, 193, 94, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
 }
 
 .battlefield-unit-token.is-corps-unit-mandatory {
-  box-shadow: inset 0 0 0 2px rgba(217, 63, 63, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
+  --unit-base-shadow: 0 0 0 2px rgba(217, 63, 63, 0.95), 0 6px 12px rgba(30, 28, 16, 0.22);
 }
 
 .battlefield-unit-token.is-spent-corps-unit {
-  box-shadow: inset 0 0 0 2px rgba(44, 193, 94, 0.56), 0 6px 12px rgba(30, 28, 16, 0.18);
+  --unit-base-shadow: 0 0 0 2px rgba(44, 193, 94, 0.56), 0 6px 12px rgba(30, 28, 16, 0.18);
 }
 
 .battlefield-unit-token.is-selected {
-  box-shadow: inset 0 0 0 2px rgba(244, 237, 208, 0.88), inset 0 0 0 4px color-mix(in srgb, var(--player-accent) 54%, rgba(255, 255, 255, 0.22)), 0 8px 16px rgba(30, 28, 16, 0.28);
+  --unit-base-shadow: 0 0 0 2px rgba(244, 237, 208, 0.88), 0 0 0 4px color-mix(in srgb, var(--player-accent) 54%, rgba(255, 255, 255, 0.22)), 0 8px 16px rgba(30, 28, 16, 0.28);
 }
 
 .battlefield-unit-token.is-attach-target {
-  box-shadow: inset 0 0 0 2px rgba(88, 157, 221, 0.92), 0 6px 12px rgba(30, 28, 16, 0.22);
+  --unit-base-shadow: 0 0 0 2px rgba(88, 157, 221, 0.92), 0 6px 12px rgba(30, 28, 16, 0.22);
 }
 
 .battlefield-unit-token.is-attach-target-selected {
-  box-shadow: inset 0 0 0 2px rgba(244, 237, 208, 0.9), inset 0 0 0 4px rgba(88, 157, 221, 0.34), 0 8px 16px rgba(30, 28, 16, 0.28);
+  --unit-base-shadow: 0 0 0 2px rgba(244, 237, 208, 0.9), 0 0 0 4px rgba(88, 157, 221, 0.34), 0 8px 16px rgba(30, 28, 16, 0.28);
 }
 
 .battlefield-unit-token.is-charge-target-eligible {
-  box-shadow: inset 0 0 0 2px rgba(176, 67, 55, 0.94), inset 0 0 0 4px rgba(237, 169, 88, 0.24), 0 8px 16px rgba(30, 28, 16, 0.24);
+  --unit-base-shadow: 0 0 0 2px rgba(176, 67, 55, 0.94), 0 0 0 4px rgba(237, 169, 88, 0.24), 0 8px 16px rgba(30, 28, 16, 0.24);
 }
 
 .battlefield-unit-token.is-charge-target-blocked {
-  box-shadow: inset 0 0 0 2px rgba(123, 112, 98, 0.72), 0 6px 12px rgba(30, 28, 16, 0.18);
+  --unit-base-shadow: 0 0 0 2px rgba(123, 112, 98, 0.72), 0 6px 12px rgba(30, 28, 16, 0.18);
   filter: saturate(0.68);
 }
 
 .battlefield-unit-token.is-charge-target-selected {
-  box-shadow: inset 0 0 0 2px rgba(244, 237, 208, 0.92), inset 0 0 0 4px rgba(176, 67, 55, 0.38), 0 8px 16px rgba(30, 28, 16, 0.28);
+  --unit-base-shadow: 0 0 0 2px rgba(244, 237, 208, 0.92), 0 0 0 4px rgba(176, 67, 55, 0.38), 0 8px 16px rgba(30, 28, 16, 0.28);
+}
+
+.battlefield-unit-token.is-shooting-procedure-blocked {
+  --unit-base-shadow: 0 0 0 2px rgba(217, 63, 63, 0.9), 0 6px 12px rgba(30, 28, 16, 0.22);
+}
+
+.battlefield-unit-token.is-shooting-procedure-source-open {
+  --unit-base-shadow: 0 0 0 2px rgba(176, 104, 53, 0.92), 0 6px 12px rgba(30, 28, 16, 0.2);
+}
+
+.battlefield-unit-token.is-shooting-procedure-non-ranged {
+  filter: saturate(0) brightness(0.82);
+}
+
+.battlefield-shooting-support-line {
+  position: absolute;
+  display: block;
+  height: 3px;
+  transform-origin: 0 50%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(196, 149, 58, 0.94), rgba(127, 58, 28, 0.94));
+  box-shadow: 0 0 0 1px rgba(252, 244, 220, 0.78), 0 4px 10px rgba(48, 23, 14, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.battlefield-shooting-priority-line {
+  position: absolute;
+  display: block;
+  height: 4px;
+  transform-origin: 0 50%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(248, 222, 115, 0.98), rgba(190, 68, 48, 0.98));
+  box-shadow: 0 0 0 1px rgba(255, 248, 227, 0.9), 0 6px 14px rgba(76, 31, 16, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.battlefield-shooting-zone-overlay {
+  position: absolute;
+  display: block;
+  border: 2px dashed rgba(231, 198, 85, 0.96);
+  background: rgba(243, 213, 116, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 246, 216, 0.58), 0 8px 18px rgba(54, 30, 12, 0.12);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.battlefield-shooting-support-badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(108, 49, 25, 0.45);
+  background: rgba(250, 238, 206, 0.95);
+  color: #5f2a16;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transform: translate(-50%, calc(-100% - 10px));
+  box-shadow: 0 6px 14px rgba(48, 23, 14, 0.16);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.battlefield-shooting-procedure-card .battlefield-command-primary {
+  gap: 14px;
+}
+
+.battlefield-shooting-procedure-rail {
+  display: grid;
+  gap: 12px;
+}
+
+.battlefield-shooting-procedure-banner {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(121, 85, 48, 0.34);
+  background: linear-gradient(180deg, rgba(247, 239, 213, 0.98), rgba(234, 221, 183, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 250, 236, 0.78), 0 8px 18px rgba(63, 42, 20, 0.08);
+}
+
+.battlefield-command-actions-shooting-lean {
+  justify-content: flex-start;
+}
+
+.battlefield-shooting-dialog {
+  max-width: 420px;
+}
+
+.battlefield-shooting-dialog-grid {
+  display: grid;
+  gap: 10px;
 }
 
 .battlefield-unit-status-badge {
@@ -1063,6 +1455,48 @@
   color: #fffaf0;
   background: rgba(198, 42, 42, 0.96);
   box-shadow: 0 0 0 2px rgba(248, 243, 226, 0.9);
+}
+
+.battlefield-unit-debug-label {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  color: rgba(35, 24, 15, 0.96);
+  background: rgba(247, 239, 219, 0.96);
+  box-shadow: 0 1px 3px rgba(30, 28, 16, 0.26);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.battlefield-unit-token.is-circle-base .battlefield-unit-debug-label {
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.battlefield-unit-token:hover .battlefield-unit-debug-label,
+.battlefield-unit-token:focus-visible .battlefield-unit-debug-label,
+.battlefield-unit-token.is-selected .battlefield-unit-debug-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.battlefield-unit-token.is-circle-base:hover .battlefield-unit-debug-label,
+.battlefield-unit-token.is-circle-base:focus-visible .battlefield-unit-debug-label,
+.battlefield-unit-token.is-circle-base.is-selected .battlefield-unit-debug-label {
+  transform: translateX(-50%) translateY(0);
 }
 
 .battlefield-unit-token.is-advance-ready {
@@ -1083,15 +1517,15 @@
 
 .battlefield-unit-token:disabled,
 .battlefield-unit-token.is-selection-locked {
-  opacity: 0.48;
+  opacity: 1;
   cursor: not-allowed;
   box-shadow: none;
-  filter: saturate(0.55);
+  filter: none;
 }
 
 .battlefield-unit-token.is-spent-corps-unit:disabled,
 .battlefield-unit-token.is-spent-corps-unit.is-selection-locked {
-  box-shadow: 0 0 0 2px rgba(44, 193, 94, 0.42), 0 5px 10px rgba(30, 28, 16, 0.14);
+  box-shadow: 0 0 0 2px rgba(44, 193, 94, 0.56), 0 6px 12px rgba(30, 28, 16, 0.18);
 }
 
 .battlefield-terrain-placeholder {

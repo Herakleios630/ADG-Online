@@ -4,6 +4,7 @@ import {
   CHARGE_REACTION_REQUEST_TYPES,
   createChargeReactionRequest,
 } from './model.js';
+import { getChargeReactionCapabilityForUnit } from '../../data/unit-profiles.js';
 import { GEOMETRY_EPSILON, getUnitBaseGeometry, worldPointToLocalPoint } from '../geometry/index.js';
 import { evaluateSimpleBlockedEvade, resolveEvadeReorientation } from './evade.js';
 import { getEnemyZocBandLocalBounds } from '../zoc/geometry.js';
@@ -43,6 +44,15 @@ function hasMissileBowCrossbowCapability(capability) {
     || capability?.hasDoubleBow
     || capability?.hasDoubleCrossbow,
   );
+}
+
+function summarizeReactionDiagnosticForDecisionTrace(diagnostic) {
+  return {
+    code: diagnostic?.code ?? null,
+    status: diagnostic?.status ?? null,
+    text: diagnostic?.text ?? null,
+    sourceStatus: diagnostic?.sourceStatus ?? null,
+  };
 }
 
 function isCapabilityFamilyEvadeCapable(capability) {
@@ -350,10 +360,48 @@ function normalizeChargeReactionProfile(targetUnit) {
 }
 
 function normalizeChargeReactionCapability(chargingUnit, targetUnit) {
-  const capability = targetUnit?.chargeReactionCapability ?? null;
+  let capability = null;
+  let capabilityDiagnostic = null;
+
+  if (targetUnit?.chargeReactionCapability != null) {
+    capability = targetUnit.chargeReactionCapability;
+  } else if (typeof targetUnit?.profileId === 'string' && targetUnit.profileId.trim().length > 0) {
+    try {
+      capability = getChargeReactionCapabilityForUnit(targetUnit);
+    } catch (error) {
+      capabilityDiagnostic = createChargeReactionDiagnostic({
+        code: 'charge.reaction.profile-capability-resolution-failed',
+        status: 'needs-source-check',
+        text: `Unit '${targetUnit?.id ?? 'unknown'}' could not derive chargeReactionCapability from profile '${targetUnit?.profileId ?? 'unknown'}': ${error.message}`,
+        sourceStatus: CHARGE_REACTION_SOURCE_STATUSES.NEEDS_SOURCE_CHECK,
+      });
+    }
+  }
+
+  if (capabilityDiagnostic) {
+    return {
+      type: CHARGE_REACTION_REQUEST_TYPES.NEEDS_SOURCE_CHECK,
+      sourceStatus: CHARGE_REACTION_SOURCE_STATUSES.NEEDS_SOURCE_CHECK,
+      diagnostics: [capabilityDiagnostic],
+    };
+  }
+
   if (capability == null) {
     return null;
   }
+
+  capability = {
+    ...capability,
+    engagedInMelee: Object.hasOwn(targetUnit ?? {}, 'engagedInMelee')
+      ? Boolean(targetUnit.engagedInMelee)
+      : Boolean(capability.engagedInMelee),
+    inMeleeSupport: Object.hasOwn(targetUnit ?? {}, 'inMeleeSupport')
+      ? Boolean(targetUnit.inMeleeSupport)
+      : Boolean(capability.inMeleeSupport),
+    providesOnlySimpleSupport: Object.hasOwn(targetUnit ?? {}, 'providesOnlySimpleSupport')
+      ? Boolean(targetUnit.providesOnlySimpleSupport)
+      : Boolean(capability.providesOnlySimpleSupport),
+  };
 
   if (typeof capability !== 'object' || typeof capability.family !== 'string') {
     return {
@@ -449,19 +497,59 @@ export function resolveChargeReactionState({
   units = [],
   selectedContactSide = null,
 }) {
+  let normalizedChargingUnit = chargingUnit;
+  if (chargingUnit?.chargeReactionCapability == null && typeof chargingUnit?.profileId === 'string' && chargingUnit.profileId.trim().length > 0) {
+    try {
+      normalizedChargingUnit = {
+        ...chargingUnit,
+        chargeReactionCapability: getChargeReactionCapabilityForUnit(chargingUnit),
+      };
+    } catch {
+      normalizedChargingUnit = chargingUnit;
+    }
+  }
+
   const primaryContactEvent = Array.isArray(contactEvents) ? (contactEvents[0] ?? null) : null;
-  if (!chargingUnit || !targetUnit || !primaryContactEvent || primaryContactEvent.defenderId !== targetUnit.id) {
+  if (!normalizedChargingUnit || !targetUnit || !primaryContactEvent || primaryContactEvent.defenderId !== targetUnit.id) {
     return {
       reactionRequests: [],
+      decisionTrace: [],
       diagnostics: [],
     };
   }
 
+  const decisionTrace = [
+    {
+      stage: 'reaction-input',
+      chargingUnitId: normalizedChargingUnit.id ?? null,
+      targetUnitId: targetUnit.id ?? null,
+      contactType: primaryContactEvent.type ?? null,
+      classificationType: primaryContactEvent.classification?.type ?? null,
+      capability: targetUnit?.chargeReactionCapability ?? null,
+      profile: targetUnit?.chargeReactionProfile ?? null,
+    },
+  ];
+
   const normalizedProfile = normalizeChargeReactionProfile(targetUnit);
   const normalizedCapability = normalizedProfile.sourceStatus === CHARGE_REACTION_SOURCE_STATUSES.DEFAULT_NONE
-    ? normalizeChargeReactionCapability(chargingUnit, targetUnit)
+    ? normalizeChargeReactionCapability(normalizedChargingUnit, targetUnit)
     : null;
   let resolvedReaction = normalizedCapability ?? normalizedProfile;
+  decisionTrace.push({
+    stage: 'reaction-normalized',
+    normalizedProfile: {
+      type: normalizedProfile.type,
+      sourceStatus: normalizedProfile.sourceStatus,
+      diagnostics: normalizedProfile.diagnostics.map(summarizeReactionDiagnosticForDecisionTrace),
+    },
+    normalizedCapability: normalizedCapability
+      ? {
+        type: normalizedCapability.type,
+        sourceStatus: normalizedCapability.sourceStatus,
+        diagnostics: normalizedCapability.diagnostics.map(summarizeReactionDiagnosticForDecisionTrace),
+      }
+      : null,
+  });
   const blockedEvadeDiagnostic = (
     resolvedReaction.type === CHARGE_REACTION_REQUEST_TYPES.MAY_EVADE
     || resolvedReaction.type === CHARGE_REACTION_REQUEST_TYPES.MUST_EVADE
@@ -479,6 +567,10 @@ export function resolveChargeReactionState({
       sourceStatus: CHARGE_REACTION_SOURCE_STATUSES.CAPABILITY_DATA,
       diagnostics: [blockedEvadeDiagnostic],
     };
+    decisionTrace.push({
+      stage: 'reaction-blocked-by-reorientation',
+      diagnostic: summarizeReactionDiagnosticForDecisionTrace(blockedEvadeDiagnostic),
+    });
   }
   const diagnostics = [...resolvedReaction.diagnostics];
   if (resolvedReaction.type === CHARGE_REACTION_REQUEST_TYPES.MAY_EVADE) {
@@ -511,6 +603,13 @@ export function resolveChargeReactionState({
     }));
   }
 
+  decisionTrace.push({
+    stage: 'reaction-resolved',
+    resolvedType: resolvedReaction.type,
+    sourceStatus: resolvedReaction.sourceStatus,
+    diagnostics: diagnostics.map(summarizeReactionDiagnosticForDecisionTrace),
+  });
+
   return {
     reactionRequests: [
       createChargeReactionRequest({
@@ -519,6 +618,7 @@ export function resolveChargeReactionState({
         status: resolvedReaction.type === CHARGE_REACTION_REQUEST_TYPES.NONE ? 'complete' : 'pending',
         diagnostics,
         sourceStatus: resolvedReaction.sourceStatus,
+        decisionTrace,
         contactEventIndex: 0,
         chargePathSnapshot: cloneSerializable(pathSegments),
         contactSnapshot: cloneSerializable(primaryContactEvent.contactSnapshot ?? null),
@@ -527,6 +627,7 @@ export function resolveChargeReactionState({
         actionLogToken: null,
       }),
     ],
+    decisionTrace,
     diagnostics,
   };
 }

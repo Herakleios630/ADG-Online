@@ -23,6 +23,8 @@ import {
   spendCommandPointsForCurrentOrder,
   withMovementValidationSnapshot,
 } from './p0-movement.js';
+import { applyUnitShootingSequenceFlags } from './p0-shooting.js';
+import { setActiveCommandMenuBranch } from './p0-state-ui-helpers.js';
 
 const MAX_SLIDE_DISTANCE_UD = 1;
 
@@ -230,13 +232,15 @@ export function reduceConfirmSlide(gameState, selectedUnit) {
   const paidGameState = spentCommandPoints.nextGameState;
 
   return {
-    ...paidGameState,
+    ...setActiveCommandMenuBranch(paidGameState, null),
     ...createInitialSlideState(),
     movement: createInitialMovementState(),
     units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applySlidePreview(unit, paidGameState.movement.preview),
+            ...applyUnitShootingSequenceFlags(applySlidePreview(unit, paidGameState.movement.preview), {
+              incrementMoveCount: true,
+            }),
             slideUsedThisMovementPhase: true,
             stayedThisMovementPhase: false,
           }

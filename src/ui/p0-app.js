@@ -18,6 +18,7 @@ import {
   startBattlefieldUnitDrag,
 } from './battlefield-drag-controls.js';
 import { renderBattlefieldScreen } from './p0-battlefield.js';
+import { recordBrowserReproActionClick, recordBrowserReproDataset } from '../debug/browser-repro-recorder.js';
 
 const KEY_BINDING_ROWS = [
   {
@@ -94,6 +95,406 @@ const battlefieldUiMemory = {
   openStateByPersistId: {},
 };
 
+function createEphemeralId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function canEditOwnerPrivateSetup(state) {
+  return state.game.setupViewMode === 'canonical' || state.game.setupViewMode === 'player-one-view';
+}
+
+function getRenderContext(container) {
+  return container.__adgRenderContext ?? null;
+}
+
+function handleDelegatedActionClick(container, event) {
+  const actionTarget = getClosestTargetMatch(event.target, '[data-action]');
+  const renderContext = getRenderContext(container);
+  if (!actionTarget || !renderContext) {
+    return;
+  }
+
+  const { state, dispatch } = renderContext;
+  const { action } = actionTarget.dataset;
+  recordBrowserReproActionClick({
+    actionTarget,
+    state,
+    root: container,
+  });
+
+  switch (action) {
+    case 'navigate':
+      dispatch({ type: ACTION_TYPES.NAVIGATE, screenId: actionTarget.dataset.screen });
+      return;
+    case 'set-mode':
+      dispatch({ type: ACTION_TYPES.SET_NEW_GAME_MODE, mode: actionTarget.dataset.mode });
+      return;
+    case 'set-points':
+      dispatch({ type: ACTION_TYPES.SET_NEW_GAME_POINTS, points: Number(actionTarget.dataset.points) });
+      return;
+    case 'save-settings':
+      dispatch({ type: ACTION_TYPES.SAVE_SETTINGS });
+      return;
+    case 'start-new-game':
+      dispatch({ type: ACTION_TYPES.START_NEW_GAME });
+      return;
+    case 'start-direct-battle':
+      dispatch({ type: ACTION_TYPES.START_DIRECT_BATTLE });
+      return;
+    case 'start-charge-drill-battle':
+      dispatch({ type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
+      return;
+    case 'start-conform-drill-battle':
+      dispatch({ type: ACTION_TYPES.START_CONFORM_DRILL_BATTLE });
+      return;
+    case 'start-shooting-drill-battle':
+      dispatch({ type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+      return;
+    case 'start-shooting-los-example-battle':
+      dispatch({ type: ACTION_TYPES.START_SHOOTING_LOS_EXAMPLE_BATTLE });
+      return;
+    case 'setup-previous':
+      dispatch({ type: ACTION_TYPES.GO_TO_PREVIOUS_SETUP_STEP });
+      return;
+    case 'setup-lock':
+      dispatch({ type: ACTION_TYPES.LOCK_CURRENT_SETUP_STEP });
+      return;
+    case 'dismiss-setup-guide':
+      dispatch({ type: ACTION_TYPES.DISMISS_CURRENT_SETUP_GUIDE });
+      return;
+    case 'setup-next':
+      dispatch({ type: ACTION_TYPES.ADVANCE_SETUP_STEP });
+      return;
+    case 'complete-setup':
+      dispatch({ type: ACTION_TYPES.COMPLETE_SETUP });
+      return;
+    case 'round-begin':
+      dispatch({ type: ACTION_TYPES.ROUND_BEGIN });
+      return;
+    case 'request-next-corps':
+      dispatch({ type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+      return;
+    case 'confirm-next-corps':
+      dispatch({ type: ACTION_TYPES.CONFIRM_NEXT_CORPS });
+      return;
+    case 'skip-remaining-corps':
+      dispatch({ type: ACTION_TYPES.SKIP_REMAINING_CORPS });
+      return;
+    case 'advance-round-phase':
+      dispatch({ type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
+      return;
+    case 'acknowledge-shooting-phase-procedure':
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE });
+      return;
+    case 'open-shooting-sequence-handoff':
+      dispatch({ type: ACTION_TYPES.OPEN_SHOOTING_SEQUENCE_HANDOFF });
+      return;
+    case 'dismiss-shooting-sequence-handoff':
+      dispatch({ type: ACTION_TYPES.DISMISS_SHOOTING_SEQUENCE_HANDOFF });
+      return;
+    case 'confirm-shooting-sequence-handoff':
+      dispatch({ type: ACTION_TYPES.CONFIRM_SHOOTING_SEQUENCE_HANDOFF });
+      return;
+    case 'set-setup-view-mode':
+      dispatch({ type: ACTION_TYPES.SET_SETUP_VIEW_MODE, viewMode: actionTarget.dataset.viewMode });
+      return;
+    case 'set-active-player':
+      dispatch({ type: ACTION_TYPES.SET_ACTIVE_PLAYER, playerId: actionTarget.dataset.playerId });
+      return;
+    case 'set-active-battle-phase':
+      dispatch({ type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE, phaseId: actionTarget.dataset.phaseId });
+      return;
+    case 'set-command-menu-branch':
+      dispatch({ type: ACTION_TYPES.SET_COMMAND_MENU_BRANCH, branch: actionTarget.dataset.branch || null });
+      return;
+    case 'start-shooting-declaration-preview':
+      dispatch({ type: ACTION_TYPES.START_SHOOTING_DECLARATION_PREVIEW, unitId: state.game.selectedUnitId });
+      return;
+    case 'deselect-unit':
+      dispatch({ type: ACTION_TYPES.SELECT_UNIT, unitId: null });
+      return;
+    case 'confirm-shooting-declaration':
+      dispatch({ type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+      return;
+    case 'cancel-shooting-declaration-preview':
+      dispatch({ type: ACTION_TYPES.CANCEL_SHOOTING_DECLARATION_PREVIEW });
+      return;
+    case 'start-shooting-resolution-draft':
+      dispatch({ type: ACTION_TYPES.START_SHOOTING_RESOLUTION_DRAFT, unitId: state.game.selectedUnitId });
+      return;
+    case 'confirm-shooting-resolution':
+      dispatch({ type: ACTION_TYPES.CONFIRM_SHOOTING_RESOLUTION });
+      return;
+    case 'cancel-shooting-resolution-draft':
+      dispatch({ type: ACTION_TYPES.CANCEL_SHOOTING_RESOLUTION_DRAFT });
+      return;
+    case 'pass-active-shooter':
+      dispatch({ type: ACTION_TYPES.PASS_ACTIVE_SHOOTER, unitId: state.game.selectedUnitId });
+      return;
+    case 'cancel-movement-preview': {
+      const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
+      const hasCommanderPreview = Boolean(
+        state.game.commanderFreeMovePreview?.status !== 'idle'
+          && state.game.commanderFreeMovePreview.unitId === selectedUnit?.id,
+      );
+      const canResetCommanderFreeMove = Boolean(
+        selectedUnit
+          && selectedUnit.isCommander
+          && !selectedUnit.hasIncludedCommander
+          && !state.game.setup.isActive
+          && state.game.commandContext.currentPhaseId === 'movement'
+          && Number.isFinite(selectedUnit.commanderMovePhaseStartXUd)
+          && Number.isFinite(selectedUnit.commanderMovePhaseStartYUd)
+          && (selectedUnit.advanceUsedUd ?? 0) > 0,
+      );
+
+      stopBattlefieldAdvanceDragSession();
+      stopBattlefieldSlideDragSession();
+      stopBattlefieldWheelDragSession();
+
+      if (hasCommanderPreview) {
+        dispatch({ type: ACTION_TYPES.CANCEL_COMMANDER_FREE_MOVE_PREVIEW });
+        return;
+      }
+
+      if (canResetCommanderFreeMove) {
+        dispatch({ type: ACTION_TYPES.RESET_COMMANDER_FREE_MOVE, unitId: selectedUnit.id });
+        return;
+      }
+
+      dispatch({ type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
+      return;
+    }
+    case 'mark-unit-stay':
+      dispatch({ type: ACTION_TYPES.MARK_UNIT_STAY, unitId: state.game.selectedUnitId });
+      return;
+    case 'start-charge-preview':
+      dispatch({ type: ACTION_TYPES.START_CHARGE_PREVIEW, unitId: state.game.selectedUnitId });
+      return;
+    case 'resolve-charge-reaction':
+      dispatch({ type: ACTION_TYPES.RESOLVE_CHARGE_REACTION, decisionType: actionTarget.dataset.decisionType });
+      return;
+    case 'resolve-secondary-charge-reaction':
+      dispatch({ type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION, decisionType: actionTarget.dataset.decisionType });
+      return;
+    case 'resolve-charge-branch-distance':
+      dispatch({ type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE, dieRoll: Number(actionTarget.dataset.dieRoll) });
+      return;
+    case 'acknowledge-evade-choice-handoff':
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
+      return;
+    case 'start-adjusted-charge-distance-roll':
+      dispatch({ type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+      return;
+    case 'preview-evade-avoidance-node':
+      dispatch({ type: ACTION_TYPES.PREVIEW_EVADE_AVOIDANCE_NODE, stepId: actionTarget.dataset.stepId || null });
+      return;
+    case 'reset-evade-avoidance-path':
+      dispatch({ type: ACTION_TYPES.RESET_EVADE_AVOIDANCE_PATH });
+      return;
+    case 'select-evade-avoidance-choice':
+      dispatch({
+        type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+        choice: {
+          candidateId: actionTarget.dataset.candidateId || null,
+          side: actionTarget.dataset.side,
+          distanceUd: Number(actionTarget.dataset.distanceUd),
+        },
+      });
+      return;
+    case 'resolve-charge-continuation-choice':
+      dispatch({ type: ACTION_TYPES.RESOLVE_CHARGE_CONTINUATION_CHOICE, option: actionTarget.dataset.option });
+      return;
+    case 'cancel-charge-preview':
+      dispatch({ type: ACTION_TYPES.CANCEL_CHARGE_PREVIEW });
+      return;
+    case 'attach-commander':
+      dispatch({ type: ACTION_TYPES.ATTACH_COMMANDER, unitId: state.game.selectedUnitId });
+      return;
+    case 'select-active-corps':
+      dispatch({ type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: actionTarget.dataset.corpsId });
+      return;
+    case 'add-terrain-placeholder': {
+      const existingCount = state.game.setup.terrain.placeholders.length;
+      dispatch({
+        type: ACTION_TYPES.ADD_TERRAIN_PLACEHOLDER,
+        placeholder: {
+          id: createEphemeralId('terrain'),
+          terrainType: actionTarget.dataset.terrainType,
+          label: actionTarget.dataset.terrainLabel,
+          shapeModel: actionTarget.dataset.terrainShape,
+          pose: {
+            xUd: 6 + Math.min(existingCount, 4) * 2.5,
+            yUd: 6 + Math.min(existingCount, 3) * 1.8,
+          },
+          footprint: {
+            widthUd: Number(actionTarget.dataset.terrainWidthUd),
+            depthUd: Number(actionTarget.dataset.terrainDepthUd),
+            rotationRadians: 0,
+          },
+        },
+      });
+      return;
+    }
+    case 'add-setup-object': {
+      const existingCount = state.game.setup.setupObjects.placeholders.length;
+      dispatch({
+        type: ACTION_TYPES.ADD_SETUP_OBJECT,
+        setupObject: {
+          id: createEphemeralId('setup-object'),
+          family: actionTarget.dataset.setupObjectFamily,
+          type: actionTarget.dataset.setupObjectType,
+          label: actionTarget.dataset.setupObjectLabel,
+          owner: 'public',
+          pose: {
+            xUd: 8 + Math.min(existingCount, 4) * 2.1,
+            yUd: 15 + Math.min(existingCount, 3) * 1.1,
+          },
+          footprint: {
+            widthUd: Number(actionTarget.dataset.setupObjectWidthUd),
+            depthUd: Number(actionTarget.dataset.setupObjectDepthUd),
+            rotationRadians: 0,
+          },
+        },
+      });
+      return;
+    }
+    case 'add-ambush-marker':
+      dispatch({ type: ACTION_TYPES.ADD_AMBUSH_MARKER });
+      return;
+    case 'select-terrain-placeholder':
+      dispatch({ type: ACTION_TYPES.SELECT_TERRAIN_PLACEHOLDER, placeholderId: actionTarget.dataset.terrainPlaceholderId });
+      return;
+    case 'select-setup-object':
+      dispatch({ type: ACTION_TYPES.SELECT_SETUP_OBJECT, setupObjectId: actionTarget.dataset.setupObjectId });
+      return;
+    case 'select-battle-plan-corps':
+      dispatch({ type: ACTION_TYPES.SELECT_BATTLE_PLAN_CORPS, corpsId: actionTarget.dataset.corpsId });
+      return;
+    case 'assign-battle-plan-corps':
+      dispatch({
+        type: ACTION_TYPES.ASSIGN_BATTLE_PLAN_CORPS,
+        corpsId: state.game.setup.battlePlan.selectedCorpsId,
+        fieldId: actionTarget.dataset.fieldId,
+      });
+      return;
+    case 'select-ambush-marker':
+      if (canEditOwnerPrivateSetup(state)) {
+        dispatch({ type: ACTION_TYPES.SELECT_AMBUSH_MARKER, markerId: actionTarget.dataset.markerId });
+      }
+      return;
+    case 'select-unit': {
+      const attachPreviewActive = state.game.commanderFreeMovePreview?.status === 'targeting'
+        && state.game.commanderFreeMovePreview?.mode === 'attach'
+        && state.game.commanderFreeMovePreview?.unitId === state.game.selectedUnitId;
+      const chargeTargetingActive = state.game.chargePreview?.status === 'targeting'
+        && state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId;
+      const shootingPreviewActive = state.game.shooting?.preview?.status !== 'idle'
+        && state.game.shooting?.preview?.shooterUnitId === state.game.selectedUnitId;
+      const chargeContactSideChoice = getClosestTargetMatch(event.target, '[data-charge-contact-side-selectable]');
+
+      if (chargeContactSideChoice) {
+        dispatch({
+          type: ACTION_TYPES.SELECT_CHARGE_CONTACT_SIDE,
+          defenderId: actionTarget.dataset.unitId,
+          side: chargeContactSideChoice.dataset.chargeContactSide,
+        });
+        return;
+      }
+
+      if (attachPreviewActive) {
+        dispatch({ type: ACTION_TYPES.ATTACH_COMMANDER, unitId: actionTarget.dataset.unitId });
+        return;
+      }
+
+      if (chargeTargetingActive) {
+        if (actionTarget.dataset.unitId !== state.game.selectedUnitId) {
+          dispatch({ type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: actionTarget.dataset.unitId });
+        }
+        return;
+      }
+
+      if (shootingPreviewActive) {
+        const clickedUnitId = actionTarget.dataset.unitId;
+        const selectableShooterIds = state.game.shooting?.procedure?.selectableUnitIds ?? [];
+        if (clickedUnitId && selectableShooterIds.includes(clickedUnitId)) {
+          dispatch({ type: ACTION_TYPES.SELECT_UNIT, unitId: clickedUnitId });
+          return;
+        }
+
+        if (clickedUnitId !== state.game.selectedUnitId) {
+          dispatch({ type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET, targetUnitId: actionTarget.dataset.unitId });
+        }
+        return;
+      }
+
+      dispatch({ type: ACTION_TYPES.SELECT_UNIT, unitId: actionTarget.dataset.unitId });
+      return;
+    }
+    default:
+      return;
+  }
+}
+
+function handleDelegatedActionChange(container, event) {
+  const actionTarget = getClosestTargetMatch(event.target, '[data-action]');
+  const renderContext = getRenderContext(container);
+  if (!actionTarget || !renderContext) {
+    return;
+  }
+
+  const { dispatch } = renderContext;
+
+  switch (actionTarget.dataset.action) {
+    case 'set-shooting-resolution-protection':
+      dispatch({
+        type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_PROTECTION,
+        resolvedTargetProtectionValue: actionTarget.value === '' ? null : Number(actionTarget.value),
+      });
+      return;
+    case 'set-shooting-resolution-shooter-die':
+      dispatch({
+        type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_SHOOTER_DIE,
+        dieRoll: Number(actionTarget.value),
+      });
+      return;
+    case 'set-shooting-resolution-target-die':
+      dispatch({
+        type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE,
+        dieRoll: Number(actionTarget.value),
+      });
+      return;
+    case 'toggle-use-free-command-point':
+      dispatch({
+        type: ACTION_TYPES.SET_USE_FREE_COMMAND_POINT_FOR_ORDER,
+        isActive: event.target.checked,
+      });
+      return;
+    case 'toggle-commander-engaged-diagnostic':
+      dispatch({
+        type: ACTION_TYPES.SET_COMMANDER_ENGAGED_DIAGNOSTIC,
+        isActive: event.target.checked,
+      });
+      return;
+    default:
+      return;
+  }
+}
+
+function installContainerDelegates(container) {
+  if (container.__adgDelegatesInstalled) {
+    return;
+  }
+
+  container.addEventListener('click', (event) => {
+    handleDelegatedActionClick(container, event);
+  });
+  container.addEventListener('change', (event) => {
+    handleDelegatedActionChange(container, event);
+  });
+  container.__adgDelegatesInstalled = true;
+}
+
 function captureBattlefieldUiMemory(container) {
   container.querySelectorAll('[data-panel-id]').forEach((panel) => {
     battlefieldUiMemory.panelScrollTopById[panel.dataset.panelId] = panel.scrollTop;
@@ -142,6 +543,19 @@ function getClosestTargetMatch(target, selector) {
   }
 
   return target.closest(selector);
+}
+
+function recordBattlefieldDragCheckpoint(container, dataset) {
+  const renderContext = getRenderContext(container);
+  if (!renderContext?.state || !dataset) {
+    return;
+  }
+
+  recordBrowserReproDataset({
+    dataset,
+    state: renderContext.state,
+    root: container,
+  });
 }
 
 function clampViewportPan(surface, zoom, panX, panY) {
@@ -401,9 +815,9 @@ function renderMainMenu() {
       <h1 class="hero-title">AdG Online</h1>
       <p class="hero-copy">Produkt-Shell fuer den ersten spielbaren Ablauf: Hauptmenue, neues Spiel, Optionen, Lade-Platzhalter und erster Uebergang zum Schlachtfeld.</p>
       <div class="menu-grid">
-        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.NEW_GAME}">Neues Spiel</button>
-        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.LOAD_GAME}">Spiel Laden</button>
-        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.OPTIONS}">Optionen</button>
+        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.NEW_GAME}" data-testid="main-menu-new-game" data-automation-id="navigate-new-game" aria-label="Neues Spiel oeffnen" autofocus>Neues Spiel</button>
+        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.LOAD_GAME}" data-testid="main-menu-load-game" data-automation-id="navigate-load-game" aria-label="Spiel laden oeffnen">Spiel Laden</button>
+        <button class="shell-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.OPTIONS}" data-testid="main-menu-options" data-automation-id="navigate-options" aria-label="Optionen oeffnen">Optionen</button>
       </div>
     </section>
   `;
@@ -445,10 +859,13 @@ function renderNewGame(state) {
         <p class="muted-copy">Der Start geht jetzt zuerst in den P3-Setup-Rahmen auf dem Schlachtfeld. Armeeauswahl, Aufbau und offizielle Deployment-Validierung folgen weiterhin erst in spaeteren Phasen.</p>
       </div>
       <div class="screen-actions">
-        <button class="shell-button is-active" type="button" data-action="start-new-game">Zum Setup</button>
-        <button class="shell-button" type="button" data-action="start-direct-battle">Direkt zur Schlacht</button>
-        <button class="shell-button" type="button" data-action="start-charge-drill-battle">Charge Drill</button>
-        <button class="ghost-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.MAIN_MENU}">Zurueck</button>
+        <button class="shell-button is-active" type="button" data-action="start-new-game" data-testid="start-new-game-button" data-automation-id="start-new-game" aria-label="Zum Setup starten" autofocus>Zum Setup</button>
+        <button class="shell-button" type="button" data-action="start-direct-battle" data-testid="start-direct-battle-button" data-automation-id="start-direct-battle" aria-label="Direkt zur Schlacht starten">Direkt zur Schlacht</button>
+        <button class="shell-button" type="button" data-action="start-charge-drill-battle" data-testid="start-charge-drill-battle-button" data-automation-id="start-charge-drill-battle" aria-label="Charge Drill starten">Charge Drill</button>
+        <button class="shell-button" type="button" data-action="start-conform-drill-battle" data-testid="start-conform-drill-battle-button" data-automation-id="start-conform-drill-battle" aria-label="Conform Drill starten">Conform Drill</button>
+        <button class="shell-button" type="button" data-action="start-shooting-drill-battle" data-testid="start-shooting-drill-battle-button" data-automation-id="start-shooting-drill-battle" aria-label="Shooting Drill starten">Shooting Drill</button>
+        <button class="shell-button" type="button" data-action="start-shooting-los-example-battle" data-testid="start-shooting-los-example-battle-button" data-automation-id="start-shooting-los-example-battle" aria-label="Shooting LoS Beispiel p.58 starten">Shooting LoS p.58</button>
+        <button class="ghost-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.MAIN_MENU}" data-testid="new-game-back-button" data-automation-id="navigate-main-menu" aria-label="Zurueck zum Hauptmenue">Zurueck</button>
       </div>
     </section>
   `;
@@ -581,6 +998,8 @@ function renderScreen(state) {
 }
 
 export function renderApp(container, state, dispatch) {
+  installContainerDelegates(container);
+  container.__adgRenderContext = { state, dispatch };
   const playerAccent = getPlayerAccent(state);
   const showStateSnapshot = state.shell.currentScreen !== SCREEN_IDS.BATTLEFIELD;
   const shouldPreserveBattlefieldUi = state.shell.currentScreen === SCREEN_IDS.BATTLEFIELD;
@@ -610,24 +1029,6 @@ export function renderApp(container, state, dispatch) {
   if (shouldPreserveBattlefieldUi) {
     restoreBattlefieldUiMemory(container);
   }
-
-  container.querySelectorAll('[data-action="navigate"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.NAVIGATE, screenId: button.dataset.screen });
-    });
-  });
-
-  container.querySelectorAll('[data-action="set-mode"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SET_NEW_GAME_MODE, mode: button.dataset.mode });
-    });
-  });
-
-  container.querySelectorAll('[data-action="set-points"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SET_NEW_GAME_POINTS, points: Number(button.dataset.points) });
-    });
-  });
 
   const openColorPickerButton = container.querySelector('[data-action="open-color-picker"]');
   const playerColorDraftInput = container.querySelector('[data-setting="player-color-draft"]');
@@ -663,94 +1064,6 @@ export function renderApp(container, state, dispatch) {
         slot: button.dataset.bindingSlot,
         keyValue: normalizeKeyInput(event.key),
       });
-    });
-  });
-
-  const saveSettingsButton = container.querySelector('[data-action="save-settings"]');
-  if (saveSettingsButton) {
-    saveSettingsButton.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SAVE_SETTINGS });
-    });
-  }
-
-  const startNewGameButton = container.querySelector('[data-action="start-new-game"]');
-  if (startNewGameButton) {
-    startNewGameButton.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.START_NEW_GAME });
-    });
-  }
-
-  const startDirectBattleButton = container.querySelector('[data-action="start-direct-battle"]');
-  if (startDirectBattleButton) {
-    startDirectBattleButton.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.START_DIRECT_BATTLE });
-    });
-  }
-
-  const startChargeDrillBattleButton = container.querySelector('[data-action="start-charge-drill-battle"]');
-  if (startChargeDrillBattleButton) {
-    startChargeDrillBattleButton.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
-    });
-  }
-
-  container.querySelectorAll('[data-action="setup-previous"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.GO_TO_PREVIOUS_SETUP_STEP });
-    });
-  });
-
-  container.querySelectorAll('[data-action="setup-lock"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.LOCK_CURRENT_SETUP_STEP });
-    });
-  });
-
-  container.querySelectorAll('[data-action="dismiss-setup-guide"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.DISMISS_CURRENT_SETUP_GUIDE });
-    });
-  });
-
-  container.querySelectorAll('[data-action="setup-next"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.ADVANCE_SETUP_STEP });
-    });
-  });
-
-  container.querySelectorAll('[data-action="complete-setup"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.COMPLETE_SETUP });
-    });
-  });
-
-  container.querySelectorAll('[data-action="round-begin"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.ROUND_BEGIN });
-    });
-  });
-
-  container.querySelectorAll('[data-action="request-next-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.REQUEST_NEXT_CORPS });
-    });
-  });
-
-  container.querySelectorAll('[data-action="confirm-next-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.CONFIRM_NEXT_CORPS });
-    });
-  });
-
-  container.querySelectorAll('[data-action="skip-remaining-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SKIP_REMAINING_CORPS });
-    });
-  });
-
-  container.querySelectorAll('[data-action="advance-round-phase"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.ADVANCE_ROUND_PHASE });
     });
   });
 
@@ -795,177 +1108,6 @@ export function renderApp(container, state, dispatch) {
     && (state.game.setup.currentStepId === 'terrain' || state.game.setup.currentStepId === 'terrain-adjustment');
   const isCampPlacementStep = state.game.setup.isActive && state.game.setup.currentStepId === 'camps';
   const isAmbushPlacementStep = state.game.setup.isActive && state.game.setup.currentStepId === 'ambushes';
-  const canEditOwnerPrivateSetup = state.game.setupViewMode === 'canonical' || state.game.setupViewMode === 'player-one-view';
-
-  container.querySelectorAll('[data-action="set-setup-view-mode"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.SET_SETUP_VIEW_MODE,
-        viewMode: button.dataset.viewMode,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="set-active-player"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.SET_ACTIVE_PLAYER,
-        playerId: button.dataset.playerId,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="set-active-battle-phase"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
-        phaseId: button.dataset.phaseId,
-      });
-    });
-  });
-
-  const cancelMovementPreviewButton = container.querySelector('[data-action="cancel-movement-preview"]');
-  if (cancelMovementPreviewButton) {
-    cancelMovementPreviewButton.addEventListener('click', () => {
-      const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId) || null;
-      const hasCommanderPreview = Boolean(
-        state.game.commanderFreeMovePreview?.status !== 'idle'
-          && state.game.commanderFreeMovePreview.unitId === selectedUnit?.id,
-      );
-      const canResetCommanderFreeMove = Boolean(
-        selectedUnit
-          && selectedUnit.isCommander
-          && !selectedUnit.hasIncludedCommander
-          && !state.game.setup.isActive
-          && state.game.commandContext.currentPhaseId === 'movement'
-          && Number.isFinite(selectedUnit.commanderMovePhaseStartXUd)
-          && Number.isFinite(selectedUnit.commanderMovePhaseStartYUd)
-          && (selectedUnit.advanceUsedUd ?? 0) > 0,
-      );
-
-      stopBattlefieldAdvanceDragSession();
-      stopBattlefieldSlideDragSession();
-      stopBattlefieldWheelDragSession();
-
-      if (hasCommanderPreview) {
-        dispatch({ type: ACTION_TYPES.CANCEL_COMMANDER_FREE_MOVE_PREVIEW });
-        return;
-      }
-
-      if (canResetCommanderFreeMove) {
-        dispatch({
-          type: ACTION_TYPES.RESET_COMMANDER_FREE_MOVE,
-          unitId: selectedUnit.id,
-        });
-        return;
-      }
-
-      dispatch({ type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
-    });
-  }
-
-  const stayButton = container.querySelector('[data-action="mark-unit-stay"]');
-  if (stayButton) {
-    stayButton.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.MARK_UNIT_STAY,
-        unitId: state.game.selectedUnitId,
-      });
-    });
-  }
-
-  const chargePreviewButton = container.querySelector('[data-action="start-charge-preview"]');
-  if (chargePreviewButton) {
-    chargePreviewButton.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.START_CHARGE_PREVIEW,
-        unitId: state.game.selectedUnitId,
-      });
-    });
-  }
-
-  container.querySelectorAll('[data-action="resolve-charge-reaction"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
-        decisionType: button.dataset.decisionType,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="resolve-secondary-charge-reaction"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION,
-        decisionType: button.dataset.decisionType,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="resolve-charge-branch-distance"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
-        dieRoll: Number(button.dataset.dieRoll),
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="acknowledge-evade-choice-handoff"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
-    });
-  });
-
-  container.querySelectorAll('[data-action="start-adjusted-charge-distance-roll"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
-    });
-  });
-
-  container.querySelectorAll('[data-action="preview-evade-avoidance-node"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.PREVIEW_EVADE_AVOIDANCE_NODE,
-        stepId: button.dataset.stepId || null,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="reset-evade-avoidance-path"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.RESET_EVADE_AVOIDANCE_PATH });
-    });
-  });
-
-  container.querySelectorAll('[data-action="select-evade-avoidance-choice"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
-        choice: {
-          candidateId: button.dataset.candidateId || null,
-          side: button.dataset.side,
-          distanceUd: Number(button.dataset.distanceUd),
-        },
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="resolve-charge-continuation-choice"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.RESOLVE_CHARGE_CONTINUATION_CHOICE,
-        option: button.dataset.option,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="cancel-charge-preview"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.CANCEL_CHARGE_PREVIEW });
-    });
-  });
-
   const useFreeCommandPointToggle = container.querySelector('[data-action="toggle-use-free-command-point"]');
   if (useFreeCommandPointToggle) {
     useFreeCommandPointToggle.addEventListener('change', (event) => {
@@ -986,87 +1128,7 @@ export function renderApp(container, state, dispatch) {
     });
   }
 
-  const attachCommanderButton = container.querySelector('[data-action="attach-commander"]');
-  if (attachCommanderButton) {
-    attachCommanderButton.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.ATTACH_COMMANDER,
-        unitId: state.game.selectedUnitId,
-      });
-    });
-  }
-
-  container.querySelectorAll('[data-action="select-active-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.SELECT_ACTIVE_CORPS,
-        corpsId: button.dataset.corpsId,
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="add-terrain-placeholder"]').forEach((button, index) => {
-    button.addEventListener('click', () => {
-      const existingCount = state.game.setup.terrain.placeholders.length;
-      dispatch({
-        type: ACTION_TYPES.ADD_TERRAIN_PLACEHOLDER,
-        placeholder: {
-          id: `terrain-${Date.now()}-${index}`,
-          terrainType: button.dataset.terrainType,
-          label: button.dataset.terrainLabel,
-          shapeModel: button.dataset.terrainShape,
-          pose: {
-            xUd: 6 + Math.min(existingCount, 4) * 2.5,
-            yUd: 6 + Math.min(existingCount, 3) * 1.8,
-          },
-          footprint: {
-            widthUd: Number(button.dataset.terrainWidthUd),
-            depthUd: Number(button.dataset.terrainDepthUd),
-            rotationRadians: 0,
-          },
-        },
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="add-setup-object"]').forEach((button, index) => {
-    button.addEventListener('click', () => {
-      const existingCount = state.game.setup.setupObjects.placeholders.length;
-      dispatch({
-        type: ACTION_TYPES.ADD_SETUP_OBJECT,
-        setupObject: {
-          id: `setup-object-${Date.now()}-${index}`,
-          family: button.dataset.setupObjectFamily,
-          type: button.dataset.setupObjectType,
-          label: button.dataset.setupObjectLabel,
-          owner: 'public',
-          pose: {
-            xUd: 8 + Math.min(existingCount, 4) * 2.1,
-            yUd: 15 + Math.min(existingCount, 3) * 1.1,
-          },
-          footprint: {
-            widthUd: Number(button.dataset.setupObjectWidthUd),
-            depthUd: Number(button.dataset.setupObjectDepthUd),
-            rotationRadians: 0,
-          },
-        },
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="add-ambush-marker"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.ADD_AMBUSH_MARKER,
-      });
-    });
-  });
-
   container.querySelectorAll('[data-action="select-terrain-placeholder"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SELECT_TERRAIN_PLACEHOLDER, placeholderId: button.dataset.terrainPlaceholderId });
-    });
-
     button.addEventListener('mousedown', (event) => {
       if (event.button !== 0 || !battlefieldSurface || !isTerrainPlacementStep) {
         return;
@@ -1096,10 +1158,6 @@ export function renderApp(container, state, dispatch) {
   });
 
   container.querySelectorAll('[data-action="select-setup-object"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SELECT_SETUP_OBJECT, setupObjectId: button.dataset.setupObjectId });
-    });
-
     button.addEventListener('mousedown', (event) => {
       if (event.button !== 0 || !battlefieldSurface || !isCampPlacementStep) {
         return;
@@ -1128,33 +1186,9 @@ export function renderApp(container, state, dispatch) {
     });
   });
 
-  container.querySelectorAll('[data-action="select-battle-plan-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({ type: ACTION_TYPES.SELECT_BATTLE_PLAN_CORPS, corpsId: button.dataset.corpsId });
-    });
-  });
-
-  container.querySelectorAll('[data-action="assign-battle-plan-corps"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      dispatch({
-        type: ACTION_TYPES.ASSIGN_BATTLE_PLAN_CORPS,
-        corpsId: state.game.setup.battlePlan.selectedCorpsId,
-        fieldId: button.dataset.fieldId,
-      });
-    });
-  });
-
   container.querySelectorAll('[data-action="select-ambush-marker"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      if (!canEditOwnerPrivateSetup) {
-        return;
-      }
-
-      dispatch({ type: ACTION_TYPES.SELECT_AMBUSH_MARKER, markerId: button.dataset.markerId });
-    });
-
     button.addEventListener('mousedown', (event) => {
-      if (event.button !== 0 || !battlefieldSurface || !isAmbushPlacementStep || !canEditOwnerPrivateSetup) {
+      if (event.button !== 0 || !battlefieldSurface || !isAmbushPlacementStep || !canEditOwnerPrivateSetup(state)) {
         return;
       }
 
@@ -1198,38 +1232,6 @@ export function renderApp(container, state, dispatch) {
   bindWheelActionButtons({ container, dispatch, state });
 
   container.querySelectorAll('[data-action="select-unit"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      const attachPreviewActive = state.game.commanderFreeMovePreview?.status === 'targeting'
-        && state.game.commanderFreeMovePreview?.mode === 'attach'
-        && state.game.commanderFreeMovePreview?.unitId === state.game.selectedUnitId;
-      const chargeTargetingActive = state.game.chargePreview?.status === 'targeting'
-        && state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId;
-      const chargeContactSideChoice = getClosestTargetMatch(event.target, '[data-charge-contact-side-selectable]');
-
-      if (chargeContactSideChoice) {
-        dispatch({
-          type: ACTION_TYPES.SELECT_CHARGE_CONTACT_SIDE,
-          defenderId: button.dataset.unitId,
-          side: chargeContactSideChoice.dataset.chargeContactSide,
-        });
-        return;
-      }
-
-      if (attachPreviewActive) {
-        dispatch({ type: ACTION_TYPES.ATTACH_COMMANDER, unitId: button.dataset.unitId });
-        return;
-      }
-
-      if (chargeTargetingActive) {
-        if (button.dataset.unitId !== state.game.selectedUnitId) {
-          dispatch({ type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: button.dataset.unitId });
-        }
-        return;
-      }
-
-      dispatch({ type: ACTION_TYPES.SELECT_UNIT, unitId: button.dataset.unitId });
-    });
-
     button.addEventListener('mousedown', (event) => {
       if (event.button !== 0 || !battlefieldSurface) {
         return;
@@ -1271,6 +1273,13 @@ export function renderApp(container, state, dispatch) {
         onSuppressNextSurfaceClick: () => {
           suppressNextBattlefieldSurfaceClick = true;
         },
+        onRecordDragCheckpoint: () => {
+          recordBattlefieldDragCheckpoint(container, {
+            action: 'commit-advance-drag-preview',
+            automationId: 'advance-preview-handle',
+            unitId: button.dataset.unitId,
+          });
+        },
       })) {
         return;
       }
@@ -1284,6 +1293,15 @@ export function renderApp(container, state, dispatch) {
         unitId: button.dataset.unitId,
         onSuppressNextSurfaceClick: () => {
           suppressNextBattlefieldSurfaceClick = true;
+        },
+        onRecordDragCheckpoint: () => {
+          recordBattlefieldDragCheckpoint(container, {
+            action: state.game.chargePreview?.intent?.unitId === button.dataset.unitId
+              ? 'commit-charge-slide-drag-preview'
+              : 'commit-slide-drag-preview',
+            automationId: 'slide-preview-handle',
+            unitId: button.dataset.unitId,
+          });
         },
       })) {
         return;
@@ -1309,6 +1327,13 @@ export function renderApp(container, state, dispatch) {
         onSuppressNextSurfaceClick: () => {
           suppressNextBattlefieldSurfaceClick = true;
         },
+        onRecordDragCheckpoint: () => {
+          recordBattlefieldDragCheckpoint(container, {
+            action: 'commit-advance-drag-preview',
+            automationId: 'advance-preview-handle',
+            unitId: previewHandle.dataset.unitId,
+          });
+        },
       })) {
         return;
       }
@@ -1331,6 +1356,13 @@ export function renderApp(container, state, dispatch) {
         unitId: previewHandle.dataset.unitId,
         onSuppressNextSurfaceClick: () => {
           suppressNextBattlefieldSurfaceClick = true;
+        },
+        onRecordDragCheckpoint: () => {
+          recordBattlefieldDragCheckpoint(container, {
+            action: 'commit-slide-drag-preview',
+            automationId: 'slide-preview-handle',
+            unitId: previewHandle.dataset.unitId,
+          });
         },
       })) {
         return;
@@ -1355,6 +1387,16 @@ export function renderApp(container, state, dispatch) {
         cornerSide: wheelHandle.dataset.cornerSide,
         onSuppressNextSurfaceClick: () => {
           suppressNextBattlefieldSurfaceClick = true;
+        },
+        onRecordDragCheckpoint: () => {
+          recordBattlefieldDragCheckpoint(container, {
+            action: state.game.chargePreview?.intent?.unitId === wheelHandle.dataset.unitId
+              ? 'commit-charge-wheel-drag-preview'
+              : 'commit-wheel-drag-preview',
+            automationId: 'wheel-preview-handle',
+            unitId: wheelHandle.dataset.unitId,
+            pivotSide: wheelHandle.dataset.cornerSide === 'left' ? 'right' : 'left',
+          });
         },
       })) {
         return;

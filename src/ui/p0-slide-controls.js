@@ -10,6 +10,7 @@ const battlefieldSlideDragSession = {
   startPreviewUd: 0,
   battlefieldProfile: null,
   onSuppressNextSurfaceClick: null,
+  onRecordDragCheckpoint: null,
   chargeModeActive: false,
   lastChargeSlideSide: MOVEMENT_SLIDE_SIDES.RIGHT,
   lastChargeDistanceUd: 0,
@@ -25,6 +26,7 @@ export function stopBattlefieldSlideDragSession() {
   battlefieldSlideDragSession.surfaceRect = null;
   battlefieldSlideDragSession.battlefieldProfile = null;
   battlefieldSlideDragSession.onSuppressNextSurfaceClick = null;
+  battlefieldSlideDragSession.onRecordDragCheckpoint = null;
   battlefieldSlideDragSession.chargeModeActive = false;
   battlefieldSlideDragSession.lastChargeSlideSide = MOVEMENT_SLIDE_SIDES.RIGHT;
   battlefieldSlideDragSession.lastChargeDistanceUd = 0;
@@ -78,6 +80,7 @@ function handleBattlefieldSlideDragEnd() {
     });
   }
 
+  battlefieldSlideDragSession.onRecordDragCheckpoint?.();
   battlefieldSlideDragSession.onSuppressNextSurfaceClick?.();
   stopBattlefieldSlideDragSession();
 }
@@ -95,6 +98,7 @@ export function tryStartBattlefieldSlideDrag({
   battlefieldProfile,
   unitId,
   onSuppressNextSurfaceClick,
+  onRecordDragCheckpoint,
 }) {
   if (event.button !== 0 || !battlefieldSurface) {
     return false;
@@ -124,6 +128,7 @@ export function tryStartBattlefieldSlideDrag({
       ? -(state.game.slidePreviewUd ?? 0)
       : (state.game.slidePreviewUd ?? 0));
   battlefieldSlideDragSession.onSuppressNextSurfaceClick = onSuppressNextSurfaceClick;
+  battlefieldSlideDragSession.onRecordDragCheckpoint = onRecordDragCheckpoint ?? null;
   battlefieldSlideDragSession.chargeModeActive = chargeSlideActive;
   battlefieldSlideDragSession.lastChargeSlideSide = chargeSlideActive
     ? (state.game.chargePreview?.intent?.startManoeuvre?.slideSide ?? MOVEMENT_SLIDE_SIDES.RIGHT)

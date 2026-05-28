@@ -12,6 +12,7 @@ const battlefieldAdvanceDragSession = {
   battlefieldProfile: null,
   forwardAxis: { x: 0, y: -1 },
   onSuppressNextSurfaceClick: null,
+  onRecordDragCheckpoint: null,
 };
 
 function clamp(value, min, max) {
@@ -24,6 +25,7 @@ export function stopBattlefieldAdvanceDragSession() {
   battlefieldAdvanceDragSession.surfaceRect = null;
   battlefieldAdvanceDragSession.battlefieldProfile = null;
   battlefieldAdvanceDragSession.onSuppressNextSurfaceClick = null;
+  battlefieldAdvanceDragSession.onRecordDragCheckpoint = null;
 }
 
 function handleBattlefieldAdvanceDragMove(event) {
@@ -62,6 +64,7 @@ function handleBattlefieldAdvanceDragEnd() {
     return;
   }
 
+  battlefieldAdvanceDragSession.onRecordDragCheckpoint?.();
   battlefieldAdvanceDragSession.onSuppressNextSurfaceClick?.();
   stopBattlefieldAdvanceDragSession();
 }
@@ -80,6 +83,7 @@ export function tryStartBattlefieldAdvanceDrag({
   unitId,
   maxAdvanceUd,
   onSuppressNextSurfaceClick,
+  onRecordDragCheckpoint,
 }) {
   if (event.button !== 0 || !battlefieldSurface) {
     return false;
@@ -112,6 +116,7 @@ export function tryStartBattlefieldAdvanceDrag({
     y: -Math.cos(rotation),
   };
   battlefieldAdvanceDragSession.onSuppressNextSurfaceClick = onSuppressNextSurfaceClick;
+  battlefieldAdvanceDragSession.onRecordDragCheckpoint = onRecordDragCheckpoint ?? null;
   return true;
 }
 

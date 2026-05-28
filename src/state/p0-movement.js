@@ -146,6 +146,7 @@ export function hasUnitFinishedMovementPhase(unit) {
         Number(unit.advanceUsedUd ?? 0) > 0
         || Boolean(unit.slideUsedThisMovementPhase)
         || Boolean(unit.stayedThisMovementPhase)
+        || Boolean(unit.movementOrRallyLockedByConformation)
       )
   );
 }

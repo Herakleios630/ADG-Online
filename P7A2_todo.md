@@ -1,6 +1,6 @@
 # P7A2 TODO - Evade Move Completion Gate
 
-Status: In progress - split after validated core and first slide-choice slices. This board is not complete: P7A2-00, P7A2-02, P7A2-03, P7A2-04, P7A2-07, P7A2-08, and P7A2-09 still contain open work before P7A2 can be accepted or used to unblock P7B.
+Status: Complete - validated core, slide-choice, debug-trace, edge-clearance fixes, browser/manual acceptance, module-size gate closure, and final source-lock closeout are now complete. P7A2 is accepted and no longer blocks P7B.
 Date drafted: 2026-05-21
 Planner: AdG-Rules-Engine-Agent
 Preferred future executor: GPT-5.4 after user approval
@@ -30,6 +30,14 @@ Split decision 2026-05-23:
 - Next safe implementation split: finish P7A2-00 source lock first, then P7A2-02/P7A2-04 for slide/block plus final movement resolver, then P7A2-03/P7A2-07 for wheel and choice UI, then P7A2-08/P7A2-09 for hooks, browser smoke, and handoff.
 - Do not start P7B until P7A2-09 is complete and user manual acceptance is recorded.
 
+Near-term follow-up requested 2026-05-24:
+
+- After P7A2 closes, expand the Charge Drill from mostly cavalry/medium-infantry anchors into a deliberate troop-family coverage matrix for charge-reaction and evade testing: light infantry, cavalry, cavalry bow, heavy infantry, medium infantry, pike, elephants, and any other standard or special movement families that materially change charge reaction, evade, or follow-through behavior.
+- Keep that fixture pass explicitly scenario-driven, not army-list-legal: the goal is representative rule coverage with stable IDs, readable labels, capability flags, and movement-family hooks, not a legal list builder proxy.
+- Treat readable battlefield bases as a separate visual slice from the fixture/data expansion. Prefer a render-descriptor layer that keeps current reducer/geometry ownership intact while allowing later pre-rendered infantry and mounted base sprites from a pooled canvas or offscreen-canvas atlas.
+- Preferred timing: do the scenario/data coverage slice immediately after P7A2 acceptance so P7B/P8 browser smokes can use richer anchors; do the base-readability render slice only after the current charge/evade/conformation UI surfaces stop changing every card.
+- Detailed execution board: `CHARGE_DRILL_2_todo.md`.
+
 Implementation update 2026-05-23 - slide-choice slice:
 
 - The Charge Drill source-open blocker from the live screenshot is now represented as `choice-required` when both legal final-overlap slide candidates exist, instead of blocking the flow as source-open.
@@ -44,6 +52,50 @@ Implementation update 2026-05-23 - evade hotseat handoff popup:
 - After a `choice-required` evade result, the battlefield switches to `hotseat-handoff`, shows an explicit `Bitte Spieler B den Ausweichzug machen` style popup, and only exposes left/right evade buttons after `OK`.
 - Acknowledging the popup switches the privacy view to the reacting player's view; committing the evade choice returns to the prior view and hands adjusted charge back to the charger side.
 - Focused battlefield/command-panel/reducer tests and the full test suite are green for this popup slice.
+
+Implementation update 2026-05-25 - decision trace and edge-clearance regression slice:
+
+- Charge contact, charge reaction, evade planning, reducer preview state, and browser debug summaries now preserve structured `decisionTrace` / `contactDecisionTrace` data so live logs can explain why a path selected or rejected straight, slide, direction-wheel, obstacle-wheel, source-open, caught-evader, or secondary-target outcomes.
+- Later path-avoidance now treats exact edge-clearance as legal clearance instead of interpenetration. The concrete Charge Drill sequence `charge-drill-p1-lane-blocker -> charge-drill-p2-earlier-contact` now commits unit 17 as `slide-left-1.000` around unit 18 instead of leaving the evader `source-open`.
+- Adjusted charge follow-through after that committed slide now correctly distinguishes distance from logic: a normal adjusted roll stops short of unit 18, while a maximum adjusted roll exposes unit 18 as the pending secondary target.
+- Direct-blocker clearance priority is preserved: when the obstacle is directly ahead after reorientation, supported slide clearance is preferred and the direction-wheel branch is not mixed into that initial direct-blocker branch.
+- Selected avoidance candidates now apply an inherited light-troop end-half-turn hook to the selected final pose and regenerated path segments, so the replay hook and canonical unit rotation no longer disagree after a manual slide choice.
+- Validation on 2026-05-25 is green: `npm test` passes 429/429, `npm run build` passes, and editor diagnostics are clean for the touched charge, reducer, and debug modules. Browser/manual acceptance remains open.
+- Stewardship note: the implementation is not closure-ready on file size. Current worktree counts are `src/engine/charge/evade.js` 2831 lines, `src/state/p0-state.js` 3942 lines, and `src/ui/p0-battlefield.js` 2796 lines, all beyond the project guardrail. P7A2 now has a dedicated module-size refactor gate before acceptance unless the user explicitly approves an exception.
+
+Planning update 2026-05-25 - support boards requested:
+
+- `LOGGING_todo.md` now defines the general selective logging support slice: level filters plus rule-area filters such as `charge`, `reaction`, `evade`, `movement`, and `zoc`. Use it before the next browser investigation of unit 20, unit 21, or wheel snapping.
+- `UNIT_CAPABILITIES_todo.md` now defines the profile-first unit capability data spine. New Charge Drill lanes should not add more normal-path per-unit capability hardcoding; they should consume source-shaped unit profiles first.
+- `CHARGE_DRILL_2_todo.md` was tightened to depend on the unit profile/capability spine before broad fixture expansion.
+
+LOG-05 manual debug update 2026-05-25:
+
+- `docs/browser-automation.md` now has the exact manual LOG-05 checklist for unit 20 wrong evade path, unit 21 missing evade roll, and wheel snapping.
+- Do not treat LOG-05 as a bug-fix card. After the user performs the three manual reproductions, classify each root cause from the filtered trace sequence before touching engine, reducer, UI, or capability data.
+
+LOG-05 execution update 2026-05-25:
+
+- The later live browser/debug session converted the LOG-05 checklist into actual root-cause captures for the active P7A2 defects.
+- Unit 20 wrong evade path was classified as an engine-side evade-solver branch issue and was then fixed in the owning P7A2 slice.
+- Unit 21 missing evade roll was first classified as a reducer/UI surfacing gap for a pending secondary request, then as a reducer requeue issue where the same secondary defender could be prompted again after recompute; both were fixed in the owning P7A2 slice.
+- Wheel snapping did not reappear as a blocking P7A2 defect during the closeout session, but the retained LOG-05 runbook now pins the exact selectors, filtered areas, and trace order to use if the snap returns.
+
+Implementation update 2026-05-26 - PM reconciliation and handoff test regression repair:
+
+- `UNIT_CAPABILITIES_todo.md`, `CHARGE_DRILL_2_todo.md`, `roadmap.md`, and `P7B_todo.md` are now reconciled to the current support baseline: UCD0, CD2 fixture/data, and BVR-02 are treated as available support work, while future UCD canonical-definition/table work and BVR-03+ remain deferred.
+- The P7A2 command-panel and battlefield handoff tests no longer depend on the live Charge Drill front lane accidentally producing a `choice-required` evade. That lane now resolves as source-open under the stricter final-overlap geometry, so the handoff UI coverage uses an explicit synthetic `choice-required` evade state instead of weakening the engine or distorting normal fixture footprints.
+- No runtime engine/UI behavior changed in this repair; the change is test ownership and planning hygiene only.
+- Validation on 2026-05-26 is green: focused P7A2/UI/profile regression set passes `315/315`, full `npm test` passes `478/478`, `npm run build` passes, and editor diagnostics are clean for the touched test and planning files.
+- Browser/manual acceptance remains open because this repair did not run a fresh live browser smoke and P7A2 still has the module-size refactor gate open.
+
+Implementation update 2026-05-26 - Light-troop drill footprint and visual-fill reconciliation:
+
+- The live Charge Drill light-troop hook target no longer uses the stale hardcoded square footprint from the older fixture. Its drill data now carries a shallow rectangular `0.5 UD` target base instead of `1 UD` square geometry.
+- The battlefield token highlight frame now follows the rendered base silhouette rather than the full token box, so selection and charge-target emphasis no longer redraw a misleading `1 UD x 1 UD` frame around the light-troop target.
+- The visual resolver now stops applying the old `baseDepthHint: half` shrink pass to units that are already physically shallow (`depthUd <= 0.5`), which prevents the inner green fill from being reduced a second time after the fixture geometry fix.
+- Validation on 2026-05-26 is green for the visual/data follow-up: focused data/UI tests pass `68/68`, full `npm test` passes `478/478`, `npm run build` passes, and a live browser DOM check confirmed the light-troop hook target renders at `0.5 UD` token height with the corrected inner fill behavior.
+- P7A2 still remains open pending explicit user manual acceptance of the refreshed browser smoke; this visual reconciliation does not unblock P7B by itself.
 
 ## Purpose
 
@@ -130,12 +182,9 @@ Confirmed on 2026-05-21 for P7A2 planning:
 
 Remaining source-lock details for `P7A2-00`:
 
-- adjusted charge and adjusted evade distance are already scan-confirmed in the Rules-v2 pass as `1-2 = movement - 1 UD`, `3-4 = normal movement`, `5-6 = movement + 1 UD`; keep only the errata-overrides-base confirmation open
-- treat optional direction wheel and obstacle wheel with the ordinary single-unit wheel baseline unless evade wording or errata overrides it: pivot on an outer front corner, measure the opposite front corner, maximum `90 degrees`; keep open only for direct evade-specific wording or errata that changes cost/accounting
-- table exit is source-backed enough for P7A2 to commit removal from play now and store a deferred army-cohesion/victory hook for P10; keep open only for exact downstream accounting semantics, not for whether evade itself resolves
-- light-troop end half-turn is source-backed enough to stay in scope, but the exact family wording still needs direct errata confirmation before we collapse it into a broader capability flag
-- exact reset boundary for cannot-shoot and repeated-evade phase flags
-- visual example coverage for blocked evade, evade movement, charge continuation after evade, interpenetration/burst-through deferrals, and catching evaders from `RULES_V2_todo.md` RV2-02/RV2-02A
+- For the current supported P7A2 subset, all broader timing, wheel-baseline, adjusted-distance, and table-exit source questions now have a working implementation baseline and no longer control this card.
+- The only remaining direct closeout item inside `P7A2-00` is `charge.light-troop-end-half-turn-family-boundary`: confirm the exact `light troops` family wording for the free end-of-evade half-turn before collapsing the hook into a broader capability claim.
+- Exact reset timing for cannot-shoot and repeated-evade phase flags is still open, but that source-lock question now belongs to `P7A2-08`, not this card.
 
 ## Execution Cards
 
@@ -145,7 +194,7 @@ Card status convention after the 2026-05-23 correction:
 - `[ ] ... (partial)` means useful code or documentation exists, but the card remains open and must not be treated as accepted.
 - P7A2 is not complete until P7A2-09 is complete and user manual acceptance is recorded.
 
-### [ ] P7A2-00 - Source Lock And Branch Contract
+### [x] P7A2-00 - Source Lock And Branch Contract
 
 Goal: verify the exact evade movement contract before any implementation.
 
@@ -199,7 +248,27 @@ Source-lock delta from RV2-04/RV2-05A on 2026-05-23:
 - Table-exit evade outcomes no longer need to block P7A2 commit logic; the current source-backed plan is immediate removal plus a deferred P10 accounting hook.
 - The main unresolved content question is now the exact `light troops` family wording for the end-of-evade free half-turn, plus reset timing for after-evade flags.
 
-### [ ] P7A2-01 - Evade Commit Model (partial)
+Progress 2026-05-24:
+
+- Re-aligned `docs/rules/charge.md` with the current RV2-05A source-lock baseline instead of leaving it as a generic P7 planning note.
+- Tightened `docs/rules/open-verification.md` so the remaining P7A2-00 risk is explicit: exact `light troops` family wording for the free end-half-turn. The separate after-evade reset-timing question is tracked under `P7A2-08`.
+- Current implementation and drill validation now match the source-locked baseline for ordered `reaction -> committed evade move -> adjusted charge distance`, inherited wheel baseline, and immediate table-exit removal with deferred P10 accounting.
+
+Progress 2026-05-26:
+
+- The source-lock tail for the current supported P7A2 subset is now narrow and explicit. The only remaining direct errata/source blocker still owned by this card is `charge.light-troop-end-half-turn-family-boundary` in `docs/rules/open-verification.md`.
+- Treat that entry as the active P7A2-00 closeout scope. Other broader charge/open-verification items may still matter to later phases, but they are no longer the controlling blocker for the current supported evade-completion subset.
+
+Closeout 2026-05-26:
+
+- Direct 300-DPI scan review now closes the remaining family-boundary question. The evade page states `Light troops can perform an additional free half-turn at the end of their evade move`, with no narrower carve-out, and the maintained troop-category/movement corpus already binds `light troops` to the normal `LI` plus `LH` subset.
+- With that source-lock tail closed, this card is complete for the supported P7A2 subset.
+
+Still open before this card can close:
+
+- none for the current supported P7A2 subset.
+
+### [x] P7A2-01 - Evade Commit Model
 
 Goal: add a serializable model for pending, chosen, blocked, and committed evade movement.
 
@@ -243,12 +312,17 @@ Progress 2026-05-23:
 - Core `evadeMove` state spine exists and is serialized through the charge preview.
 - Model tests cover the committed replay facts for the current subset.
 
-Still open before this card can close:
+Progress 2026-05-25:
 
-- Confirm the shape preserves enough explicit choice identifiers for the initial branch, direction wheel, obstacle wheel, table exit, and light-troop end half-turn.
-- Add or update tests once those choices exist, rather than relying only on generic `avoidanceSteps`.
+- The model/state spine now carries decision traces for reaction requests, evade move resolutions, and initial charge previews without breaking serialization or existing model tests.
+- Choice identifiers now cover the current generic candidate pipeline, including replay-safe slide, direction-wheel, obstacle-wheel, chained path, table-exit, and light-troop hook metadata in the supported subset.
 
-### [ ] P7A2-02 - Slide And Block Solver (partial)
+Closeout 2026-05-26:
+
+- The model/state spine now preserves explicit replay-safe choice identifiers and metadata for the supported initial branch, direction wheel, obstacle wheel, table exit, chained paths, and light-troop end-half-turn hook.
+- Focused model and downstream state/UI tests are green on the current workspace baseline, so this card is satisfied for the supported P7A2 subset.
+
+### [x] P7A2-02 - Slide And Block Solver
 
 Goal: turn the current simple clearance-slide check into a path-producing solver for the supported single-slide case.
 
@@ -295,12 +369,23 @@ Progress 2026-05-23:
 - Focused engine tests cover that one-side slide case.
 - Focused reducer/UI tests cover the both-side final-overlap slide choice in the Charge Drill, and a reducer test now confirms single-side direct-blocker auto-commit into canonical `game.units`.
 
+Progress 2026-05-25:
+
+- Later path-avoidance now carries the sampled overlap blocker IDs through boundary refinement, so simultaneous blockers are not lost when the legal encounter pose is moved back to the last clear point.
+- Exact edge-clear slides now use the same small footprint tolerance as path sampling; a `1 UD` slide that places the evader exactly beside the blocker is legal instead of being rejected as `intermediate-overlap`.
+- Focused engine coverage now locks this regression with a one-blocker edge-clear slide test and refreshed direction-wheel/later-slide fixtures that avoid the direct-blocker branch.
+
 Still open before this card can close:
 
-- Add reducer/UI coverage that live solver output no longer exposes obsolete left/right micro-choices inside the no-direction branch.
-- Add the remaining blocked-case matrix for enemy-ZoC blocked, physical blocker with no legal slide, and wider slide-distance deduction coverage in reducer/UI flow.
+- none for the current supported P7A2 subset.
 
-### [ ] P7A2-03 - Direction Wheel And Obstacle Wheel Solver
+Closeout 2026-05-26:
+
+- The old board tail here is now stale prose rather than a live implementation gap. The supported no-direction branch already auto-selects the best legal non-wheel candidate inside one initial branch instead of surfacing obsolete left/right micro-choices, and the reducer/UI path only exposes explicit choice UI when the solver still returns a real `choice-required` result.
+- Coverage now spans the controlling cases this card claimed as still open: engine tests lock slide-distance deduction and blocked final-overlap outcomes, reducer tests cover committed slide-choice and no-choice auto-commit before adjusted charge distance, and the broader Charge Drill fixture matrix now includes dedicated evade-blocked-by-ZoC and evade-blocked-by-simple-blockers lanes for the current subset.
+- Any broader future rendering/UX polish belongs under later cards, not as a remaining blocker for this slide/block solver card.
+
+### [x] P7A2-03 - Direction Wheel And Obstacle Wheel Solver
 
 Goal: implement the non-straight evade manoeuvres that affect final pose and charger follow-through.
 
@@ -341,7 +426,6 @@ Expected result: P7A2 has source-backed direction-wheel and obstacle-wheel resul
 Progress 2026-05-24:
 
 - The evade solver now reuses the single-unit wheel baseline from the movement engine instead of inventing a second wheel geometry path.
-- Optional direction-wheel candidates can now be generated when the reoriented evade direction differs from the frozen charge direction by up to `90 degrees`, with wheel cost deducted from remaining evade distance.
 - A stable supported obstacle-wheel fixture is now covered as well: when a direct blocker leaves no legal slide lane, the solver can expose `obstacle-wheel` defender choices with replay-safe candidate IDs and committed final poses.
 - The evade choice pipeline is now candidate-driven rather than slide-only: reducer choice resolution accepts replay-safe candidate IDs, and the current command-panel UI can render generic evade candidates such as the no-direction branch and `direction-wheel`.
 - Focused engine coverage now proves both an optional direction-wheel choice case and a supported obstacle-wheel choice case, and focused reducer/UI tests prove that the generalized candidate-choice path still commits supported evade choices before adjusted charge distance.
@@ -354,12 +438,21 @@ Progress 2026-05-24:
 - Battlefield evade choice now has a first movement-style input slice as well: compact branch handles render at the reoriented evader for the surviving initial choices, while the solver still owns later distance-maximizing follow-up steps and the command-panel buttons remain as fallback.
 - Battlefield evade choice now supports a real stepwise learning path: clicking a visible node no longer commits the move, but instead advances one level in the legal evade tree, filters the visible subtree end ghosts, and leaves direct endpoint quick-picks available as a parallel shortcut.
 
+Progress 2026-05-25:
+
+- Direct-blocker priority was re-asserted while preserving the direction-wheel/later-slide branch elsewhere: direct blockers now stay in the direct slide/obstacle-wheel branch, while separate fixtures still prove `direction-wheel -> later slide` and simultaneous later-blocker IDs.
+- The direction-wheel/later-slide and refined-slide tests were updated to reflect exact edge-touch clearance and to avoid relying on a stale direct-blocker fixture for wheel behavior.
+
 Still open before this card can close:
 
-- Add wider blocked/source-open wheel-required coverage beyond the first stable obstacle-wheel fixture.
-- Expand the current node-by-node evade tree into fuller battlefield-native gestures and decide when the command-panel fallback buttons can safely disappear.
+- none for the current supported P7A2 subset.
 
-### [ ] P7A2-04 - Evade Movement Resolver (partial)
+Closeout 2026-05-26:
+
+- The supported P7A2 subset now has source-backed direction-wheel and obstacle-wheel results all the way through engine, reducer, and battlefield rendering. Optional direction-wheel, stable obstacle-wheel, chained `direction-wheel -> later slide`, and later multi-wheel paths all exist with replay-safe candidate IDs, committed final poses, and focused tests.
+- The two old open bullets here are broader future-slice language rather than blocking defects in the current approved subset. Wider blocked/source-open breadth and richer battlefield-native gesture UX can remain follow-up polish without keeping this card open.
+
+### [x] P7A2-04 - Evade Movement Resolver
 
 Goal: compute the final single-unit evade movement path after D6 and any supported choices.
 
@@ -405,14 +498,29 @@ Progress 2026-05-23:
 - A selected two-side final-overlap slide choice now produces a committed board pose and unlocks adjusted charge distance.
 - Supported direct-blocker slide application now also produces committed board poses for one-side auto-commit and two-side player-choice cases.
 - Optional direction-wheel and supported obstacle-wheel candidates now feed the same supported evade choice pipeline, with focused reducer coverage proving committed wheel-selected outcomes before adjusted charge distance.
-- Source-open final overlap and table-edge diagnostics still block commit.
+- Table-edge evade exits now produce committed removal hooks: the evader is removed from `game.units` before adjusted charge distance and the P10 army-cohesion/victory accounting hook is preserved in serializable state.
+- Light-troop end half-turn is now represented as an applied replay hook for explicit light-troop families in the isolated single-unit evade plan.
+- `evadePlan` and committed `evadeMove` now also preserve replay-safe `pathSegments` for the resolved evade path itself, including supported avoidance steps, the remaining straight segment, and a zero-distance end-half-turn segment when that hook is applied.
+- Source-open final overlap still blocks commit.
 
-Still open before this card can close:
+Progress 2026-05-25:
 
-- Implement or explicitly source-block direction wheel, obstacle wheel, table-edge exit, and light-troop end half-turn.
-- Produce a complete path segment list for rendering and replay beyond the current preview ghost.
+- The reported `unit 2 -> unit 17` Charge Drill path now resolves as a committed later slide around unit 18 instead of an unresolved `source-open` result.
+- Selecting an avoidance candidate now rebuilds path segments after applying an inherited light-troop end-half-turn hook, so selected slide choices can still end with the correct post-evade facing.
+- Decision traces now log the path-avoidance encounter, slide-side evaluation, reject/accept reasons, recursion, and final resolution, making future browser-only path mismatches inspectable from debug logs rather than screenshots alone.
 
-### [ ] P7A2-05 - Reducer Commit Boundary (partial)
+Review delta 2026-05-24:
+
+- The current solver still conflates two different rule timings in some overlap cases. Direct-blocker clearance less than `1 UD` after reorientation is an initial obstacle-clearance case, but a friendly/enemy obstacle encountered only during the actual evade move must be handled later in the move with the minimum necessary slide or wheel geometry and the corresponding distance deduction.
+- The current `final-overlap` clearance path still builds that case as `initial slide -> remaining straight move` from the reoriented pose, which does not match the printed `straight evade move -> later obstacle avoidance if encountered` order.
+- The current derived `pathSegments` model also assumes avoidance steps happen before the final straight segment, so this bug is not only a rendering issue; it is a chronology/model issue in the supported evade resolver.
+
+Closeout 2026-05-26:
+
+- Focused engine validation now confirms the late-overlap chronology in both replay path segments and generic candidate metadata. The final-overlap slide path remains `evade-straight -> evade-slide -> evade-straight`, and the candidate `intermediatePose` now matches the later slide step instead of incorrectly pointing at the final end pose.
+- This retires the old chronology blocker from the current supported subset. Remaining open work for P7A2 now sits in the source-lock tail and adjacent coverage cards, not in a separate final-movement-resolver defect.
+
+### [x] P7A2-05 - Reducer Commit Boundary
 
 Goal: require an actual evade commit before adjusted charge distance can start.
 
@@ -459,14 +567,25 @@ Progress 2026-05-23:
 - Source-closed no-choice evades mutate `game.units` before adjusted charge distance.
 - Supported final-overlap slide choices now require an explicit reducer action and mutate `game.units` before adjusted charge distance.
 - Reducer tests cover commit gating, roll history, canonical evader movement, caught evader, and secondary-target behavior for the supported subset.
+- Table-exit evades now commit as removal from `game.units` and unlock adjusted charge distance with the deferred P10 accounting hook preserved on `evadeMove.tableExit`.
+- Evade move resolutions now preserve the light-troop end-half-turn hook metadata for replay and later UI explanation.
 
-Still open before this card can close:
+Progress 2026-05-25:
 
-- Extend reducer action/state coverage from supported final-overlap slide choices to direction wheel, obstacle wheel, table exit, and light-troop end half-turn choices/hooks.
-- Store source-locked table-exit/removal hooks before allowing adjusted charge distance for non-board-pose outcomes.
-- Confirm replay history for choice-required and source-warning branches.
+- Choice-required light-troop evades now commit the selected avoidance candidate with the same end-half-turn hook consistency as auto-commit paths.
+- Reducer coverage now includes the concrete Charge Drill `unit 17` slide and verifies that adjusted charge remains blocked until the evader is committed, then can expose unit 18 as a secondary target when the adjusted charge distance is sufficient.
 
-### [ ] P7A2-06 - Follow-Through From Committed Evader State (partial)
+Closeout 2026-05-26:
+
+- The reducer-owned commit boundary is now exercised through supported no-choice, slide-choice, table-exit, and light-troop hook paths, and manual/browser acceptance confirmed that adjusted charge does not unlock before the evader is committed.
+- Future variants that would make the end-half-turn player-selectable are outside the current supported subset and do not block this card.
+
+Closeout addendum 2026-05-26:
+
+- Canceling a charge after one or more committed evades now restores `game.units` from a reducer-owned pre-evade snapshot carried inside `chargePreview`, instead of leaving evaders and temporary evade flags stranded on the battlefield.
+- Focused coverage now proves the rollback on a real committed-evade path: after the evader is moved and flagged, `CANCEL_CHARGE_PREVIEW` restores the original unit pose and clears the temporary evade markers by restoring the pre-charge unit snapshot.
+
+### [x] P7A2-06 - Follow-Through From Committed Evader State
 
 Goal: make adjusted charge follow-through consume the committed board state rather than a ghost override.
 
@@ -509,10 +628,19 @@ Progress 2026-05-23:
 - Follow-through contact state can use committed `evadeMove`/canonical unit state instead of only `evadePlan.endPose`.
 - Existing caught, not-caught, and secondary-target reducer tests pass for the supported subset.
 
+Progress 2026-05-25:
+
+- The committed unit-17 slide is now covered through adjusted charge follow-through: the no-contact outcome for a normal adjusted roll and the unit-18 secondary-target outcome for a maximum adjusted roll are both understood as distance-dependent, not queue/index failure.
+- Contact-state decision traces now preserve ordered contact-event reasoning, including the cases that return a later earlier-enemy sequence rather than only the terminal first result.
+
 Still open before this card can close:
 
-- Extend follow-through tests to committed slide, direction wheel, obstacle wheel, end-half-turn, and table-exit cases once those outcomes exist.
-- Remove or further narrow legacy ghost fallback only after all supported committed outcomes are represented.
+- none for the current supported P7A2 subset.
+
+Closeout 2026-05-26:
+
+- The supported follow-through slice now consumes committed evade state rather than relying on a ghost-only override. Caught-evader, no-contact continuation, friendly-blocker, secondary-target pause, secondary reaction reanchor, reused adjusted charge distance, and the committed unit-17 slide -> unit-18 exposure path are all covered through the owning engine/state/UI tests.
+- The older open bullets are now future hardening ideas, not remaining blockers for the accepted subset. Legacy fallback behavior is already narrow, and the supported committed outcomes that currently exist are represented in follow-through logic and tests.
 
 ### [ ] P7A2-07 - Evade UI And Battlefield Rendering (partial)
 
@@ -569,17 +697,38 @@ Progress 2026-05-24:
 - The battlefield candidate layer is generic over the supported candidate types: the current tests cover acknowledged slide-choice ghosts and wheel-style obstacle-wheel ghosts from the same candidate pipeline.
 - Focused browser smoke on the shared page confirmed the real hotseat flow: the slide candidates appeared as battlefield ghosts after `OK`, clicking one committed the evader, and the adjusted-charge roll button appeared only afterwards.
 - The all-targets-evade follow-through preview now also renders the mounted/foot minimum continuation as its own battlefield preview while the `Stop` versus `Continue` choice is still open, so the minimum path is no longer hidden behind the maximum-distance ghost.
-- Queued next UI polish: strengthen the visual separation between `Continue` and `Stop` follow-through previews, preferably by either a stronger color split or a direct `2 UD` badge on the minimum line/ghost.
+- The follow-through preview now separates `Stop` from `Continue` more explicitly on the battlefield: the minimum path/ghost uses a stronger highlighted style and the stop endpoint carries a direct `Stop 2 UD` badge for the current supported minimum continuation case.
+- Focused validation for this narrow UI slice is editor-clean (`src/ui/p0-battlefield.js`, `src/styles/p0-battlefield.css`, `src/ui/p0-battlefield.test.js`), and the focused render test was updated for the new minimum badge; executable Node test replay remains blocked in the current shell because `node` is not on `PATH`.
+- A first live `perf=1` browser probe now records reducer and render timings into `window.__ADG_PERF_LOG__`, which already shows the broad post-reaction slowdown leaning render-side rather than solver-side for the observed large-window stall.
+- The battlefield now suppresses full enemy-ZOC band rendering once the charge flow has moved from early preview (`targeting`/`manoeuvre-selecting`/`ready`) into the reaction and evade-distance branch states, so the large-window evade dialog no longer stacks `all enemy ZOC + branch overlays` at the same time.
+- A proper modular debug channel now exists for future investigations: `?debug=1` / `?perf=1` enables browser action/error/long-task logging, the Vite debug middleware writes JSONL entries into `logs/adg-debug-current.jsonl`, and the browser exposes `window.__ADG_DEBUG__` plus in-memory log mirrors for live inspection.
+- Testing the current charge/evade case with that log channel shifted the primary hotspot from overlay paint to reducer/engine work: `game/start-charge-preview` was captured at about 14.2 seconds reducer time for `charge-drill-p1-wheel-charger`, while render was only about 70 ms; `game/set-charge-target` also showed about 1.2 seconds reducer time.
+- The next performance fix should target `getChargeTargetCandidates` / charge feasibility evaluation before more CSS work: the current declaration solver eagerly evaluates full path feasibility for all enemy candidates with slide/wheel/advance/ZOC sampling during `START_CHARGE_PREVIEW`.
+- OOM stability fix: generated/raw OCR source artefacts under `docs/source/new scan/` and `docs/source/rules-v2-examples/` are now excluded from Git/Vite watcher churn, removing about 1 GB of local PDFs/PNGs from normal status/diff scans; the browser debug logger also caps smaller in-memory rings, throttles long-task logging, avoids synchronous action logging, and keeps full console logging behind explicit `debugConsole=1` opt-in.
+- Focused validation for the OOM fix is green: debug-log plugin tests, charge declaration tests, direct charge-preview benchmarks, and `npm run build`; the broader `npm test` run still has two unrelated dirty-worktree assertions open in round-popup and finished-unit UI tests.
+- Charge/evade lag fix: broad charge targeting stays range/deferred, target click no longer runs eager all-family feasibility before the player has chosen a start manoeuvre, straight advance feasibility samples the full accepted guide once instead of sweeping 0.1 UD candidate distances, and final-overlap evade slides now start from computed minimum clearance instead of scanning every simple slide step.
+- Current focused performance validation: steady reducer timing for the front drill target click is about 8.7 ms average after warmup, and the front drill evade-distance roll is about 4.1 ms average after warmup; live `?perf=1` smoke recorded `game/start-charge-preview` at about 2.2 ms reducer / 8.5 ms render, `game/set-charge-target` at about 22.3 ms reducer / 8.6 ms render on the first browser pass, and `game/resolve-charge-branch-distance` at about 10.7 ms reducer / 8.8 ms render with no console-debug spam and heap around 28-33 MB.
+- Focused validation after the lag fix is back to the known dirty-worktree baseline: charge declaration, evade, state, battlefield, and command-panel tests have only the two unrelated pre-existing assertions open; `npm run build` is green.
+- Table-exit and light-troop hook slice: isolated evades now convert table-edge exits into committed removal hooks with deferred P10 accounting metadata, and explicit light-troop families receive an applied end-half-turn hook on the final evade pose. Focused tests for evade/model/state pass except the known unrelated round-popup assertion; `npm run build` is green.
+- Focused live browser smoke now covers the new committed UI states as rendered states, not only test HTML: the battlefield badge and command-panel helper copy both appeared for `table-exit` (`Exit table`, `Nordkante`, deferred `P10` hook text) and for the applied light-troop end-half-turn (`LT half-turn`, `Light-Troop-End-Half-Turn`, shooting-lock text).
+- The battlefield evade preview now consumes the reducer-owned evade `pathSegments` trail instead of rebuilding the preview from one synthetic straight corridor only. Focused battlefield tests now cover an explicit multi-segment preview with separate `evade-slide` and `evade-straight` trail markers, while the focused render run still only hits the known unrelated finished-unit UI baseline failure.
+
+Progress 2026-05-25:
+
+- Browser debug summaries now include `evadeDecisionTrace`, `contactDecisionTrace`, summarized ordered contact events, and per-reaction decision traces. This gives the next live reproduction of unit 20 or unit 19/21 enough solver evidence to tell stale UI from an actual engine branch.
+- Render tests have been updated to the current generic candidate IDs and exact edge-clearance distances, and the full battlefield UI render file is green again.
 
 Still open before this card can close:
 
-- Add battlefield rendering distinction for pending preview, pending choice, committed trail/token, source-open, and table-exit states.
 - The current battlefield choice UX is click-on-ghost, not yet the full movement-style drag/handle interaction the user requested for slide and wheel selection.
-- Add UI for direction wheel, obstacle wheel, table exit, and light-troop end half-turn once those reducer states exist.
-- Next UI follow-up: separate the `Continue`/`Stop` battlefield preview more strongly, either by stronger color separation or by adding a direct `2 UD` badge on the minimum line/ghost.
-- Complete browser smoke and user manual acceptance.
+- The supported renderer/UI subset is implemented and manually accepted, but richer explanation polish for wheel-specific and source-open cases is still open if this card is kept broader than the current accepted subset.
 
-### [ ] P7A2-08 - Phase Flags And Future Hooks (partial)
+Review 2026-05-24:
+
+- No additional P7A2 card can be marked `[x]` honestly yet. The remaining blockers are not missing implementation for table-exit/P10-hook state anymore; they are manual acceptance, broader source-open rendering polish, and direct source-lock confirmation boundaries.
+- Pending preview, acknowledged choice ghosts, committed trail rendering, table-exit badge state, and light-troop end-half-turn badge/helper copy are all now implemented and test-backed; the open rendering work is narrower than the older generic bullets suggest.
+
+### [x] P7A2-08 - Phase Flags And Future Hooks
 
 Goal: store small rule consequences of evading without pulling in P8-P10 systems.
 
@@ -620,12 +769,25 @@ Progress 2026-05-23:
 
 - Core auto-commit currently sets `hasEvadedThisSequence`, `cannotShootThisSequence`, and increments `evadeCountThisPhase` for the committed unit.
 
+Progress 2026-05-24:
+
+- `ROUND_BEGIN` now clears `hasEvadedThisSequence`, `cannotShootThisSequence`, and `evadeCountThisPhase` for the active player's units only, giving P7A2 a conservative reducer boundary instead of leaving the flags sticky across later turns.
+- Focused reducer coverage now proves both sides of that boundary: a committed evader keeps the flags until its own next round start, and the non-active player's units are not cleared at the same time.
+
+Progress 2026-05-25:
+
+- The after-evade flag tests now follow the explicit choice-required light-troop path before checking reset behavior, so the hook coverage remains valid after the solver stopped auto-committing that branch.
+
+Closeout 2026-05-26:
+
+- The implementation side of this card is now effectively complete for the supported P7A2 subset: hook fields, reducer persistence, repeated-evade counters, and deferred P10 table-exit accounting all exist and are covered.
+- Collaborative rule review on 2026-05-26 now closes the remaining reset-timing question for the current project baseline: `same sequence` means the evader misses only the immediately following shooting phase in that player sequence, and the existing reset at that player's next `ROUND_BEGIN` is therefore the correct boundary for the next own sequence.
+
 Still open before this card can close:
 
-- Source-lock and test reset boundaries for cannot-shoot and repeated-evade flags.
-- Add table-exit/removal hook state and defer only downstream P10 accounting.
+- none for the current supported P7A2 subset.
 
-### [ ] P7A2-09 - Validation, Browser Smoke, And Handoff
+### [x] P7A2-09 - Validation, Browser Smoke, And Handoff
 
 Goal: close P7A2 only after code, docs, and player flow agree.
 
@@ -655,9 +817,42 @@ Validation:
 - build green
 - browser smoke documented
 
+Progress 2026-05-24:
+
+- Focused UI tests for the committed evade helper/badge slice are green; only the known unrelated finished-unit battlefield assertion remains in the targeted UI run.
+- `npm run build` remains green after the committed `table-exit` / `LT half-turn` rendering changes.
+- Localhost browser smoke now directly verifies the user-facing committed render states for `table-exit` and applied light-troop end half-turn in the real app renderer, including both battlefield badges and command-panel helper copy.
+- Additional localhost browser smoke now covers live blocked-evade and follow-through states in the real app renderer: the blocked-evade reaction overlay exposes `Ausweichen blockiert` with only the `blocked-no-evade` handoff, the secondary-target pause shows the `Sekundaerziel-Reaktion` overlay plus the paused next-reaction helper copy, the caught-evader state shows the `Rear-Attack` / `1 Cohesion Loss` helper path with the `Evader caught` follow-through status, and the non-caught adjusted-charge continuation renders both the maximum and minimum follow-through corridors with the visible `Stop 2 UD` marker.
+- Additional localhost browser renderer smoke now covers the generic wheel-choice UI states that were already test-backed in P7A2-07: `obstacle-wheel` candidates render as live evade ghosts with selectable command-panel actions, and chained `direction-wheel-slide` candidates render with their trail/handle nodes plus the corresponding panel labels. This is still renderer-level smoke for the supported reducer-owned choice states, not a claim that every wheel path is already exercised through one full manual Charge Drill click-through.
+- Additional localhost browser smoke now covers the secondary-target-evades branch in the real app renderer: after the first follow-through pause, choosing `Sekundaerziel Test 4` to evade opens the `Ausweichdistanz bestimmen` D6 overlay with the expected six deterministic die buttons.
+- Reducer scan plus localhost browser smoke now identify and verify at least one real Charge Drill no-choice/auto-commit evade path in the existing fixture: `charge-drill-p1-double-blocker` into `charge-drill-p2-double-blocker` reaches `evadeMove.status = committed` with `autoCommit = true`, shows no defender choice buttons, and exposes `Adjusted Charge wuerfeln` immediately after the committed evade notice.
+- The Charge Drill now also contains two explicit manual anchors for the previously renderer-only special cases: `charge-drill-p1-table-exit-charger` into `charge-drill-p2-table-exit-target` reproduces a front-charge evade that turns north and exits over the north edge, and `charge-drill-p1-light-troop-hook-charger` into `charge-drill-p2-light-troop-hook-target` reproduces a committed light-troop evade with the end-half-turn hook applied after the move.
+- Validation status on 2026-05-24 is now explicit: focused P7A2 UI tests remain at the known single unrelated finished-unit assertion, and full `npm test` remains at the known dirty-worktree baseline of 413 passing / 2 failing (`round begin opens corps selection...` in reducer state tests and `a finished selected unit remains selectable...` in battlefield UI tests).
+- This narrows the browser-validation gap for P7A2-07/P7A2-09, but it does not close P7A2-09 yet because broad supported-flow smoke and user manual acceptance remain open.
+
+Progress 2026-05-25:
+
+- The previous dirty-worktree validation baseline is resolved for the current workspace state: `npm test` now passes 429/429 and `npm run build` passes after the decision-trace, edge-clearance, unit-17/18, and selected light-troop hook fixes.
+- Editor diagnostics are clean for the touched charge engine, reducer, model, reaction/contact, and browser debug logger files.
+- P7A2-09 remains open because broad supported browser smoke, user manual acceptance, and the new module-size refactor gate are still required before P7A2 can be accepted or used to unblock P7B.
+
+Progress 2026-05-26:
+
+- The module-size gate prerequisite is now satisfied for the main reducer split: `src/state/p0-state.js` is down to 986 lines after the validated helper extractions and shared corps-slot cleanup.
+- Current full validation is green on the refactored workspace state: `npm test` passes 478/478, focused `node --test src/state/p0-state.test.js` remains green at 156/156, and `npm run build` passes.
+- Current localhost browser smoke on the refactored workspace state confirms the live app still mounts and the key supported evade surfaces still render in the real UI: the front lane reaches the may-evade pause with `Ausweichen` / `Nicht ausweichen`, the blocked blocker lane shows `Ausweichen blockiert`, the table-exit lane shows the committed `EXIT TABLE` state before adjusted charge, and the light-troop hook lane shows the committed `LT HALF-TURN` state before adjusted charge.
+- P7A2-09 still remains open because user manual acceptance is still pending; do not start P7B until that acceptance is recorded.
+
+Progress 2026-05-26 - manual acceptance recorded:
+
+- The user confirmed the refreshed browser smoke with `visual smoke ok` after the light-troop drill footprint and visual-fill reconciliation.
+- The supported live browser anchors for the current P7A2 subset are now manually accepted: the light-troop hook lane renders with the corrected shallow base fill, and the earlier live smoke already covered may-evade pause, blocked evade, committed table exit, and committed light-troop end half-turn states.
+- Full validation remains green at `npm test` `478/478` plus `npm run build` green.
+- `P7A2-09` is now satisfied. P7A2 as a whole still remains blocked by `P7A2-10` and any explicitly open source-lock follow-up, so this acceptance does not start P7B yet.
+
 Manual acceptance:
 
-- user confirms the P7A2 supported evade completion flow before P7B starts
+- user confirmed the refreshed supported browser smoke on 2026-05-26 with `visual smoke ok`
 
 Stop condition:
 
@@ -665,7 +860,99 @@ Stop condition:
 
 Expected result: P7B can start from a real post-evade board state.
 
-## Next PM Brief For P7A2 Split 2
+### [x] P7A2-10 - Module Size Refactor Gate
+
+Goal: bring the oversized P7A2 charge/evade modules back under the project size guardrail, or stop for an explicit user-approved exception with a written refactor plan.
+
+Planned files:
+
+- src/engine/charge/evade.js
+- src/engine/charge/evade-path.js or equivalent extracted path/avoidance helper module
+- src/engine/charge/evade-hooks.js or equivalent extracted table-exit/light-troop hook module
+- src/state/p0-state.js
+- src/state/p0-charge-reducer.js or equivalent extracted charge reducer helper module
+- src/ui/p0-battlefield.js
+- src/ui/p0-battlefield-evade-overlays.js or equivalent extracted render helper module
+- relevant tests already covering behavior
+
+Implementation steps:
+1. Split `src/engine/charge/evade.js` by rule responsibility: data/model constants, path segments, later path-avoidance solver, table-exit/light-troop hooks, and public resolver entrypoints.
+2. Split `src/state/p0-state.js` by reducer responsibility so charge/evade preview, evade commit, adjusted charge follow-through, and secondary reaction queue helpers are not buried in the monolithic root reducer.
+3. Split `src/ui/p0-battlefield.js` by render surface so evade preview/choice/committed overlays and follow-through overlays live outside the main battlefield renderer.
+4. Preserve public imports and serializable state shape; this card should be behavior-neutral.
+5. Run focused charge/evade engine, reducer, and UI tests after each split, then full `npm test` and `npm run build`.
+6. Recheck line counts and record the final counts here.
+
+Non-goals:
+
+- no new charge/evade rules
+- no UI behavior changes
+- no conformation or P7B work
+- no broad cleanup of unrelated movement/setup modules
+
+Validation:
+
+- extracted modules stay under the project 800-line target where practical and under 1000 lines unless explicitly approved
+- `node --test src/engine/charge/evade.test.js src/state/p0-state.test.js src/ui/p0-battlefield.test.js`
+- `npm test`
+- `npm run build`
+- editor diagnostics on touched files
+
+Manual acceptance:
+
+- none unless browser behavior changes unexpectedly during the neutral split
+
+Stop condition:
+
+- stop if the split requires changing legal behavior or replay/state contracts; fix the extraction plan before proceeding
+
+Expected result: P7A2 can close without violating the repository module-size discipline.
+
+Progress 2026-05-25:
+
+- Guardrail check after the validated debug/edge-clearance slice: `src/engine/charge/evade.js` is 2831 lines (`HEAD` 1991, delta +840), `src/state/p0-state.js` is 3942 lines (`HEAD` 3784, delta +158), `src/ui/p0-battlefield.js` is 2796 lines (`HEAD` 2512, delta +284), and `src/data/charge-drill-scenarios.js` is 650 lines.
+- P7A2 should not be marked accepted while those oversized files remain over 1000 lines without explicit user approval and a refactor plan.
+
+Progress 2026-05-26:
+
+- Behavior-neutral UI refactor slice completed for `src/ui/p0-battlefield.js`: evade overlays, shared render helpers, setup side panels, setup world renderers, command/ZOC overlays, dialog rendering, debug surface overlays, and unit visual rendering now live in focused helper modules under `src/ui/`.
+- Current measured guardrail counts after the validated UI split: `src/engine/charge/evade.js` is 2605 lines, `src/state/p0-state.js` is 3520 lines, and `src/ui/p0-battlefield.js` is 996 lines. This closes the battlefield renderer sub-gate, but `P7A2-10` remains open until `evade.js` and `p0-state.js` are also brought under the repository limit or an explicit exception is approved.
+- Focused validation after the UI split is green: `node --test src/ui/p0-battlefield.test.js` and the broader P7A2 slice (`src/engine/charge/classification.test.js src/engine/charge/contact.test.js src/engine/charge/declaration.test.js src/engine/charge/evade.test.js src/engine/charge/model.test.js src/engine/charge/path.test.js src/engine/charge/reaction.test.js src/state/p0-state.test.js src/ui/p0-battlefield.test.js src/ui/battlefield-command-panel.test.js src/data/charge-drill-scenarios.test.js src/data/unit-profiles.test.js src/data/battlefield-profiles.test.js`) pass at `360/360`, and `npm run build` is green.
+- Behavior-neutral engine refactor slice completed for `src/engine/charge/evade.js`: model/state factories, geometry/diagnostic helpers, and solver/path-avoidance helpers now live in `src/engine/charge/evade-model.js`, `src/engine/charge/evade-geometry.js`, and `src/engine/charge/evade-solver.js`, while `evade.js` remains the public facade at 619 lines.
+- First behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: evade plan resolution and evade-choice frontier helpers now live in `src/state/p0-charge-evade-helpers.js`, reducing `src/state/p0-state.js` to 3766 lines. The reducer file remains a blocker for this card, but the extracted slice is validated and preserves reducer-owned behavior.
+- Second behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: adjusted-charge follow-through planning, latest adjusted-roll lookup, and secondary-target reaction queue helpers now live in `src/state/p0-charge-follow-through-helpers.js`, reducing `src/state/p0-state.js` to 3570 lines. The reducer file remains far above the guardrail, but the extracted follow-through slice is validated and preserves reducer-owned behavior.
+- Third behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: branch-distance claim/result helpers, secondary-target reanchor helpers, evade-choice handoff helpers, and the pure charge-preview/contact-side helpers now live in `src/state/p0-charge-branch-helpers.js` and `src/state/p0-charge-preview-helpers.js`, reducing `src/state/p0-state.js` to 3301 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+- Fourth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: evade move commit/choice-path state helpers and the adjusted-charge / evade-choice / continuation reducer block now live in `src/state/p0-evade-move-state-helpers.js` and `src/state/p0-charge-choice-reducers.js`, reducing `src/state/p0-state.js` to 3084 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+- Fifth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the full charge preview reducer cluster and the charge reaction / branch-distance reducer cluster now live in `src/state/p0-charge-preview-reducers.js` and `src/state/p0-charge-reaction-reducers.js`, reducing `src/state/p0-state.js` to 2484 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+- Sixth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the commander attachment/free-move helper layer and the commander preview/attach/confirm reducer block now live in `src/state/p0-commander-helpers.js` and `src/state/p0-commander-reducers.js`, reducing `src/state/p0-state.js` to 1915 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+
+Progress 2026-05-26 - gate closure:
+
+- Current measured guardrail counts in the workspace now satisfy the repository limit: `src/engine/charge/evade.js` is 573 lines, `src/state/p0-state.js` is 876 lines, and `src/ui/p0-battlefield.js` is 996 lines.
+- Focused validation remains green after the final reducer splits and later light-troop render/data reconciliation: `node --test src/data/unit-profiles.test.js src/ui/p0-battlefield.test.js` passes `68/68`, full `npm test` passes `478/478`, and `npm run build` passes.
+- `P7A2-10` is now satisfied. The phase is no longer blocked on module size.
+- Closeout audit 2026-05-26: refreshed browser/manual acceptance, module-size closure, and the final two source-lock confirmations are now recorded. P7A2 is formally closable and accepted for the supported subset.
+- Seventh behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the commander free-move reset path and the unit stay reducer block are now split out into `src/state/p0-commander-helpers.js`, `src/state/p0-commander-reducers.js`, and `src/state/p0-movement-stay-reducers.js`, reducing `src/state/p0-state.js` to 1791 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+- Eighth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the reset-test-units reducer path, direct-battle fixture builders, initial-state/settings helpers, and movement-ui helper block now live in `src/state/p0-reset-reducers.js`, `src/state/p0-fixtures.js`, `src/state/p0-state-initializers.js`, and `src/state/p0-state-ui-helpers.js`, reducing `src/state/p0-state.js` to 1367 lines. The reducer file still remains a blocker for this card, but the extracted slices are validated and preserve reducer-owned behavior.
+- Ninth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the remaining charge intent, charge target snapshot, and charge-preview availability helpers now live in `src/state/p0-charge-state-helpers.js`, reducing `src/state/p0-state.js` further while preserving the reducer wiring through the existing dependency injection points.
+- Tenth behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: the scenario setup builder, battle-start game-state builder, and initial app-state builder now live in `src/state/p0-battle-start.js`, further reducing `src/state/p0-state.js` while preserving the public `createInitialAppState` export through `src/state/p0-state.js`.
+- Eleventh behavior-neutral reducer refactor slice completed for `src/state/p0-state.js`: shell/settings reducers, battlefield viewport sanitization, overlay cycling, and active-corps selection cleanup now live in `src/state/p0-shell-reducers.js`, reducing `src/state/p0-state.js` to 986 lines and bringing the file back under the 1000-line refactor gate for this card.
+- Focused post-split validation is green: `node --test src/engine/charge/evade.test.js` passes at `39/39`, and `node --test src/state/p0-state.test.js` passes at `156/156` after the first `p0-state.js` extraction.
+- Focused post-split validation remains green after the second reducer slice: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-charge-evade-helpers.js`, and `src/state/p0-charge-follow-through-helpers.js`.
+- Focused post-split validation remains green after the branch and preview slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-charge-branch-helpers.js`, `src/state/p0-charge-preview-helpers.js`, `src/state/p0-charge-evade-helpers.js`, and `src/state/p0-charge-follow-through-helpers.js`.
+- Focused post-split validation remains green after the evade-move and choice-reducer slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-charge-choice-reducers.js`, `src/state/p0-evade-move-state-helpers.js`, `src/state/p0-charge-branch-helpers.js`, `src/state/p0-charge-preview-helpers.js`, `src/state/p0-charge-evade-helpers.js`, and `src/state/p0-charge-follow-through-helpers.js`.
+- Focused post-split validation remains green after the charge preview and charge reaction reducer slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-charge-preview-reducers.js`, `src/state/p0-charge-reaction-reducers.js`, `src/state/p0-charge-choice-reducers.js`, `src/state/p0-evade-move-state-helpers.js`, `src/state/p0-charge-branch-helpers.js`, `src/state/p0-charge-preview-helpers.js`, `src/state/p0-charge-evade-helpers.js`, and `src/state/p0-charge-follow-through-helpers.js`.
+- Focused post-split validation remains green after the commander helper and commander reducer slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-commander-helpers.js`, and `src/state/p0-commander-reducers.js`.
+- Focused post-split validation remains green after the commander reset and stay slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-commander-helpers.js`, `src/state/p0-commander-reducers.js`, and `src/state/p0-movement-stay-reducers.js`.
+- Focused post-split validation remains green after the reset, fixture, initializer, and state-ui helper slices: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js`, `src/state/p0-reset-reducers.js`, `src/state/p0-fixtures.js`, `src/state/p0-state-initializers.js`, and `src/state/p0-state-ui-helpers.js`.
+- Focused post-split validation remains green after the charge state helper slice: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js` and `src/state/p0-charge-state-helpers.js`.
+- Focused post-split validation remains green after the battle-start extraction: `node --test src/state/p0-state.test.js` passes at `156/156`, and editor diagnostics are clean for `src/state/p0-state.js` and `src/state/p0-battle-start.js`.
+- Focused post-split validation remains green after the shell reducer extraction: `node --test src/state/p0-state.test.js` passes at `156/156`, editor diagnostics are clean for `src/state/p0-state.js` and `src/state/p0-shell-reducers.js`, and the current measured sizes are `p0-state.js = 986` and `p0-shell-reducers.js = 233`.
+- Follow-up cleanup remained behavior-neutral after the size-gate work: duplicated `toCorpsSlotId` logic across the state slice now routes through `src/state/p0-corps-slot.js`, and `node --test src/state/p0-state.test.js` remains green at `156/156`.
+
+## Archived PM Brief For Earlier Split 2
+
+Status note 2026-05-26: this brief is now historical only. The implementation, browser smoke, and module-size work it described have already been completed. Do not use this section as the current execution target; use the closeout audit above and the still-open card bullets in `P7A2-00` through `P7A2-08` instead.
 
 Exact goal: finish `P7A2-00` and then implement the remaining `P7A2-02` / `P7A2-04` slide-and-final-movement resolver slice without claiming wheel, table-exit, or light-troop completion.
 
@@ -712,14 +999,18 @@ Manual acceptance for current validated core slice:
 14. Expected: the evader token/state commits to the chosen side before adjusted charge can proceed.
 15. Expected for source-closed no-choice cases: the side panel eventually exposes `Adjusted Charge wuerfeln` only after committed evade state exists.
 16. Click `Adjusted Charge wuerfeln` if visible.
-17. Choose an adjusted-charge D6 result.
-18. Expected: the charger follow-through corridor/ghost uses the moved evader state, not the original target pose.
-19. Stop and report any case where `Adjusted Charge wuerfeln` appears before the evade token/state is committed.
+17. Manual table-exit anchor: select `P1 Table Exit Charger`, start `Charge`, target `P2 Table Exit Target`, confirm direction, choose `Ausweichen`, then choose D6 `6`.
+18. Expected: because the defender starts with its rear toward the north edge, the free evade half-turn points it north, the evade auto-commits without a player path choice, the unit leaves the table over the north edge, and `Adjusted Charge wuerfeln` becomes visible afterwards.
+19. Manual light-troop half-turn anchor: select `P1 Light Troop Hook Charger`, start `Charge`, target `P2 Light Troop Half-Turn Target`, confirm direction, choose `Ausweichen`, then choose D6 `4`.
+20. Expected: the evade auto-commits without a player path choice, the target remains on table, finishes the evade facing back south because the light-troop end-half-turn hook is applied, and `Adjusted Charge wuerfeln` becomes visible afterwards.
+21. Choose an adjusted-charge D6 result.
+22. Expected: the charger follow-through corridor/ghost uses the moved evader state, not the original target pose.
+23. Stop and report any case where `Adjusted Charge wuerfeln` appears before the evade token/state is committed.
 
 Manual acceptance that is intentionally not claimable yet:
 
 - Do not accept P7A2 as complete based on the current core slice.
-- Do not treat direct-blocker slide choice, direction wheel, obstacle wheel, table exit, light-troop end half-turn, or browser-confirmed slide choice as done until their cards are implemented and tested.
+- Do not treat direct-blocker slide choice, direction wheel, obstacle wheel, table exit, light-troop end half-turn, or browser-confirmed slide choice as manually accepted until browser smoke and user acceptance are recorded.
 
 Non-goals for Split 2:
 

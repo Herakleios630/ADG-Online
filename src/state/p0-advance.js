@@ -21,6 +21,8 @@ import {
   spendCommandPointsForCurrentOrder,
   withMovementValidationSnapshot,
 } from './p0-movement.js';
+import { applyUnitShootingSequenceFlags } from './p0-shooting.js';
+import { setActiveCommandMenuBranch } from './p0-state-ui-helpers.js';
 
 const P0_ADVANCE_LIMIT_UD = 4;
 
@@ -226,13 +228,15 @@ export function reduceConfirmAdvance(gameState, selectedUnit) {
   const paidGameState = spentCommandPoints.nextGameState;
 
   return {
-    ...paidGameState,
+    ...setActiveCommandMenuBranch(paidGameState, null),
     ...createInitialAdvanceState(),
     movement: createInitialMovementState(),
     units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applyAdvancePreview(unit, paidGameState.movement.preview),
+            ...applyUnitShootingSequenceFlags(applyAdvancePreview(unit, paidGameState.movement.preview), {
+              incrementMoveCount: true,
+            }),
             slideUsedThisMovementPhase: unit.slideUsedThisMovementPhase
               || paidGameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
             stayedThisMovementPhase: false,

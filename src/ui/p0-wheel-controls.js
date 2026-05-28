@@ -23,8 +23,10 @@ const battlefieldWheelDragSession = {
   pivotSide: null,
   pivotWorldPoint: null,
   startVector: null,
+  pointerOffset: null,
   battlefieldProfile: null,
   onSuppressNextSurfaceClick: null,
+  onRecordDragCheckpoint: null,
   chargeModeActive: false,
   lastChargeAngleRadians: 0,
 };
@@ -43,8 +45,10 @@ export function stopBattlefieldWheelDragSession() {
   battlefieldWheelDragSession.pivotSide = null;
   battlefieldWheelDragSession.pivotWorldPoint = null;
   battlefieldWheelDragSession.startVector = null;
+  battlefieldWheelDragSession.pointerOffset = null;
   battlefieldWheelDragSession.battlefieldProfile = null;
   battlefieldWheelDragSession.onSuppressNextSurfaceClick = null;
+  battlefieldWheelDragSession.onRecordDragCheckpoint = null;
   battlefieldWheelDragSession.chargeModeActive = false;
   battlefieldWheelDragSession.lastChargeAngleRadians = 0;
 }
@@ -129,8 +133,14 @@ function handleBattlefieldWheelDragMove(event) {
     event.clientY,
     battlefieldWheelDragSession.battlefieldProfile,
   );
+  const adjustedPointerPoint = battlefieldWheelDragSession.pointerOffset
+    ? {
+      x: pointerUd.xUd - battlefieldWheelDragSession.pointerOffset.x,
+      y: pointerUd.yUd - battlefieldWheelDragSession.pointerOffset.y,
+    }
+    : { x: pointerUd.xUd, y: pointerUd.yUd };
   const candidateVector = subtractVectors(
-    { x: pointerUd.xUd, y: pointerUd.yUd },
+    adjustedPointerPoint,
     battlefieldWheelDragSession.pivotWorldPoint,
   );
 
@@ -180,6 +190,7 @@ function handleBattlefieldWheelDragEnd() {
     });
   }
 
+  battlefieldWheelDragSession.onRecordDragCheckpoint?.();
   battlefieldWheelDragSession.onSuppressNextSurfaceClick?.();
   stopBattlefieldWheelDragSession();
 }
@@ -199,6 +210,7 @@ export function tryStartBattlefieldWheelDrag({
   selectedUnit,
   cornerSide,
   onSuppressNextSurfaceClick,
+  onRecordDragCheckpoint,
 }) {
   if (event.button !== 0 || !battlefieldSurface || !selectedUnit || !cornerSide) {
     return false;
@@ -247,6 +259,15 @@ export function tryStartBattlefieldWheelDrag({
   };
   const pivotWorldPoint = localPointToWorldPoint(baseRectangle, getFrontCornerLocalPoint(selectedUnit, pivotSide));
   const movingCornerWorldPoint = localPointToWorldPoint(startRectangle, getFrontCornerLocalPoint(selectedUnit, cornerSide));
+  const startPointerUd = getBattlefieldPointUd(
+    battlefieldSurface.getBoundingClientRect(),
+    state.game.viewport.zoom,
+    0,
+    0,
+    event.clientX,
+    event.clientY,
+    battlefieldProfile,
+  );
 
   event.preventDefault();
   onSuppressNextSurfaceClick();
@@ -262,8 +283,13 @@ export function tryStartBattlefieldWheelDrag({
   battlefieldWheelDragSession.pivotSide = pivotSide;
   battlefieldWheelDragSession.pivotWorldPoint = pivotWorldPoint;
   battlefieldWheelDragSession.startVector = subtractVectors(movingCornerWorldPoint, pivotWorldPoint);
+  battlefieldWheelDragSession.pointerOffset = {
+    x: startPointerUd.xUd - movingCornerWorldPoint.x,
+    y: startPointerUd.yUd - movingCornerWorldPoint.y,
+  };
   battlefieldWheelDragSession.battlefieldProfile = battlefieldProfile;
   battlefieldWheelDragSession.onSuppressNextSurfaceClick = onSuppressNextSurfaceClick;
+  battlefieldWheelDragSession.onRecordDragCheckpoint = onRecordDragCheckpoint ?? null;
   battlefieldWheelDragSession.chargeModeActive = chargeWheelActive;
   battlefieldWheelDragSession.lastChargeAngleRadians = battlefieldWheelDragSession.startAngleRadians;
   return true;
@@ -277,12 +303,11 @@ export function bindWheelActionButtons({ container, dispatch, state }) {
         && (state.game.chargePreview?.status === 'manoeuvre-selecting' || state.game.chargePreview?.status === 'ready');
       if (chargeStartControlsActive) {
         stopBattlefieldWheelDragSession();
-        const currentStart = state.game.chargePreview?.intent?.startManoeuvre;
         dispatch({
           type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
           manoeuvreType: 'wheel',
-          pivotSide: currentStart?.type === 'wheel' ? currentStart.pivotSide : MOVEMENT_PIVOT_SIDES.LEFT,
-          angleRadians: currentStart?.type === 'wheel' ? currentStart.wheelAngleRadians : 0,
+          pivotSide: MOVEMENT_PIVOT_SIDES.LEFT,
+          angleRadians: 0,
         });
         return;
       }
@@ -299,6 +324,11 @@ export function bindWheelActionButtons({ container, dispatch, state }) {
 
       if (state.game.chargePreview?.status === 'ready' && state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId) {
         dispatch({ type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+        return;
+      }
+
+      if (state.game.chargePreview?.status === 'no-evade-handoff' && state.game.chargePreview?.intent?.unitId === state.game.selectedUnitId) {
+        dispatch({ type: ACTION_TYPES.CONFIRM_CHARGE_CONFORMATION });
         return;
       }
 

@@ -1,6 +1,6 @@
 # Conformation
 
-Status: P7 planning note. This file is a source-lock workspace for conformation and shifting behavior and must not be treated as rule-complete until open verification items are resolved against `Rules.pdf` plus `Errata_ADG_V4_English.pdf`.
+Status: P7B-00 working source-lock baseline from Rules-v2 p.50-54 plus current errata notes; implementation-grade for the approved first single-unit subset, but not rule-complete beyond the remaining open-verification items.
 
 ## Planning Boundary
 
@@ -44,6 +44,12 @@ Working solver predicates from the scan-confirmed pass:
 - `blocked` should be reserved for cases where the rules forbid the attempted flank/rear attack or other requested outcome entirely, not merely where the unit must fall back to an incomplete but still legal contact state.
 - `optional` should be reserved for terrain-sensitive full-conformation choices where the source text explicitly says the unit need not enter penalizing terrain but may choose to do so.
 - `principal opponent` should be treated as the enemy the unit must end most clearly aligned against after conformation, so the solver must reject any candidate that leaves the unit more aligned with a different enemy than with the one controlling the conformation.
+
+Current P7B-04 implementation boundary:
+
+- The single-unit solver now treats table-edge and simple friendly-blocker failures as explicit `incomplete` outcomes instead of overstating them as blocked failed charges.
+- The solver only emits an `optional` terrain choice when explicit terrain-conformation facts say that full conformation would enter penalizing terrain; there is still no general terrain engine or automatic terrain-choice selection.
+- War wagons, heavy artillery, and defensive-barrier cases currently return `needs-source-check` / `source-open` diagnostics rather than pretending to resolve a generic conformation result.
 
 Working measurable test for `principal opponent` in the first subset:
 
@@ -91,3 +97,7 @@ Deferred or blocker-only for the first subset:
 - This file does not yet establish group conformation.
 - This file does not yet establish melee-factor support effects.
 - This file does not yet establish post-combat pursuit or rout interactions.
+
+## Open Verification
+
+- The remaining implementation-facing uncertainty is now narrower than the older planning note suggested: exact geometry predicates for candidate ranking and direct errata confirmation of non-shiftable family exceptions remain open in `open-verification.md`, but they no longer block the approved first single-unit P7B subset.

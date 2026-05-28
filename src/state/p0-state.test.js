@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { BATTLEFIELD_PROFILE_IDS } from '../data/battlefield-profiles.js';
 import { CHARGE_DRILL_SCENARIO_ID } from '../data/charge-drill-scenarios.js';
+import { CONFORM_DRILL_SCENARIO_ID, CONFORM_DRILL_SUPPORT_STATUSES } from '../data/conform-drill-scenarios.js';
 import {
   CHARGE_BRANCH_DISTANCE_OUTCOMES,
   CHARGE_BRANCH_ROLL_REASONS,
@@ -29,11 +30,14 @@ import {
   SCREEN_IDS,
   SETUP_STEP_IDS,
   SETUP_VIEW_MODES,
+  applyAdjustedChargeDistanceToReactionRequests,
+  createSecondaryTargetReactionRequests,
   createInitialAppState,
   reduceAppState,
 } from './p0-state.js';
 import {
   getSlideQualifiedMovementDistanceUd,
+  hasUnitFinishedMovementPhase,
   MOVEMENT_COMMAND_IDS,
   MOVEMENT_CONFIRMATION_STATUSES,
   MOVEMENT_PIVOT_SIDES,
@@ -42,6 +46,8 @@ import {
 } from './p0-movement.js';
 import { getMovementPreviewAdvanceDistanceUd, getMovementPreviewResolvedDistanceUd } from '../engine/movement/index.js';
 import { MOVEMENT_SLIDE_SIDES } from './p0-slide.js';
+import { beginShootingPhaseState } from './p0-shooting.js';
+import { resolveEffectiveCommandMenuBranch } from './p0-state-ui-helpers.js';
 
 function startNewGame(state = createInitialAppState()) {
   return reduceAppState(state, { type: ACTION_TYPES.START_NEW_GAME });
@@ -73,6 +79,26 @@ function startDirectBattle(state = createInitialAppState()) {
 
 function startChargeDrillBattle(state = createInitialAppState()) {
   return reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
+}
+
+function startConformDrillBattle(state = createInitialAppState()) {
+  return reduceAppState(state, { type: ACTION_TYPES.START_CONFORM_DRILL_BATTLE });
+}
+
+function prepareConformDrillE1NoEvadeHandoff() {
+  let state = startConformDrillBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'conform-drill-cfd-e1-b1-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'conform-drill-cfd-e1-a1-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.NO_EVADE,
+  });
+
+  return state;
 }
 
 function selectTestUnit(state) {
@@ -164,6 +190,127 @@ test('charge drill battle start loads the dedicated scenario with stable fixture
   assert.equal(state.game.selectedUnitId, null);
 });
 
+test('conform drill battle start loads source-backed example lanes without setup', () => {
+  const state = startConformDrillBattle();
+
+  assert.equal(state.shell.currentScreen, SCREEN_IDS.BATTLEFIELD);
+  assert.equal(state.game.setup.isActive, false);
+  assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.MOVEMENT);
+  assert.equal(state.game.scenarioId, CONFORM_DRILL_SCENARIO_ID);
+  assert.equal(state.game.scenarioLabel, 'Conform Drill');
+  assert.equal(state.game.units.every((unit) => unit.fixtureTag === CONFORM_DRILL_SCENARIO_ID), true);
+  assert.equal(state.game.units.some((unit) => unit.id === 'conform-drill-cfd-e1-b1-charger'), true);
+  assert.equal(state.game.units.some((unit) => unit.scenarioExampleId === 'rv2-p53-shifting-units-a'), true);
+  assert.equal(state.game.units.some((unit) => unit.scenarioSupportStatus === CONFORM_DRILL_SUPPORT_STATUSES.DEFERRED), true);
+  assert.equal(state.game.setup.terrain.placeholders.length, 0);
+  assert.equal(state.game.setup.setupObjects.placeholders.some((placeholder) => placeholder.id.startsWith('conform-drill-')), false);
+  assert.equal(state.game.selectedUnitId, null);
+});
+
+test('conform drill CFD-E1 no-evade handoff exposes live shifting conformation plan', () => {
+  const state = prepareConformDrillE1NoEvadeHandoff();
+
+  const conformationPlan = state.game.chargePreview.conformationPlan;
+  const candidate = conformationPlan.candidates[0];
+  const shiftStep = conformationPlan.shiftingPlan?.steps[0];
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.NO_EVADE_HANDOFF);
+  assert.equal(conformationPlan.status, 'ready');
+  assert.equal(candidate?.status, 'complete');
+  assert.equal(candidate?.contactSide, 'front');
+  assert.equal(candidate?.finalPose?.xUd, 6.4);
+  assert.equal(candidate?.finalPose?.yUd, 12.35);
+  assert.equal(conformationPlan.shiftingPlan?.status, 'ready');
+  assert.equal(shiftStep?.unitId, 'conform-drill-cfd-e1-b2-shifted-neighbor');
+  assert.equal(shiftStep?.direction, 'rear');
+  assert.equal(shiftStep?.distanceUd, 0.755);
+  assert.equal(conformationPlan.shiftingPlan?.lockEffects[0]?.movedOrRalliedLock, true);
+});
+
+test('confirming conform drill CFD-E1 applies conformation and completes the charge movement', () => {
+  const readyState = prepareConformDrillE1NoEvadeHandoff();
+  const candidate = readyState.game.chargePreview.conformationPlan.candidates[0];
+  const shiftStep = readyState.game.chargePreview.conformationPlan.shiftingPlan.steps[0];
+
+  const state = reduceAppState(readyState, { type: ACTION_TYPES.CONFIRM_CHARGE_CONFORMATION });
+  const charger = state.game.units.find((unit) => unit.id === 'conform-drill-cfd-e1-b1-charger');
+  const target = state.game.units.find((unit) => unit.id === 'conform-drill-cfd-e1-a1-target');
+  const shiftedNeighbor = state.game.units.find((unit) => unit.id === 'conform-drill-cfd-e1-b2-shifted-neighbor');
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.IDLE);
+  assert.equal(charger.xUd, candidate.finalPose.xUd);
+  assert.equal(charger.yUd, candidate.finalPose.yUd);
+  assert.equal(charger.rotationRadians, candidate.finalPose.rotationRadians);
+  assert.equal(charger.stayedThisMovementPhase, true);
+  assert.equal(charger.moveCountThisSequence, 1);
+  assert.equal(charger.hasChargedThisSequence, true);
+  assert.equal(charger.cannotShootThisSequence, true);
+  assert.equal(hasUnitFinishedMovementPhase(charger), true);
+  assert.equal(charger.meleePending, true);
+  assert.equal(charger.meleePendingOpponentId, target.id);
+  assert.equal(charger.conformationApplied.status, 'applied');
+  assert.equal(charger.conformationApplied.candidateStatus, 'complete');
+  assert.equal(target.meleePending, true);
+  assert.equal(target.meleePendingOpponentId, charger.id);
+  assert.equal(shiftedNeighbor.xUd, shiftStep.toPose.xUd);
+  assert.equal(shiftedNeighbor.yUd, shiftStep.toPose.yUd);
+  assert.equal(shiftedNeighbor.movementOrRallyLockedByConformation, true);
+  assert.equal(hasUnitFinishedMovementPhase(shiftedNeighbor), true);
+  assert.equal(shiftedNeighbor.lastConformationShift.unitId, shiftedNeighbor.id);
+  assert.equal(state.game.lastChargeCompletion.conformationPlan.status, 'applied');
+  assert.equal(state.game.lastChargeCompletion.appliedConformation.shiftingPlan.status, 'ready');
+});
+
+test('conformation confirmation ignores non-ready source-open or blocked plans', () => {
+  const readyState = prepareConformDrillE1NoEvadeHandoff();
+  const incompleteState = {
+    ...readyState,
+    game: {
+      ...readyState.game,
+      chargePreview: {
+        ...readyState.game.chargePreview,
+        conformationPlan: {
+          ...readyState.game.chargePreview.conformationPlan,
+          candidates: readyState.game.chargePreview.conformationPlan.candidates.map((candidate) => ({
+            ...candidate,
+            status: 'incomplete',
+          })),
+        },
+      },
+    },
+  };
+  const sourceOpenState = {
+    ...readyState,
+    game: {
+      ...readyState.game,
+      chargePreview: {
+        ...readyState.game.chargePreview,
+        conformationPlan: {
+          ...readyState.game.chargePreview.conformationPlan,
+          status: 'source-open',
+        },
+      },
+    },
+  };
+  const blockedState = {
+    ...readyState,
+    game: {
+      ...readyState.game,
+      chargePreview: {
+        ...readyState.game.chargePreview,
+        conformationPlan: {
+          ...readyState.game.chargePreview.conformationPlan,
+          status: 'blocked',
+        },
+      },
+    },
+  };
+
+  assert.equal(reduceAppState(incompleteState, { type: ACTION_TYPES.CONFIRM_CHARGE_CONFORMATION }), incompleteState);
+  assert.equal(reduceAppState(sourceOpenState, { type: ACTION_TYPES.CONFIRM_CHARGE_CONFORMATION }), sourceOpenState);
+  assert.equal(reduceAppState(blockedState, { type: ACTION_TYPES.CONFIRM_CHARGE_CONFORMATION }), blockedState);
+});
+
 test('charge drill battle can open charge targeting for the front charger without dragging setup units first', () => {
   let state = startChargeDrillBattle();
 
@@ -183,6 +330,9 @@ test('round begin opens corps selection and selecting a corps closes the popup',
 
   assert.equal(state.game.round.dialog.type, 'round-start');
   assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.MOVEMENT);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  assert.equal(state.game.round.dialog.type, 'corps-selection');
 
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
   assert.equal(state.game.commandContext.activeCorpsId, 'corps-1');
@@ -210,6 +360,43 @@ test('requesting the next corps spends the active corps and can branch into shoo
   assert.equal(state.game.round.dialog.type, 'phase-announce');
   assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.SHOOTING);
   assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.SHOOTING);
+  assert.equal(state.game.shooting.status, 'active');
+  assert.equal(state.game.shooting.phaseId, BATTLE_PHASE_IDS.SHOOTING);
+  assert.equal(state.game.shooting.actingPlayerId, COMMAND_PLAYER_IDS.PLAYER_ONE);
+  assert.deepEqual(state.game.shooting.targetedUnitIds, []);
+});
+
+test('round begin resets stale shooting phase tracking for the next corps-movement sequence', () => {
+  let state = startDirectBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.REQUEST_NEXT_CORPS });
+  state = reduceAppState(state, { type: ACTION_TYPES.SKIP_REMAINING_CORPS });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      shooting: {
+        ...state.game.shooting,
+        targetedUnitIds: ['enemy-unit-1'],
+        declaredShots: [{ shooterUnitId: 'test-unit-1', targetUnitId: 'enemy-unit-1' }],
+      },
+      round: {
+        ...state.game.round,
+        turnPlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+        roundPhase: 'corps-movement',
+        dialog: { type: 'player-switch', phaseLabel: null },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+
+  assert.equal(state.game.shooting.status, 'idle');
+  assert.equal(state.game.shooting.actingPlayerId, null);
+  assert.deepEqual(state.game.shooting.targetedUnitIds, []);
+  assert.deepEqual(state.game.shooting.declaredShots, []);
 });
 
 test('round flow switches to player two and then starts a fresh next round', () => {
@@ -483,6 +670,7 @@ test('selected commander uses attach targeting, then confirms attachment and fol
     unitId: 'test-unit-1',
   });
 
+  assert.equal(state.game.commandMenu.activeBranch, 'attach');
   assert.equal(state.game.commanderFreeMovePreview.status, 'targeting');
   assert.equal(state.game.commanderFreeMovePreview.mode, 'attach');
 
@@ -498,6 +686,8 @@ test('selected commander uses attach targeting, then confirms attachment and fol
   state = reduceAppState(state, {
     type: ACTION_TYPES.CONFIRM_COMMANDER_FREE_MOVE,
   });
+
+  assert.equal(state.game.commandMenu.activeBranch, null);
 
   const attachedHost = state.game.units.find((unit) => unit.id === 'p1-c1-cav-1');
   const attachedCommander = state.game.units.find((unit) => unit.id === 'test-unit-1');
@@ -1187,6 +1377,8 @@ test('charge target selection immediately readies a direct legal none-start char
   assert.equal(state.game.chargePreview.pathSegments[0].rotationRadians, state.game.units.find((unit) => unit.id === 'test-unit-1')?.rotationRadians);
   assert.equal(state.game.chargePreview.intent?.frozenDirectionRadians, state.game.units.find((unit) => unit.id === 'test-unit-1')?.rotationRadians);
   assert.equal(state.game.chargePreview.reactionRequests[0]?.type, CHARGE_REACTION_REQUEST_TYPES.NONE);
+  assert.equal(state.game.chargePreview.conformationPlan.status, 'ready');
+  assert.equal(state.game.chargePreview.conformationPlan.candidates[0]?.status, 'complete');
   assert.equal(state.game.movement.preview.status, 'idle');
 });
 
@@ -1210,6 +1402,8 @@ test('charge start manoeuvre selection freezes a guide direction in reducer stat
   assert.equal(state.game.chargePreview.pathSegments.length, 1);
   assert.equal(state.game.chargePreview.reactionRequests.length, 1);
   assert.equal(state.game.chargePreview.reactionRequests[0]?.type, 'none');
+  assert.equal(state.game.chargePreview.conformationPlan.status, 'ready');
+  assert.equal(state.game.chargePreview.conformationPlan.candidates[0]?.status, 'complete');
 });
 
 test('charge start manoeuvre selection keeps the declaration ready until direction confirmation opens the reaction gate', () => {
@@ -1644,29 +1838,14 @@ test('evade-required handoff creates and resolves a deterministic branch distanc
   assert.equal(state.game.units.find((unit) => unit.id === 'test-unit-3')?.yUd, 10);
 });
 
-test('adjusted charge distance cannot start until evade movement is committed', () => {
-  let state = selectTestUnit(advanceToBattlefield());
-  state = {
-    ...state,
-    game: {
-      ...state.game,
-      units: state.game.units.map((unit) => (
-        unit.id === 'test-unit-3'
-          ? { ...unit, chargeReactionProfile: 'may-evade' }
-          : unit
-      )),
-    },
-  };
+test('charge drill front-target evade commits the repaired late-slide path before adjusted charge', () => {
+  let state = startChargeDrillBattle();
 
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-front-charger' });
   state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SET_CHARGE_TARGET,
-    targetUnitId: 'test-unit-3',
-  });
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
-    manoeuvreType: 'none',
-  });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-front-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
   state = reduceAppState(state, {
     type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
@@ -1677,36 +1856,49 @@ test('adjusted charge distance cannot start until evade movement is committed', 
     dieRoll: 6,
   });
 
-  state = {
-    ...state,
-    game: {
-      ...state.game,
-      chargePreview: {
-        ...state.game.chargePreview,
-        evadeMove: {
-          ...state.game.chargePreview.evadeMove,
-          status: EVADE_MOVE_RESOLUTION_STATUSES.SOURCE_OPEN,
-        },
-      },
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.evadePlan?.choiceRequired, false);
+  assert.deepEqual(state.game.chargePreview.evadePlan?.diagnostics ?? [], []);
+  assert.deepEqual(
+    state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')
+      ? {
+          xUd: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').xUd,
+          yUd: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').yUd,
+          rotationRadians: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').rotationRadians,
+        }
+      : null,
+    {
+      xUd: state.game.chargePreview.evadeMove?.finalPose?.xUd,
+      yUd: state.game.chargePreview.evadeMove?.finalPose?.yUd,
+      rotationRadians: state.game.chargePreview.evadeMove?.finalPose?.rotationRadians,
     },
-  };
+  );
 
-  const blockedState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
 
   assert.equal(
-    blockedState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    adjustedChargeState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE,
+  );
+  assert.equal(
+    adjustedChargeState.game.chargePreview.branchDistanceRoll?.history?.[0]?.claim?.reason,
     CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
   );
-  assert.equal(blockedState.game.chargePreview.branchDistanceRoll?.result?.dieRoll, 6);
 });
 
-test('evade avoidance slide choice commits the selected candidate before adjusted charge distance', () => {
+test('charge drill evade-blocker flank lane keeps adjusted charge blocked until the evade choice handoff is resolved', () => {
   let state = startChargeDrillBattle();
+
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
-  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-front-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-evade-blocker-charger' });
   state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
-  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-front-target' });
-  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-flank-target' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'wheel',
+    pivotSide: 'left',
+    angleRadians: 0.6277694966173915,
+  });
   state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
   state = reduceAppState(state, {
     type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
@@ -1718,10 +1910,229 @@ test('evade avoidance slide choice commits the selected candidate before adjuste
   });
 
   assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED);
-  assert.equal(state.game.chargePreview.evadeMove?.avoidanceCandidates.length, 2);
+  assert.equal(state.game.chargePreview.evadeChoiceHandoff?.status, 'pending');
+
+  const blockedState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+
+  assert.equal(
+    blockedState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
+  );
+  assert.equal(blockedState.game.chargePreview.branchDistanceRoll?.result?.dieRoll, 6);
+});
+
+test('charge drill wheel-charger double-blocker branch distance can be reproduced reducer-only for hotspot probing', (t) => {
+  let state = startChargeDrillBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-wheel-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-double-blocker' });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'wheel',
+    pivotSide: 'left',
+    angleRadians: Math.PI / 6,
+  });
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.READY);
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+
+  const startedAtMs = Date.now();
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+  const elapsedMs = Date.now() - startedAtMs;
+  t.diagnostic(`wheel double-blocker reducer-only roll 6 took ${elapsedMs}ms`);
+
+  assert.equal(state.game.chargePreview.branchDistanceRoll?.result?.dieRoll, 6);
+  assert.equal(state.game.chargePreview.evadeChoiceHandoff?.status, 'pending');
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED);
+  assert.equal(state.game.chargePreview.evadeMove?.avoidanceCandidates?.length, 2);
+  assert.equal(state.game.chargePreview.evadePlan?.choiceKind, 'initial-branch');
+  assert.deepEqual(
+    state.game.chargePreview.evadeMove?.avoidanceCandidates?.map((candidate) => candidate.id),
+    ['branch-current-orientation', 'branch-direction-wheel'],
+  );
+  assert.equal(state.game.setupViewMode, SETUP_VIEW_MODES.HOTSEAT_HANDOFF);
+});
+
+test('charge drill wheel-charger double-blocker initial current-orientation branch commits after the explicit branch choice', () => {
+  let state = startChargeDrillBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-wheel-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-double-blocker' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'wheel',
+    pivotSide: 'left',
+    angleRadians: Math.PI / 6,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+    choice: { candidateId: 'branch-current-orientation' },
+  });
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.evadeMove?.choiceRequired, false);
+  assert.equal(state.game.chargePreview.evadePlan?.choiceKind, 'none');
+  assert.deepEqual(
+    state.game.chargePreview.evadeMove?.avoidanceCandidates?.map((candidate) => candidate.id),
+    ['slide-left-1.000'],
+  );
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.xUd, 10.8);
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.yUd, 9.6);
+});
+
+test('charge drill wheel-charger double-blocker initial direction-wheel branch selects a slide-root wheel-back bypass', () => {
+  let state = startChargeDrillBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-wheel-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-double-blocker' });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'wheel',
+    pivotSide: 'left',
+    angleRadians: Math.PI / 6,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+    choice: { candidateId: 'branch-direction-wheel' },
+  });
+
+  const selectedCandidate = state.game.chargePreview.evadeMove?.avoidanceCandidates?.[0] ?? null;
+  const selectedBranchAnalysis = state.game.chargePreview.evadeMove?.decisionTrace?.find((entry) => entry.stage === 'selected-branch-analysis') ?? null;
+  const selectedCandidateAnalysis = selectedBranchAnalysis?.selectedCandidateAnalysis ?? null;
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.evadeMove?.choiceRequired, false);
+  assert.equal(state.game.chargePreview.evadePlan?.choiceKind, 'none');
+  assert.equal(state.game.chargePreview.evadeMove?.avoidanceCandidates?.length, 1);
+  assert.equal(selectedCandidate?.analysis?.generationSource, 'wayfinding-v2-pattern');
+  assert.equal(selectedCandidate?.analysis?.wayfindingV2Used, true);
+  assert.equal(selectedCandidate?.analysis?.wayfindingPatternId, 'slide-left-straight->wheel-right-0.262-straight-wheel-left-0.262');
+  assert.equal(selectedCandidate?.analysis?.wayfindingReasonCodes?.includes('recursive-hard-conflict-chain'), true);
+  assert.deepEqual(selectedCandidate?.avoidanceSteps?.map((step) => step.type), ['direction-wheel', 'slide', 'obstacle-wheel', 'obstacle-wheel']);
+  assert.equal(selectedCandidateAnalysis?.branchRankingPolicy, 'direction-wheel-branch-retention');
+  assert.equal(selectedCandidateAnalysis?.generationSource, 'wayfinding-v2-pattern');
+  assert.equal(selectedCandidateAnalysis?.branchRankingReasonCodes?.includes('prefer-slide-first-corridor-bypass'), true);
+  assert.equal(selectedCandidateAnalysis?.branchRankingReasonCodes?.includes('prefer-lower-manoeuvre-ud-spend'), true);
+  assert.equal(selectedCandidateAnalysis?.branchRankingReasonCodes?.includes('prefer-more-reserve-after-first-later-step'), true);
+  assert.equal(selectedCandidateAnalysis?.branchRankingCorridorScore?.firstLaterStepType, 'slide');
+  assert.equal(selectedCandidateAnalysis?.branchRankingCorridorScore?.laterSlideCount, 1);
+  assert.equal(selectedCandidateAnalysis?.branchRankingCorridorScore?.maxLateralDeviationUd <= 0.3, true);
+  assert.equal(selectedCandidate?.analysis?.wayfindingReasonCodes?.includes('wheel-arc-swept-check-sampled'), true);
+  assert.equal(selectedCandidateAnalysis?.laterWheelCount <= 2, true);
+  assert.equal(selectedCandidateAnalysis?.laterSlideCount, 1);
+  assert.equal(selectedCandidateAnalysis?.firstLaterStepType, 'slide');
+});
+
+test('evade avoidance slide choice commits the selected candidate before adjusted charge distance', () => {
+  let state = startChargeDrillBattle();
+  const slideChoicePlan = resolveIsolatedSingleUnitEvadePlan({
+    reactingUnit: { id: 'charge-drill-p2-front-target', xUd: 10, yUd: 10, widthUd: 1, depthUd: 0.75, baseShape: 'rectangle', rotationRadians: 0 },
+    contactClassification: {
+      type: CHARGE_CONTACT_CLASSIFICATION_TYPES.FLANK,
+      flankSide: CHARGE_CONTACT_FLANK_SIDES.RIGHT,
+    },
+    contactSnapshot: {
+      defenderPose: { xUd: 10, yUd: 10, rotationRadians: 0 },
+    },
+    chargeDirectionRadians: Math.PI,
+    distanceRollResult: createChargeBranchRollResult({ dieRoll: 4, baseDistanceUd: 4 }),
+    battlefieldProfile: { widthUd: 30, heightUd: 20 },
+    units: [
+      { id: 'friendly-blocker', xUd: 8, yUd: 10, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
+    ],
+  });
+  const slideCandidate = slideChoicePlan.avoidanceCandidates.find((candidate) => candidate.type === 'slide') ?? null;
+
+  assert.ok(slideCandidate);
+  assert.equal(slideChoicePlan.choiceRequired, true);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      setupViewMode: SETUP_VIEW_MODES.HOTSEAT_HANDOFF,
+      chargePreview: {
+        ...state.game.chargePreview,
+        status: CHARGE_PREVIEW_STATUSES.EVADE_REQUIRED,
+        branchDistanceRoll: {
+          claim: { reason: CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE },
+          result: createChargeBranchRollResult({ dieRoll: 4, baseDistanceUd: 4 }),
+        },
+        evadePlan: {
+          ...slideChoicePlan,
+          choiceRequired: true,
+          sourceStatus: 'needs-source-check',
+        },
+        evadeMove: {
+          ...state.game.chargePreview.evadeMove,
+          reactingUnitId: slideChoicePlan.reactingUnitId,
+          finalPose: slideChoicePlan.endPose,
+          avoidanceCandidates: slideChoicePlan.avoidanceCandidates,
+          status: EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED,
+          choiceRequired: true,
+        },
+        evadeChoiceHandoff: {
+          ...state.game.chargePreview.evadeChoiceHandoff,
+          status: 'pending',
+          nextViewMode: SETUP_VIEW_MODES.PLAYER_TWO,
+          returnViewMode: SETUP_VIEW_MODES.CANONICAL,
+        },
+      },
+      units: state.game.units.map((unit) => (
+        unit.id === 'charge-drill-p2-front-target'
+          ? {
+              ...unit,
+              xUd: 10,
+              yUd: 10,
+              rotationRadians: 0,
+              widthUd: 1,
+              depthUd: 0.75,
+              baseShape: 'rectangle',
+            }
+          : unit
+      )),
+    },
+  };
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED);
+  assert.equal(state.game.chargePreview.evadeMove?.avoidanceCandidates.length >= 1, true);
   assert.equal(state.game.chargePreview.evadeChoiceHandoff?.status, 'pending');
   assert.equal(state.game.setupViewMode, SETUP_VIEW_MODES.HOTSEAT_HANDOFF);
-  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, 6);
+  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, 10);
 
   state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
 
@@ -1730,17 +2141,18 @@ test('evade avoidance slide choice commits the selected candidate before adjuste
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
-    choice: { candidateId: 'final-overlap-slide-left-1.000', side: 'left', distanceUd: 1 },
+    choice: { candidateId: slideCandidate.id },
   });
 
   assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
   assert.equal(state.game.chargePreview.evadeMove?.choiceRequired, false);
   assert.equal(state.game.chargePreview.evadeChoiceHandoff?.status, 'idle');
-  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[0]?.side, 'left');
-  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.xUd, 5);
-  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.yUd, 9);
+  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[0]?.type, 'slide');
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.xUd, slideCandidate.endPose?.xUd);
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.yUd, slideCandidate.endPose?.yUd);
   assert.equal(state.game.setupViewMode, SETUP_VIEW_MODES.CANONICAL);
-  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, 5);
+  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, slideCandidate.endPose?.xUd);
+  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.yUd, slideCandidate.endPose?.yUd);
 
   const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
 
@@ -1750,8 +2162,25 @@ test('evade avoidance slide choice commits the selected candidate before adjuste
   );
 });
 
-test('evade avoidance obstacle-wheel choice commits the selected candidate before adjusted charge distance', () => {
+test('table-exit evade stays source-open before adjusted charge distance in the current subset', () => {
   let state = startChargeDrillBattle();
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'charge-drill-p1-front-charger') {
+          return { ...unit, yUd: 5 };
+        }
+
+        if (unit.id === 'charge-drill-p2-front-target') {
+          return { ...unit, yUd: 1 };
+        }
+
+        return unit;
+      }),
+    },
+  };
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-front-charger' });
   state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
@@ -1766,8 +2195,162 @@ test('evade avoidance obstacle-wheel choice commits the selected candidate befor
     type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
     dieRoll: 6,
   });
-  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_EVADE_CHOICE_HANDOFF });
 
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.SOURCE_OPEN);
+  assert.equal(state.game.chargePreview.evadeMove?.tableExit, null);
+  assert.equal(state.game.chargePreview.evadeMove?.diagnostics?.[0]?.code, 'charge.evade.table-edge');
+  assert.equal(state.game.units.some((unit) => unit.id === 'charge-drill-p2-front-target'), true);
+
+  const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+
+  assert.equal(
+    adjustedChargeState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
+  );
+});
+
+test('charge drill table-exit lane stays source-open after the evade turnaround points at the north edge', () => {
+  let state = startChargeDrillBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-table-exit-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-table-exit-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.SOURCE_OPEN);
+  assert.equal(state.game.chargePreview.evadeMove?.autoCommit, false);
+  assert.equal(state.game.chargePreview.evadeMove?.tableExit, null);
+  assert.equal(state.game.chargePreview.evadeMove?.diagnostics?.[0]?.code, 'charge.evade.table-edge');
+  assert.equal(state.game.units.some((unit) => unit.id === 'charge-drill-p2-table-exit-target'), true);
+
+  const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+
+  assert.equal(
+    adjustedChargeState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE,
+  );
+});
+
+test('charge drill light-troop lane applies the end-half-turn hook after the evade move commits', () => {
+  let state = startChargeDrillBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-light-troop-hook-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-light-troop-hook-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+    choice: { candidateId: 'final-overlap-slide-left-0.876000' },
+  });
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.evadeMove?.autoCommit, true);
+  assert.equal(state.game.chargePreview.evadeMove?.endHalfTurnHook?.available, true);
+  assert.equal(state.game.chargePreview.evadeMove?.endHalfTurnHook?.applied, true);
+  assert.equal(state.game.chargePreview.evadeMove?.endHalfTurnHook?.reason, 'light-troop-end-half-turn');
+  assert.equal(state.game.chargePreview.evadeMove?.pathSegments.some((segment) => segment.kind === 'evade-end-half-turn'), true);
+  assert.equal(state.game.chargePreview.evadeMove?.pathSegments.at(-1)?.kind, 'evade-end-half-turn');
+  assert.equal(state.game.chargePreview.evadeMove?.cannotShootHook, true);
+  assert.equal(state.game.units.some((unit) => unit.id === 'charge-drill-p2-light-troop-hook-target'), true);
+  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-light-troop-hook-target')?.rotationRadians, Math.PI);
+
+  const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+
+  assert.equal(
+    adjustedChargeState.game.chargePreview.branchDistanceRoll?.claim?.reason,
+    CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE,
+  );
+});
+
+test('round begin clears after-evade flags for the active player only', () => {
+  let state = startChargeDrillBattle();
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-light-troop-hook-charger' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'charge-drill-p2-light-troop-hook-target' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
+    choice: { candidateId: 'final-overlap-slide-left-0.876000' },
+  });
+
+  const evaderBeforeReset = state.game.units.find((unit) => unit.id === 'charge-drill-p2-light-troop-hook-target');
+  assert.equal(evaderBeforeReset?.hasEvadedThisSequence, true);
+  assert.equal(evaderBeforeReset?.cannotShootThisSequence, true);
+  assert.equal(evaderBeforeReset?.evadeCountThisPhase, 1);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      round: {
+        ...state.game.round,
+        turnPlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+        roundPhase: 'corps-movement',
+        dialog: {
+          type: 'round-start',
+          phaseLabel: null,
+        },
+      },
+      units: state.game.units.map((unit) => (
+        unit.id === 'charge-drill-p1-light-troop-hook-charger'
+          ? {
+              ...unit,
+              moveCountThisSequence: 2,
+              hasChargedThisSequence: true,
+              hasEvadedThisSequence: true,
+              cannotShootThisSequence: true,
+              evadeCountThisPhase: 2,
+            }
+          : unit
+      )),
+    },
+  };
+
+  const resetState = reduceAppState(state, { type: ACTION_TYPES.ROUND_BEGIN });
+  const evaderAfterReset = resetState.game.units.find((unit) => unit.id === 'charge-drill-p2-light-troop-hook-target');
+  const playerOneUnitAfterReset = resetState.game.units.find((unit) => unit.id === 'charge-drill-p1-light-troop-hook-charger');
+
+  assert.equal(evaderAfterReset?.hasEvadedThisSequence, false);
+  assert.equal(evaderAfterReset?.cannotShootThisSequence, false);
+  assert.equal(evaderAfterReset?.moveCountThisSequence, 0);
+  assert.equal(evaderAfterReset?.hasChargedThisSequence, false);
+  assert.equal(evaderAfterReset?.evadeCountThisPhase, 0);
+  assert.equal(playerOneUnitAfterReset?.moveCountThisSequence, 2);
+  assert.equal(playerOneUnitAfterReset?.hasChargedThisSequence, true);
+  assert.equal(playerOneUnitAfterReset?.hasEvadedThisSequence, true);
+  assert.equal(playerOneUnitAfterReset?.cannotShootThisSequence, true);
+  assert.equal(playerOneUnitAfterReset?.evadeCountThisPhase, 2);
+});
+
+test('former obstacle-wheel rear-contact scenario now resolves as blocked after sampled arc safety checks', () => {
   const obstacleWheelPlan = resolveIsolatedSingleUnitEvadePlan({
     reactingUnit: { id: 'charge-drill-p2-front-target', xUd: 10, yUd: 10, widthUd: 1, depthUd: 0.75, baseShape: 'rectangle', rotationRadians: 0 },
     contactClassification: { type: CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR },
@@ -1782,50 +2365,11 @@ test('evade avoidance obstacle-wheel choice commits the selected candidate befor
       { id: 'right-obstacle', xUd: 10.5, yUd: 6.5, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
     ],
   });
-
-  state = {
-    ...state,
-    game: {
-      ...state.game,
-      chargePreview: {
-        ...state.game.chargePreview,
-        evadePlan: {
-          ...obstacleWheelPlan,
-          choiceRequired: true,
-          sourceStatus: 'needs-source-check',
-        },
-        evadeMove: {
-          ...state.game.chargePreview.evadeMove,
-          reactingUnitId: obstacleWheelPlan.reactingUnitId,
-          finalPose: obstacleWheelPlan.endPose,
-          avoidanceCandidates: obstacleWheelPlan.avoidanceCandidates,
-          status: EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED,
-          choiceRequired: true,
-        },
-      },
-    },
-  };
-
-  state = reduceAppState(state, {
-    type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
-    choice: { candidateId: 'obstacle-wheel-right-1.571' },
-  });
-
-  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
-  assert.equal(state.game.chargePreview.evadeMove?.choiceRequired, false);
-  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[0]?.type, 'obstacle-wheel');
-  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[0]?.pivotSide, 'right');
-  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.xUd, 12.625);
-  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.yUd, 9.125);
-  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, 12.625);
-  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.yUd, 9.125);
-
-  const adjustedChargeState = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
-
-  assert.equal(
-    adjustedChargeState.game.chargePreview.branchDistanceRoll?.claim?.reason,
-    CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE,
-  );
+  assert.equal(obstacleWheelPlan.choiceRequired, false);
+  assert.equal(obstacleWheelPlan.sourceStatus, 'needs-source-check');
+  assert.equal(obstacleWheelPlan.endPose, null);
+  assert.equal(obstacleWheelPlan.avoidanceCandidates.length, 0);
+  assert.equal(obstacleWheelPlan.diagnostics.some((entry) => entry.code === 'charge.evade.blocked'), true);
 });
 
 test('evade avoidance chained direction-wheel-slide choice commits both steps before adjusted charge distance', () => {
@@ -1859,10 +2403,10 @@ test('evade avoidance chained direction-wheel-slide choice commits both steps be
     distanceRollResult: createChargeBranchRollResult({ dieRoll: 4, baseDistanceUd: 4 }),
     battlefieldProfile: { widthUd: 30, heightUd: 20 },
     units: [
-      { id: 'friendly-blocker', xUd: 8.5, yUd: 10, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
+      { id: 'friendly-blocker', xUd: 9.25, yUd: 11, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
     ],
   });
-  const selectedCandidate = chainedPlan.avoidanceCandidates.find((candidate) => candidate.id === 'direction-wheel-left-1.571-slide-left-0.500') ?? null;
+  const selectedCandidate = chainedPlan.avoidanceCandidates.find((candidate) => candidate.id === 'direction-wheel-left-1.571-slide-right-1.000') ?? null;
 
   assert.ok(selectedCandidate);
 
@@ -1891,14 +2435,14 @@ test('evade avoidance chained direction-wheel-slide choice commits both steps be
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SELECT_EVADE_AVOIDANCE_CHOICE,
-    choice: { candidateId: 'direction-wheel-left-1.571-slide-left-0.500' },
+    choice: { candidateId: 'direction-wheel-left-1.571-slide-right-1.000' },
   });
 
   assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
   assert.equal(state.game.chargePreview.evadeMove?.choiceRequired, false);
   assert.deepEqual(state.game.chargePreview.evadeMove?.avoidanceSteps.map((step) => step.type), ['direction-wheel', 'slide']);
   assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[0]?.pivotSide, 'left');
-  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[1]?.side, 'left');
+  assert.equal(state.game.chargePreview.evadeMove?.avoidanceSteps[1]?.side, 'right');
   assert.deepEqual(state.game.chargePreview.evadeMove?.finalPose, selectedCandidate?.endPose);
   assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, selectedCandidate?.endPose?.xUd);
   assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.yUd, selectedCandidate?.endPose?.yUd);
@@ -1942,7 +2486,7 @@ test('evade avoidance node preview advances one tree level without committing mo
     distanceRollResult: createChargeBranchRollResult({ dieRoll: 4, baseDistanceUd: 4 }),
     battlefieldProfile: { widthUd: 30, heightUd: 20 },
     units: [
-      { id: 'friendly-blocker', xUd: 8.5, yUd: 10, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
+      { id: 'friendly-blocker', xUd: 9.25, yUd: 11, widthUd: 1, depthUd: 1, baseShape: 'rectangle', rotationRadians: 0 },
     ],
   });
 
@@ -1974,6 +2518,8 @@ test('evade avoidance node preview advances one tree level without committing mo
     },
   };
 
+  const unitPoseBeforeNodePreview = state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target');
+
   state = reduceAppState(state, {
     type: ACTION_TYPES.PREVIEW_EVADE_AVOIDANCE_NODE,
     stepId: 'direction-wheel-left-1.571',
@@ -1981,7 +2527,22 @@ test('evade avoidance node preview advances one tree level without committing mo
 
   assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.CHOICE_REQUIRED);
   assert.deepEqual(state.game.chargePreview.evadeMove?.choicePathStepIds, ['direction-wheel-left-1.571']);
-  assert.equal(state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')?.xUd, 5);
+  assert.deepEqual(
+    state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target')
+      ? {
+          xUd: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').xUd,
+          yUd: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').yUd,
+          rotationRadians: state.game.units.find((unit) => unit.id === 'charge-drill-p2-front-target').rotationRadians,
+        }
+      : null,
+    unitPoseBeforeNodePreview
+      ? {
+          xUd: unitPoseBeforeNodePreview.xUd,
+          yUd: unitPoseBeforeNodePreview.yUd,
+          rotationRadians: unitPoseBeforeNodePreview.rotationRadians,
+        }
+      : null,
+  );
 
   state = reduceAppState(state, { type: ACTION_TYPES.RESET_EVADE_AVOIDANCE_PATH });
 
@@ -2061,6 +2622,7 @@ test('adjusted charge distance roll archives evade roll history and uses charger
   assert.equal(state.game.chargePreview.branchDistanceRoll?.result?.modifierUd, 0);
   assert.equal(state.game.chargePreview.branchDistanceRoll?.result?.resolvedDistanceUd, 3);
   assert.equal(state.game.chargePreview.branchDistanceRoll?.result?.neverReduce, true);
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.EVADE_REQUIRED);
   assert.equal(state.game.chargePreview.reactionRequests[0]?.adjustedChargeDistanceUd, 3);
   assert.equal(state.game.chargePreview.chargeMovementPlan?.chargingUnitId, 'test-unit-1');
   assert.equal(state.game.chargePreview.chargeMovementPlan?.distanceUd, 3);
@@ -2071,6 +2633,64 @@ test('adjusted charge distance roll archives evade roll history and uses charger
   assert.deepEqual(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents ?? [], []);
   assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.diagnostics?.length ?? 0, 0);
   assert.equal(state.game.chargePreview.reactionRequests[0]?.caughtByCharger, false);
+});
+
+test('impetuous full-evade follow-through commits the charger when no continuation pause or contact remains', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-1') {
+          return { ...unit, hasImpetuous: true };
+        }
+
+        if (unit.id === 'test-unit-3') {
+          return { ...unit, chargeReactionProfile: 'may-evade' };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+
+  const charger = state.game.units.find((unit) => unit.id === 'test-unit-1');
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.IDLE);
+  assert.equal(charger.xUd, 5);
+  assert.equal(charger.yUd, 13);
+  assert.equal(charger.stayedThisMovementPhase, true);
+  assert.equal(charger.advanceUsedUd, 4);
+  assert.equal(hasUnitFinishedMovementPhase(charger), true);
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.continuationChoice.required, false);
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.continuationChoice.selectedOption, 'continue');
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.endPose.yUd, 13);
+  assert.equal(state.game.lastChargeCompletion.followThroughResolution.status, 'none');
 });
 
 test('adjusted charge distance roll marks the primary evader as caught when follow-through contact reaches the evaded end pose', () => {
@@ -2161,6 +2781,11 @@ test('adjusted charge distance roll marks the primary evader as caught when foll
   });
   assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.defenderId, 'test-unit-3');
   assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.type, 'target-contact');
+  assert.equal(
+    state.game.chargePreview.chargeMovementPlan?.endPose?.yUd,
+    state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.contactSnapshot?.chargerContactPose?.yUd,
+  );
+  assert.notEqual(state.game.chargePreview.chargeMovementPlan?.endPose?.yUd, 15);
 });
 
 test('adjusted charge distance roll preserves a reducer-owned secondary target pause when follow-through hits another enemy first', () => {
@@ -2244,6 +2869,163 @@ test('adjusted charge distance roll preserves a reducer-owned secondary target p
   assert.equal(state.game.chargePreview.followThroughResolution?.defenderId, 'test-unit-4');
   assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.type, 'earlier-enemy-contact');
   assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.defenderId, 'test-unit-4');
+});
+
+test('charge drill unit 17 commits its edge-clearing slide and can expose unit 18 as the adjusted charge secondary target', () => {
+  let state = startChargeDrillBattle();
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'p1-corps-1' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-lane-blocker' });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'charge-drill-p2-earlier-contact',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.evadeMove?.reactingUnitId, 'charge-drill-p2-earlier-contact');
+  assert.deepEqual(state.game.chargePreview.evadeMove?.diagnostics, []);
+  assert.deepEqual(
+    state.game.chargePreview.evadeMove?.avoidanceCandidates?.map((candidate) => candidate.id),
+    ['slide-left-1.000'],
+  );
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.xUd, 8.3);
+  assert.equal(state.game.chargePreview.evadeMove?.finalPose?.yUd, 9.6);
+  assert.equal(
+    state.game.units.find((unit) => unit.id === 'charge-drill-p2-earlier-contact')?.xUd,
+    8.3,
+  );
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  assert.equal(state.game.chargePreview.followThroughResolution?.status, 'secondary-target');
+  assert.equal(state.game.chargePreview.followThroughResolution?.defenderId, 'charge-drill-p2-blocked-target');
+  assert.deepEqual(
+    state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.map((event) => event.defenderId),
+    ['charge-drill-p2-blocked-target'],
+  );
+  assert.deepEqual(
+    state.game.chargePreview.reactionRequests?.map((request) => [request.unitId, request.status]),
+    [
+      ['charge-drill-p2-earlier-contact', 'complete'],
+      ['charge-drill-p2-blocked-target', 'pending'],
+    ],
+  );
+});
+
+test('secondary target queue keeps one pending request when duplicate earlier contacts reference the same defender', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-3') {
+          return { ...unit, chargeReactionProfile: 'may-evade' };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-4') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 15,
+            rotationRadians: Math.PI,
+          };
+        }
+
+        return unit;
+      }),
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan: {
+          ...state.game.chargePreview.evadePlan,
+          endPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+
+  const firstSecondaryEvent = state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0];
+  assert.ok(firstSecondaryEvent);
+
+  const queuedRequests = createSecondaryTargetReactionRequests(
+    state.game,
+    state.game.chargePreview,
+    {
+      ...state.game.chargePreview.chargeMovementPlan,
+      contactState: {
+        ...state.game.chargePreview.chargeMovementPlan.contactState,
+        contactEvents: [
+          firstSecondaryEvent,
+          {
+            ...firstSecondaryEvent,
+            type: 'earlier-enemy-contact',
+          },
+        ],
+      },
+    },
+  ).filter((request) => request?.unitId === 'test-unit-4');
+
+  assert.equal(queuedRequests.length, 1);
+  assert.equal(queuedRequests[0]?.status, 'pending');
+  assert.equal(queuedRequests[0]?.contactEventIndex, 0);
 });
 
 test('secondary target pause can record a later reaction decision without resuming the recursive chain', () => {
@@ -2332,6 +3114,8 @@ test('secondary target pause can record a later reaction decision without resumi
   assert.equal(state.game.chargePreview.declarationSnapshot?.targetUnitId, 'test-unit-4');
   assert.equal(state.game.chargePreview.followThroughResolution?.selectedTargetId, 'test-unit-4');
   assert.equal(state.game.chargePreview.followThroughResolution?.status, 'secondary-target');
+  assert.equal(state.game.chargePreview.conformationPlan.status, CHARGE_PREVIEW_STATUSES.READY);
+  assert.equal(state.game.chargePreview.conformationPlan.principalOpponentId, 'test-unit-4');
 });
 
 test('secondary target evade decision creates its own evade-distance claim and resolves a second evade plan without dropping the paused follow-through state', () => {
@@ -2431,6 +3215,562 @@ test('secondary target evade decision creates its own evade-distance claim and r
   assert.equal(state.game.chargePreview.reactionRequests[1]?.status, 'complete');
 });
 
+test('secondary target reaction uses the next pending queued request and its own contact event snapshot', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-3') {
+          return { ...unit, chargeReactionProfile: 'may-evade' };
+        }
+
+        return unit;
+      }),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-4') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 15,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        if (unit.id === 'p2-c2-mi-1') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 14,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        return unit;
+      }),
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan: {
+          ...state.game.chargePreview.evadePlan,
+          endPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+
+  const firstSecondaryEvent = state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0];
+  assert.ok(firstSecondaryEvent);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      chargePreview: {
+        ...state.game.chargePreview,
+        reactionRequests: [
+          ...(state.game.chargePreview.reactionRequests.slice(0, 1)),
+          {
+            ...state.game.chargePreview.reactionRequests[1],
+            status: 'complete',
+          },
+          {
+            ...state.game.chargePreview.reactionRequests[1],
+            unitId: 'p2-c2-mi-1',
+            status: 'pending',
+            contactEventIndex: 1,
+            contactSnapshot: {
+              ...firstSecondaryEvent.contactSnapshot,
+              chargerContactPose: {
+                ...firstSecondaryEvent.contactSnapshot.chargerContactPose,
+                yUd: 14.875,
+              },
+              defenderPose: {
+                ...firstSecondaryEvent.contactSnapshot.defenderPose,
+                yUd: 14,
+              },
+            },
+          },
+        ],
+        chargeMovementPlan: {
+          ...state.game.chargePreview.chargeMovementPlan,
+          contactState: {
+            ...state.game.chargePreview.chargeMovementPlan.contactState,
+            contactEvents: [
+              firstSecondaryEvent,
+              {
+                ...firstSecondaryEvent,
+                defenderId: 'p2-c2-mi-1',
+                pose: {
+                  ...firstSecondaryEvent.pose,
+                  yUd: 14.875,
+                },
+                contactSnapshot: {
+                  ...firstSecondaryEvent.contactSnapshot,
+                  chargerContactPose: {
+                    ...firstSecondaryEvent.contactSnapshot.chargerContactPose,
+                    yUd: 14.875,
+                  },
+                  defenderPose: {
+                    ...firstSecondaryEvent.contactSnapshot.defenderPose,
+                    yUd: 14,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        followThroughResolution: {
+          ...state.game.chargePreview.followThroughResolution,
+          defenderId: 'p2-c2-mi-1',
+          selectedTargetId: 'p2-c2-mi-1',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+
+  assert.equal(state.game.chargePreview.secondaryReactionDecision?.unitId, 'p2-c2-mi-1');
+  assert.equal(state.game.chargePreview.branchDistanceRoll?.claim?.targetUnitId, 'p2-c2-mi-1');
+  assert.equal(state.game.chargePreview.declarationSnapshot?.targetUnitId, 'p2-c2-mi-1');
+  assert.equal(state.game.chargePreview.declarationSnapshot?.contactEvent?.defenderId, 'p2-c2-mi-1');
+  assert.equal(state.game.chargePreview.declarationSnapshot?.contactEvent?.contactSnapshot?.defenderPose?.yUd, 14);
+  assert.equal(state.game.chargePreview.reactionRequests[2]?.status, 'complete');
+});
+
+test('adjusted charge recompute does not requeue a defender that already completed a secondary reaction', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-3'
+          ? { ...unit, chargeReactionProfile: 'may-evade' }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-4'
+          ? {
+              ...unit,
+              owner: 'player-2',
+              xUd: 5,
+              yUd: 15,
+              rotationRadians: Math.PI,
+              chargeReactionProfile: 'may-evade',
+            }
+          : unit
+      )),
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan: {
+          ...state.game.chargePreview.evadePlan,
+          endPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+
+  const firstSecondaryEvent = state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0];
+  assert.ok(firstSecondaryEvent);
+
+  const recomputedRequests = applyAdjustedChargeDistanceToReactionRequests(
+    state.game,
+    state.game.chargePreview,
+    state.game.chargePreview.reactionRequests,
+    createChargeBranchRollResult({
+      claim: state.game.chargePreview.branchDistanceRoll.claim,
+      dieRoll: 5,
+      totalDistanceUd: 5,
+      resolvedDistanceUd: 5,
+      outcome: CHARGE_BRANCH_DISTANCE_OUTCOMES.FULL_DISTANCE,
+    }),
+    {
+      ...state.game.chargePreview.chargeMovementPlan,
+      contactState: {
+        ...state.game.chargePreview.chargeMovementPlan.contactState,
+        contactEvents: [
+          {
+            ...firstSecondaryEvent,
+            defenderId: 'test-unit-4',
+            type: 'earlier-enemy-contact',
+          },
+          {
+            ...firstSecondaryEvent,
+            defenderId: 'test-unit-4',
+            type: 'earlier-enemy-contact',
+          },
+        ],
+      },
+    },
+  ).filter((request) => request?.unitId === 'test-unit-4');
+
+  assert.equal(recomputedRequests.length, 1);
+  assert.equal(recomputedRequests[0]?.status, 'complete');
+});
+
+test('adjusted charge queues later earlier-enemy contacts behind the first secondary evade target', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-3'
+          ? { ...unit, chargeReactionProfile: 'may-evade' }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-4') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 15,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        if (unit.id === 'p2-c2-mi-1') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 14,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        return unit;
+      }),
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan: {
+          ...state.game.chargePreview.evadePlan,
+          endPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+        evadeMove: {
+          ...state.game.chargePreview.evadeMove,
+          finalPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+
+  assert.deepEqual(
+    state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.map((event) => event.defenderId),
+    ['test-unit-4', 'p2-c2-mi-1'],
+  );
+  assert.deepEqual(
+    state.game.chargePreview.reactionRequests.map((request) => request.unitId),
+    ['test-unit-3', 'test-unit-4', 'p2-c2-mi-1'],
+  );
+  assert.equal(state.game.chargePreview.reactionRequests[1]?.status, 'pending');
+  assert.equal(state.game.chargePreview.reactionRequests[2]?.status, 'pending');
+});
+
+test('secondary evade reuses the original adjusted charge roll instead of asking for a second adjusted roll', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-3'
+          ? { ...unit, chargeReactionProfile: 'may-evade' }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'test-unit-3',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE,
+    manoeuvreType: 'none',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => {
+        if (unit.id === 'test-unit-4') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 15,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        if (unit.id === 'p2-c2-mi-1') {
+          return {
+            ...unit,
+            owner: 'player-2',
+            xUd: 5,
+            yUd: 14,
+            rotationRadians: Math.PI,
+            chargeReactionProfile: 'may-evade',
+          };
+        }
+
+        return unit;
+      }),
+      chargePreview: {
+        ...state.game.chargePreview,
+        evadePlan: {
+          ...state.game.chargePreview.evadePlan,
+          endPose: {
+            xUd: 5,
+            yUd: 12,
+            rotationRadians: Math.PI,
+          },
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_ADJUSTED_CHARGE_DISTANCE_ROLL });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 4,
+  });
+
+  const firstSecondaryEvent = state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0];
+  assert.ok(firstSecondaryEvent);
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      chargePreview: {
+        ...state.game.chargePreview,
+        reactionRequests: [
+          ...(state.game.chargePreview.reactionRequests.slice(0, 1)),
+          {
+            ...state.game.chargePreview.reactionRequests[1],
+            status: 'complete',
+          },
+          {
+            ...state.game.chargePreview.reactionRequests[1],
+            unitId: 'p2-c2-mi-1',
+            status: 'pending',
+            contactEventIndex: 1,
+            contactSnapshot: {
+              ...firstSecondaryEvent.contactSnapshot,
+              chargerContactPose: {
+                ...firstSecondaryEvent.contactSnapshot.chargerContactPose,
+                yUd: 14.875,
+              },
+              defenderPose: {
+                ...firstSecondaryEvent.contactSnapshot.defenderPose,
+                yUd: 14,
+              },
+            },
+          },
+        ],
+        chargeMovementPlan: {
+          ...state.game.chargePreview.chargeMovementPlan,
+          contactState: {
+            ...state.game.chargePreview.chargeMovementPlan.contactState,
+            contactEvents: [
+              firstSecondaryEvent,
+              {
+                ...firstSecondaryEvent,
+                defenderId: 'p2-c2-mi-1',
+                pose: {
+                  ...firstSecondaryEvent.pose,
+                  yUd: 14.875,
+                },
+                contactSnapshot: {
+                  ...firstSecondaryEvent.contactSnapshot,
+                  chargerContactPose: {
+                    ...firstSecondaryEvent.contactSnapshot.chargerContactPose,
+                    yUd: 14.875,
+                  },
+                  defenderPose: {
+                    ...firstSecondaryEvent.contactSnapshot.defenderPose,
+                    yUd: 14,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        followThroughResolution: {
+          ...state.game.chargePreview.followThroughResolution,
+          defenderId: 'p2-c2-mi-1',
+          selectedTargetId: 'p2-c2-mi-1',
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_SECONDARY_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+
+  assert.deepEqual(
+    state.game.chargePreview.branchDistanceRoll?.history?.map((entry) => entry.result?.claim?.reason ?? entry.claim?.reason ?? null),
+    [CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE, CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE],
+  );
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 5,
+  });
+
+  assert.equal(state.game.chargePreview.branchDistanceRoll?.claim?.reason, CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE);
+  assert.equal(state.game.chargePreview.evadePlan?.reactingUnitId, 'p2-c2-mi-1');
+  assert.equal(state.game.chargePreview.evadeMove?.status, EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED);
+  assert.equal(state.game.chargePreview.chargeMovementPlan?.distanceUd, 4);
+  assert.equal(state.game.chargePreview.chargeMovementPlan?.contactState?.contactEvents?.[0]?.defenderId, 'test-unit-4');
+  assert.equal(state.game.chargePreview.followThroughResolution?.status, 'secondary-target');
+  assert.equal(state.game.chargePreview.followThroughResolution?.defenderId, 'test-unit-4');
+});
+
 test('non-impetuous adjusted charge follow-through exposes a stop or continue choice and can stop at the minimum distance', () => {
   let state = selectTestUnit(advanceToBattlefield());
   state = {
@@ -2482,28 +3822,53 @@ test('non-impetuous adjusted charge follow-through exposes a stop or continue ch
     option: 'stop',
   });
 
-  assert.equal(state.game.chargePreview.chargeMovementPlan?.continuationChoice?.selectedOption, 'stop');
-  assert.equal(state.game.chargePreview.chargeMovementPlan?.distanceUd, 2);
-  assert.equal(state.game.chargePreview.chargeMovementPlan?.endPose?.xUd, 5);
-  assert.equal(state.game.chargePreview.chargeMovementPlan?.endPose?.yUd, 15);
+  const charger = state.game.units.find((unit) => unit.id === 'test-unit-1');
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.IDLE);
+  assert.equal(charger.xUd, 5);
+  assert.equal(charger.yUd, 15);
+  assert.equal(charger.stayedThisMovementPhase, true);
+  assert.equal(charger.advanceUsedUd, 2);
+  assert.equal(hasUnitFinishedMovementPhase(charger), true);
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.continuationChoice.selectedOption, 'stop');
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.distanceUd, 2);
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.endPose.xUd, 5);
+  assert.equal(state.game.lastChargeCompletion.chargeMovementPlan.endPose.yUd, 15);
 });
 
-test('charge targeting keeps the pure zoc drill target blocked even before target selection', () => {
+test('charge targeting defers pure zoc drill path work and opens manoeuvre selection with the current tunnel blocked', () => {
   let state = startChargeDrillBattle();
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_ACTIVE_CORPS, corpsId: 'corps-1' });
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'charge-drill-p1-pure-zoc-charger' });
 
   state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
 
-  const pureZocTargetCandidate = getChargeTargetCandidateByUnitId(
+  const deferredPureZocTargetCandidate = getChargeTargetCandidateByUnitId(
     state.game.chargePreview.targetCandidates,
     'charge-drill-p2-pure-zoc-target',
   );
 
   assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.TARGETING);
+  assert.equal(deferredPureZocTargetCandidate?.status, CHARGE_TARGET_CANDIDATE_STATUSES.ELIGIBLE);
+  assert.match(deferredPureZocTargetCandidate?.reason ?? '', /Grundreichweite|nach Zielauswahl/);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_CHARGE_TARGET,
+    targetUnitId: 'charge-drill-p2-pure-zoc-target',
+  });
+
+  const pureZocTargetCandidate = getChargeTargetCandidateByUnitId(
+    state.game.chargePreview.targetCandidates,
+    'charge-drill-p2-pure-zoc-target',
+  );
+
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.MANOEUVRE_SELECTING);
   assert.equal(pureZocTargetCandidate?.status, CHARGE_TARGET_CANDIDATE_STATUSES.BLOCKED);
   assert.match(pureZocTargetCandidate?.reason ?? '', /ZoC/);
   assert.match(pureZocTargetCandidate?.reason ?? '', /charge-drill-p2-pure-zoc-sentry/);
+
+  const unchangedState = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  assert.equal(unchangedState.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.MANOEUVRE_SELECTING);
 });
 
 test('blocked charge targets leave the preview in targeting state', () => {
@@ -2545,6 +3910,47 @@ test('pending charge preview blocks switching to another unit until canceled', (
   state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: 'p1-c1-cav-1' });
 
   assert.equal(state.game.selectedUnitId, 'p1-c1-cav-1');
+  assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.IDLE);
+});
+
+test('canceling charge preview after a committed evade restores the evader pose and flags', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'test-unit-3'
+          ? { ...unit, chargeReactionProfile: 'may-evade' }
+          : unit
+      )),
+    },
+  };
+
+  const originalTarget = state.game.units.find((unit) => unit.id === 'test-unit-3');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.SET_CHARGE_TARGET, targetUnitId: 'test-unit-3' });
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_CHARGE_START_MANOEUVRE, manoeuvreType: 'none' });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_CHARGE_DIRECTION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_REACTION,
+    decisionType: CHARGE_REACTION_DECISION_TYPES.EVADE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.RESOLVE_CHARGE_BRANCH_DISTANCE,
+    dieRoll: 6,
+  });
+
+  const committedTarget = state.game.units.find((unit) => unit.id === 'test-unit-3');
+  assert.notDeepEqual(committedTarget, originalTarget);
+  assert.equal(committedTarget?.hasEvadedThisSequence, true);
+  assert.equal(state.game.chargePreview.unitRollbackSnapshot.length > 0, true);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CANCEL_CHARGE_PREVIEW });
+
+  const restoredTarget = state.game.units.find((unit) => unit.id === 'test-unit-3');
+  assert.deepEqual(restoredTarget, originalTarget);
   assert.equal(state.game.chargePreview.status, CHARGE_PREVIEW_STATUSES.IDLE);
 });
 
@@ -2665,8 +4071,313 @@ test('cancel movement preview clears command ui state without resetting the unit
   assert.equal(state.game.advanceModeActive, false);
   assert.equal(state.game.slideModeActive, false);
   assert.equal(state.game.wheelModeActive, false);
+  assert.equal(state.game.commandMenu.activeBranch, null);
   assert.equal(state.game.movement.selectedCommandId, null);
   assert.equal(state.game.movement.preview.status, MOVEMENT_PREVIEW_STATUSES.IDLE);
+});
+
+test('command menu branch tracks movement and charge entry deterministically', () => {
+  let state = selectTestUnit(advanceToBattlefield());
+
+  assert.equal(state.game.commandMenu.activeBranch, null);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ADVANCE_MODE,
+    isActive: true,
+  });
+  assert.equal(state.game.commandMenu.activeBranch, 'move');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CANCEL_MOVEMENT_PREVIEW });
+  assert.equal(state.game.commandMenu.activeBranch, null);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.START_CHARGE_PREVIEW });
+  assert.equal(state.game.commandMenu.activeBranch, 'charge');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CANCEL_CHARGE_PREVIEW });
+  assert.equal(state.game.commandMenu.activeBranch, null);
+});
+
+test('command menu branch tracks reducer-owned shooting declaration previews', () => {
+  let state = startChargeDrillBattle();
+
+  state = {
+    ...state,
+    game: beginShootingPhaseState({
+      ...state.game,
+      commandContext: {
+        ...state.game.commandContext,
+        currentPhaseId: BATTLE_PHASE_IDS.SHOOTING,
+        activePlayerId: COMMAND_PLAYER_IDS.PLAYER_ONE,
+      },
+      phaseTracker: {
+        ...state.game.phaseTracker,
+        currentBattlePhaseId: BATTLE_PHASE_IDS.SHOOTING,
+      },
+    }),
+  };
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'charge-drill-p1-cavalry-bow-charger',
+  });
+
+  assert.equal(state.game.commandMenu.activeBranch, null);
+  assert.equal(state.game.shooting.preview.status !== 'idle', true);
+  assert.equal(resolveEffectiveCommandMenuBranch(state.game, state.game.units.find((unit) => unit.id === state.game.selectedUnitId)), 'shoot');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.CANCEL_SHOOTING_DECLARATION_PREVIEW,
+  });
+  assert.equal(state.game.commandMenu.activeBranch, null);
+});
+
+test('shooting procedure selection can switch to another unresolved shooter and deselect cleanly', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p1-light-foot-shooter',
+  });
+
+  assert.equal(state.game.selectedUnitId, 'shooting-drill-p1-light-foot-shooter');
+  assert.equal(state.game.shooting.preview.shooterUnitId, 'shooting-drill-p1-light-foot-shooter');
+  assert.equal(state.game.shooting.procedure.selectableUnitIds.includes('shooting-drill-p1-light-foot-support'), true);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p1-light-foot-support',
+  });
+
+  assert.equal(state.game.selectedUnitId, 'shooting-drill-p1-light-foot-support');
+  assert.equal(state.game.shooting.preview.shooterUnitId, 'shooting-drill-p1-light-foot-support');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.SELECT_UNIT, unitId: null });
+
+  assert.equal(state.game.selectedUnitId, null);
+  assert.equal(state.game.shooting.preview.status, 'idle');
+  assert.equal(state.game.shooting.preview.shooterUnitId, null);
+});
+
+test('shooting preview clears on phase switch so movement root actions return', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p1-light-foot-shooter',
+  });
+
+  const selectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.equal(resolveEffectiveCommandMenuBranch(state.game, selectedUnit), 'shoot');
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_ACTIVE_BATTLE_PHASE,
+    phaseId: BATTLE_PHASE_IDS.MOVEMENT,
+  });
+
+  const movementSelectedUnit = state.game.units.find((unit) => unit.id === state.game.selectedUnitId);
+  assert.equal(state.game.shooting.preview.status, 'idle');
+  assert.equal(resolveEffectiveCommandMenuBranch(state.game, movementSelectedUnit), null);
+});
+
+test('shooting completion hands off from player one into player two shooting before melee', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      units: state.game.units.map((unit) => (
+        unit.id === 'shooting-drill-p1-mounted-bow-anchor' || unit.id === 'shooting-drill-p2-mounted-bow-shooter'
+          ? { ...unit, cannotShootThisSequence: true }
+          : unit
+      )),
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p1-light-foot-shooter',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET,
+    targetUnitId: 'shooting-drill-p2-front-target',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_PROTECTION,
+    resolvedTargetProtectionValue: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_SHOOTER_DIE,
+    dieRoll: 5,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE,
+    dieRoll: 3,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_RESOLUTION });
+
+  assert.equal(state.game.round.dialog.type, 'shooting-sequence-handoff');
+  assert.equal(state.game.shooting.handoff.status, 'pending');
+  assert.equal(state.game.shooting.handoff.kind, 'next-player');
+  assert.equal(state.game.shooting.handoff.nextPlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_SEQUENCE_HANDOFF });
+
+  assert.equal(state.game.shooting.actingPlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+  assert.equal(state.game.round.roundPhase, 'shooting');
+  assert.equal(state.game.round.dialog.type, 'phase-announce');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p2-light-foot-shooter',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET,
+    targetUnitId: 'shooting-drill-p1-front-target',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_PROTECTION,
+    resolvedTargetProtectionValue: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_SHOOTER_DIE,
+    dieRoll: 5,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE,
+    dieRoll: 3,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_RESOLUTION });
+
+  assert.equal(state.game.round.dialog.type, 'shooting-sequence-handoff');
+  assert.equal(state.game.shooting.handoff.kind, 'melee');
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_SEQUENCE_HANDOFF });
+
+  assert.equal(state.game.phaseTracker.currentBattlePhaseId, BATTLE_PHASE_IDS.MELEE);
+  assert.equal(state.game.commandContext.currentPhaseId, BATTLE_PHASE_IDS.MELEE);
+  assert.equal(state.game.round.roundPhase, 'combat');
+  assert.equal(state.game.round.dialog, null);
+});
+
+test('shooting completion hands off from the current round active player into the passive player sequence', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+
+  state = {
+    ...state,
+    game: beginShootingPhaseState({
+      ...state.game,
+      round: {
+        ...state.game.round,
+        turnPlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+        roundPhase: 'shooting',
+        dialog: { type: null, phaseLabel: null },
+      },
+      commandContext: {
+        ...state.game.commandContext,
+        activePlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+        currentPhaseId: BATTLE_PHASE_IDS.SHOOTING,
+      },
+      units: state.game.units.map((unit) => (
+        unit.id === 'shooting-drill-p2-light-foot-support' || unit.id === 'shooting-drill-p2-mounted-bow-shooter'
+          ? { ...unit, cannotShootThisSequence: true }
+          : unit
+      )),
+    }, {
+      phaseId: BATTLE_PHASE_IDS.SHOOTING,
+      actingPlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+    }),
+  };
+  state = reduceAppState(state, { type: ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-drill-p2-light-foot-shooter',
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_DECLARATION_TARGET,
+    targetUnitId: 'shooting-drill-p1-front-target',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_PROTECTION,
+    resolvedTargetProtectionValue: 1,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_SHOOTER_DIE,
+    dieRoll: 5,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE,
+    dieRoll: 3,
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_RESOLUTION });
+
+  assert.equal(state.game.round.dialog.type, 'shooting-sequence-handoff');
+  assert.equal(state.game.shooting.handoff.kind, 'next-player');
+  assert.equal(state.game.shooting.handoff.nextPlayerId, COMMAND_PLAYER_IDS.PLAYER_ONE);
+});
+
+test('confirming a pending shooting handoff starts the next player sequence under the shooting phase announce', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
+
+  state = {
+    ...state,
+    game: {
+      ...state.game,
+      shooting: {
+        ...state.game.shooting,
+        handoff: {
+          status: 'pending',
+          kind: 'next-player',
+          nextPlayerId: COMMAND_PLAYER_IDS.PLAYER_TWO,
+        },
+      },
+      round: {
+        ...state.game.round,
+        dialog: {
+          type: 'shooting-sequence-handoff',
+          phaseLabel: null,
+        },
+      },
+    },
+  };
+
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_SEQUENCE_HANDOFF });
+
+  assert.equal(state.game.shooting.actingPlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+  assert.equal(state.game.commandContext.activePlayerId, COMMAND_PLAYER_IDS.PLAYER_TWO);
+  assert.equal(state.game.round.roundPhase, 'shooting');
+  assert.equal(state.game.round.dialog.type, 'phase-announce');
+  assert.equal(state.game.shooting.handoff.status, 'idle');
+});
+
+test('page 58 shooting LOS example lets either bowman be the main shooter on B with the other supporting', () => {
+  let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_LOS_EXAMPLE_BATTLE });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-los-example-a1',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_SHOOTING_DECLARATION_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+
+  assert.equal(state.game.shooting.declaredShots[0]?.mainShooterUnitId, 'shooting-los-example-a1');
+  assert.equal(state.game.shooting.declaredShots[0]?.targetUnitId, 'shooting-los-example-b');
+  assert.deepEqual(state.game.shooting.declaredShots[0]?.supportingUnitIds, ['shooting-los-example-a2']);
+
+  state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_SHOOTING_LOS_EXAMPLE_BATTLE });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'shooting-los-example-a2',
+  });
+  state = reduceAppState(state, { type: ACTION_TYPES.START_SHOOTING_DECLARATION_PREVIEW });
+  state = reduceAppState(state, { type: ACTION_TYPES.CONFIRM_SHOOTING_DECLARATION });
+
+  assert.equal(state.game.shooting.declaredShots[0]?.mainShooterUnitId, 'shooting-los-example-a2');
+  assert.equal(state.game.shooting.declaredShots[0]?.targetUnitId, 'shooting-los-example-b');
+  assert.deepEqual(state.game.shooting.declaredShots[0]?.supportingUnitIds, ['shooting-los-example-a1']);
 });
 
 test('pending movement preview blocks deselection and switching to another unit until cancel', () => {
@@ -4802,3 +6513,5 @@ test('slide mode is blocked when the active player does not own the selected uni
 
   assert.equal(state.game.slideModeActive, false);
 });
+
+

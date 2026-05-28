@@ -1,0 +1,35 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/logs/**": true,
+    "**/Konzepte/**": true,
+    "**/docs/source/new scan/**": true,
+    "**/docs/source/rules-v2-examples/**": true,
+    "**/page40.png": true,
+    "**/page41.png": true
+  },
+  "search.exclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/logs/**": true,
+    "**/Konzepte/**": true,
+    "**/docs/source/new scan/**": true,
+    "**/docs/source/rules-v2-examples/**": true,
+    "**/*.pdf": true,
+    "**/*.png": true,
+    "**/*.jpg": true,
+    "**/*.jpeg": true,
+    "**/*.webp": true
+  },
+  "files.exclude": {
+    "**/logs": true,
+    "**/dist": true,
+    "**/docs/source/new scan/rendered": true,
+    "**/docs/source/new scan/rules_color_review/single_pages": true
+  },
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false
+}

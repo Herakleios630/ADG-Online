@@ -1,6 +1,6 @@
 # P7C TODO - Command Menu Hierarchy + Flow Cleanup
 
-Status: Draft - pending user review and explicit approval after P7B closes
+Status: Complete - user accepted P7C closeout on 2026-05-28; P7C-00 through P7C-04 are complete and P8 planning may proceed
 Date drafted: 2026-05-20
 Planner: AdG-Rules-Engine-Agent
 Preferred future executor: GPT-5.4 after user approval
@@ -69,10 +69,11 @@ Guardrails:
 Recommended execution order:
 
 1. `P7C-00`
-2. `P7C-01`
-3. `P7C-02`
-4. `P7C-03`
-5. `P7C-04`
+2. `P7C-00A`
+3. `P7C-01`
+4. `P7C-02`
+5. `P7C-03`
+6. `P7C-04`
 
 Execution rules for GPT-5.4:
 
@@ -95,9 +96,18 @@ P7C must preserve the current gameplay capabilities while cleaning up presentati
 6. Selecting `Attach` shows only attach-targeting and attach-confirm/cancel controls.
 7. Canceling a branch returns to the correct higher-level menu without losing reducer-owned legality or preview state unexpectedly.
 
+## Logging Gate
+
+P7C is UI-only, but it still wraps reducer-owned legal flows and must preserve their debug surface.
+
+- Every implementation card should state logging expectations or explicitly say that no new logging is needed.
+- Expected areas for this phase are primarily `ui`, with `movement`, `charge`, `command`, and `visibility` included whenever the menu flow could hide, reorder, or suppress reducer-owned rule states.
+- Minimum support remains `warn`/`error` for impossible menu-state transitions and `debug` summaries for branch selection, branch reset, and surfaced command groups where those transitions matter to live debugging.
+- Browser/manual debug checks should name the filtered URL or runtime filter combination to use and should confirm that nesting the menu does not hide the relevant existing rule logs.
+
 ## Planned Cards
 
-### [ ] P7C-00 - Scope Lock And IA Contract
+### [x] P7C-00 - Scope Lock And IA Contract
 
 Goal: freeze the nested command-menu contract before implementation.
 
@@ -132,7 +142,76 @@ Stop condition:
 
 Expected result: P7C implementation has a fixed IA contract and a narrow scope.
 
-### [ ] P7C-01 - Command Panel Menu-State Spine
+Progress 2026-05-28:
+
+- Re-read the current command-panel surface in `src/ui/battlefield-command-panel.js` and the surrounding reducer/UI seams. The current panel already derives most visibility from reducer-owned preview state, but the new first-level branch selection (`Move`, `Charge`, `Attach`) would add a real interaction step before those previews exist.
+- Locked the submenu-state ownership decision for implementation start: the top-level command branch should use a minimal reducer-owned, serializable menu-mode seam in `P7C-01`, while the contents inside each branch continue to derive from existing reducer-owned movement, charge, and commander preview state. This keeps branch entry and cancel/back transitions deterministic and replay-safe without moving legality into rendering code.
+- Confirmed that `Stay` remains a first-level direct action, commander drag move remains the existing flow under `Move`, and P7C does not add new movement families or rule interpretation.
+
+Closeout 2026-05-28:
+
+- `P7C-00` is satisfied for the approved P7C start. The IA contract is now fixed: non-commanders open with `Move`, `Charge`, `Stay`; commanders open with `Move`, `Attach`, `Stay`; branch contents remain reducer-owned/derived; only the branch-selection seam itself becomes minimal serializable menu state in `P7C-01`.
+- Logging expectation for the next implementation slice is explicit: `ui` is primary, with `movement`, `charge`, and `command` preserved where branch selection or reset could hide existing reducer-owned flow.
+- Next exact card: `P7C-00A - Active Corps Front-Stripe Status Cue`.
+
+### [x] P7C-00A - Active Corps Front-Stripe Status Cue
+
+Goal: replace the earlier corps-status frame/outline concept with a clearer active-corps front-stripe color cue.
+
+Planned files:
+
+- src/ui/p0-battlefield.js
+- src/styles/p0-battlefield.css
+- src/ui/p0-battlefield.test.js
+- P7C_todo.md
+
+Implementation steps:
+1. Reuse reducer-owned active-player, active-corps, unit movement-finished, and mandatory-move flags; do not compute legality in rendering code.
+2. Color only the existing white front strip for units in the active corps.
+3. Use yellow when the active-corps unit still has movement open.
+4. Use red when the active-corps unit still has a mandatory-move flag open.
+5. Use green when the active-corps unit is finished for the current movement round.
+6. Keep selection, charge-target, conformation, evade, disabled, and owner styling readable around the front strip.
+7. Add selector/class tests for yellow, red, and green states plus a non-active-corps no-color case.
+
+Non-goals:
+
+- no new mandatory-move rule implementation
+- no corps lifecycle changes
+- no replacement of reducer-owned movement-finished predicates
+- no broader BVR atlas or troop-symbol work
+
+Validation:
+
+- focused battlefield render tests
+- `npm run build`
+- browser smoke on one active corps with open, mandatory-open, and finished units if browser tools are available
+
+Manual acceptance:
+
+- user confirms the active corps can be read from the colored front strip without relying on the older yellow/red/green frame treatment
+
+Stop condition:
+
+- stop if the front-strip colors obscure facing, selection, charge-target, or conformation overlay readability
+
+Expected result: active-corps unit status is visible directly on the unit front edge with yellow/red/green semantic colors.
+
+Progress 2026-05-28:
+
+- Reused the existing active-corps reducer-owned status split instead of adding a new legality path. The battlefield render now projects `pending`, `mandatory`, or `done` only onto the existing front-facing strip when a unit is in the active corps.
+- Kept the change scoped to the front strip rather than the broader token shadow/frame treatment. Non-active corps units keep the neutral strip.
+- Added focused battlefield render coverage for pending, done, mandatory, and non-active cases using Charge Drill units with the live visual layer.
+
+Closeout 2026-05-28:
+
+- `P7C-00A` is complete for the approved scope. The existing front strip now carries the active-corps status cue: yellow for movement still open, red for unresolved mandatory movement, and green for units finished this round.
+- Files touched: `src/ui/battlefield-unit-visuals.js`, `src/ui/p0-battlefield.js`, `src/styles/p0-battlefield.css`, `src/ui/p0-battlefield.test.js`.
+- Validation run: focused render slice `node --test --test-name-pattern "active corps tokens render pending and done status classes|active corps token shows a red mandatory hook badge|non-active corps tokens keep the neutral front strip" src/ui/p0-battlefield.test.js`, `npm run build`, and browser smoke on built preview at `http://127.0.0.1:4176/` confirming live DOM status markers/colors for pending and done in Charge Drill. Mandatory-open browser verification has no normal UI setup path in this slice, so that part remains covered by the focused render test.
+- Manual acceptance remains: verify in the browser that the colored front strip stays readable with normal battlefield selection/highlight overlays.
+- Next exact card: `P7C-01 - Command Panel Menu-State Spine`.
+
+### [x] P7C-01 - Command Panel Menu-State Spine
 
 Goal: add the minimal menu-state seam needed for nested command presentation.
 
@@ -166,7 +245,22 @@ Stop condition:
 
 Expected result: the command panel can represent nested command levels deterministically.
 
-### [ ] P7C-02 - Unit Move And Charge Branch Grouping
+Progress 2026-05-28:
+
+- Added a minimal reducer-owned `game.commandMenu.activeBranch` seam and kept it serializable.
+- Kept branch ownership narrow: live movement, charge, and commander attach/free-move previews still come from their existing reducer-owned state, while the new seam only records first-level branch intent when no preview-owned branch is already active.
+- Projected the derived menu level and branch through `getAdvancePreviewPresentation(...)` so later P7C cards can switch the visible hierarchy without reopening legality logic.
+
+Closeout 2026-05-28:
+
+- `P7C-01` is complete for the approved scope. The battlefield command panel now has a minimal reducer-owned menu-state spine: `root` when no branch is active, `branch/move` for pending movement entry, `branch/charge` for live charge entry, and `branch/attach` for commander attach entry. Existing preview state still overrides the seam when a live branch is already in progress.
+- Deterministic reset behavior now routes through the existing owning transitions: unit reselection, movement cancel, charge cancel, commander preview cancel/reset/confirm, stay, and test-unit reset all clear the branch back to the root state.
+- Files touched: `src/state/p0-state-initializers.js`, `src/state/p0-state-ui-helpers.js`, `src/state/p0-battle-start.js`, `src/state/p0-state.js`, `src/state/p0-charge-preview-reducers.js`, `src/state/p0-commander-reducers.js`, `src/state/p0-movement-stay-reducers.js`, `src/state/p0-reset-reducers.js`, `src/ui/battlefield-command-panel.js`, `src/ui/battlefield-command-panel.test.js`, `src/state/p0-state.test.js`.
+- Validation run: `node --test src/state/p0-state.test.js src/ui/battlefield-command-panel.test.js` and `npm run build`.
+- Manual acceptance note: this card only lands the reducer-owned seam and panel projection markers; the visible first-level menu grouping still belongs to `P7C-02` and `P7C-03`, so there is no separate user-facing interaction change to approve yet.
+- Next exact card: `P7C-02 - Unit Move And Charge Branch Grouping`.
+
+### [x] P7C-02 - Unit Move And Charge Branch Grouping
 
 Goal: make normal units show `Move`, `Charge`, `Stay` first, then reveal only branch-relevant controls.
 
@@ -202,7 +296,29 @@ Stop condition:
 
 Expected result: normal-unit command entry is cleaner without losing current capability.
 
-### [ ] P7C-03 - Commander Move And Attach Branch Grouping
+Progress 2026-05-28:
+
+- Normal units now open on a first-level `Move` / `Charge` / `Stay` entry surface instead of exposing all movement and charge controls immediately on selection.
+- Entering `Move` reveals only the move-family controls plus the existing confirm/cancel action row; entering `Charge` reveals the charge branch and keeps charge-start plus later charge-specific controls inside that branch.
+- After target selection inside `Charge`, the branch now exposes only the direction-setting options `Wheel` and `Slide`; `Advance` is no longer surfaced there because it does not choose charge direction.
+- The existing reducer-owned `commandMenu.activeBranch` seam from `P7C-01` is reused unchanged; this card only adds branch-entry dispatch in the UI and branch-aware render gating for normal-unit controls.
+
+Agent validation 2026-05-28:
+
+- Focused validation passed: `node --test src/ui/battlefield-command-panel.test.js`.
+- Build passed: `npm run build`.
+- Follow-up UI refinement validation passed: the focused command-panel slice still passes after removing `Advance` from the post-target charge-direction step.
+- Preview server restarted successfully on `http://127.0.0.1:4176/` for follow-up smoke and manual acceptance.
+
+Closeout 2026-05-28:
+
+- `P7C-02` is complete for the approved scope. Normal units now open on `Move` / `Charge` / `Stay`, the move branch isolates `Advance` / `Wheel` / `Slide` plus confirm/cancel, and the charge branch now uses the `Ziel waehlen` targeting cue before surfacing only the post-target direction controls `Wheel` / `Slide`.
+- Files touched: `src/ui/battlefield-command-panel.js`, `src/ui/battlefield-command-panel.test.js`, `src/styles/p0-battlefield.css`, `src/ui/p0-battlefield.js`, `src/ui/p0-app.js`, `src/state/p0-advance.js`, `src/state/p0-slide.js`, `src/state/p0-wheel.js`, `P7C_todo.md`.
+- Validation run: repeated focused `node --test src/ui/battlefield-command-panel.test.js` passes and `npm run build` passes.
+- Manual acceptance: user approved the normal-unit menu flow on 2026-05-28 after the charge-targeting and post-target direction refinements.
+- Next exact card: `P7C-03 - Commander Move And Attach Branch Grouping`.
+
+### [x] P7C-03 - Commander Move And Attach Branch Grouping
 
 Goal: make commanders show `Move`, `Attach`, `Stay` first, then reveal only commander-relevant controls.
 
@@ -238,7 +354,28 @@ Stop condition:
 
 Expected result: commander command flow is grouped cleanly without changing rules.
 
-### [ ] P7C-04 - Validation And Flow Polish
+Progress 2026-05-28:
+
+- Commanders now use the same reducer-owned root/branch seam as normal units, but with commander-specific entry points: `Move`, `Attach`, and `Stay` at the root level.
+- The commander `Move` branch no longer dumps normal-unit movement-family buttons; it keeps the existing free-drag preview flow and only surfaces confirm/cancel once a commander preview is actually active.
+- `Attach` now appears as a first-level commander entry button and continues to hand off to the existing reducer-owned attach targeting flow without adding new legality or cost logic.
+
+Agent validation 2026-05-28:
+
+- Focused commander/command-panel validation passed: `node --test src/ui/battlefield-command-panel.test.js`.
+- Build passed: `npm run build`.
+- Browser smoke passed on fresh preview `http://127.0.0.1:4177/` for commander root `Move` / `Attach` / `Stay`, commander `Move` branch entry/back behavior, attach entry with reducer-owned confirm/cancel visibility, and cancel return to commander root.
+
+Closeout 2026-05-28:
+
+- `P7C-03` is complete for the approved scope. Commanders now open on `Move` / `Attach` / `Stay`, the `Move` branch no longer exposes irrelevant normal-unit movement-family buttons, and `Attach` stays on the existing reducer-owned attach preview/targeting path.
+- Files touched: `src/ui/battlefield-command-panel.js`, `src/ui/battlefield-command-panel.test.js`, `P7C_todo.md`, `roadmap.md`.
+- Validation run: `node --test src/ui/battlefield-command-panel.test.js`, `npm run build`, focused browser smoke on fresh preview `http://127.0.0.1:4177/`.
+- Manual acceptance: user confirmed the commander flow in-session on 2026-05-28, and browser smoke matched the expected root/branch structure.
+- Reviewer / Rules Agent review returned `Approved` for UI-only scope, preview-owned confirm/cancel visibility, and unchanged commander/attach legality ownership.
+- Next exact card: `P7C-04 - Validation And Flow Polish`.
+
+### [x] P7C-04 - Validation And Flow Polish
 
 Goal: validate the nested menu flow and close P7C cleanly before P8.
 
@@ -274,3 +411,24 @@ Stop condition:
 - stop if the nested UI still feels overloaded or hides important active-state feedback
 
 Expected result: battlefield command flow is cleaner and ready for later pre-P8 gameplay phases.
+
+Progress 2026-05-28:
+
+- Re-ran the focused P7C validation slice after the commander branch grouping landed and tightened one finished-unit root-menu gate so completed units now expose reset without reopening root movement actions.
+- Browser smoke on fresh preview `http://127.0.0.1:4177/` covered the nested unit and commander menu flow: unit root `Move` / `Charge` / `Stay`, unit `Move` branch with confirm/cancel, unit `Charge` targeting cue and post-target `Wheel` / `Slide` plus confirm/cancel, `Stay` collapsing back to reset-only, commander root `Move` / `Attach` / `Stay`, commander `Move` branch entry/back behavior, and commander `Attach` preview with reducer-owned confirm/cancel and cancel return to root.
+- Honest residual hook: later movement families such as `1/4 turn`, `1/2 turn`, and group extensions remain intentionally deferred; P7C only prepares the cleaner entry seams for those future source-locked additions.
+
+Agent validation 2026-05-28:
+
+- Focused UI validation passed: `node --test src/ui/battlefield-command-panel.test.js src/ui/p0-battlefield.test.js`.
+- Build passed: `npm run build`.
+- Browser smoke passed on fresh preview `http://127.0.0.1:4177/` for the supported P7C unit and commander menu flows listed above.
+
+Closeout 2026-05-28:
+
+- `P7C-04` is complete for the approved scope. The nested command hierarchy is now validated across focused UI tests, build, and fresh browser smoke, including the finished-unit reset-only root state and the commander root/branch flow.
+- Files touched in the final closeout slice: `src/ui/battlefield-command-panel.js`, `src/ui/p0-battlefield.test.js`, `P7C_todo.md`, `roadmap.md`.
+- Validation run: `node --test src/ui/battlefield-command-panel.test.js src/ui/p0-battlefield.test.js`, `npm run build`, and browser smoke on fresh preview `http://127.0.0.1:4177/`.
+- Manual acceptance: user accepted P7C phase closeout on 2026-05-28 and asked to move on to P8 planning.
+- Phase result: `P7C` is now closed as a UI-only command-flow cleanup phase and no longer blocks pre-P8 planning.
+- Next exact card/board: review and approve `P8_todo.md` before any P8 implementation starts.

@@ -24,7 +24,7 @@ Your job is to protect strict tabletop correctness and disciplined delivery. You
 - Audit hidden information, player-view boundaries, and AI fairness whenever setup, replay, multiplayer, or AI is discussed.
 - Use `roadmap.md` as the repository master plan and phase-specific checklist files such as `P0_todo.md` as the active execution list.
 - Require phase checklist files to be execution boards with per-card goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
-- Prefer GPT-5.5 for drafting the next phase execution board and GPT-5.4 for executing the approved active board card by card.
+- Prefer GPT-5.5 for drafting the next phase execution board, but allow GPT-5.4 to draft or revise it when the user explicitly chooses that route; use GPT-5.4 for executing the approved active board card by card.
 
 ## Source Priority
 

@@ -2,9 +2,22 @@ node_modules/
 dist/
 .vite/
 coverage/
+logs/
+docs/source/new scan/*.pdf
+docs/source/new scan/**/*.png
+docs/source/new scan/rendered/
+docs/source/new scan/rules_color_review/single_pages/
+docs/source/rules-v2-examples/*.png
+page40.png
+page41.png
 Konzepte/
 *.log
 *.local
 .env
 .env.*
 !.env.example
+
+# Local temporary diagnostics and replay smoke artifacts
+temp-*.mjs
+temp_*.py
+public/replay-smoke.json

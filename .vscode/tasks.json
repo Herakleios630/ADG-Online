@@ -1,27 +1,44 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Start LAN VS Code Access",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        "${workspaceFolder}/scripts/start-vscode-lan.ps1",
-        "-WorkspacePath",
-        "${workspaceFolder}"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "clear": false
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
-      }
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start LAN VS Code Access",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/start-vscode-lan.ps1",
+				"-WorkspacePath",
+				"${workspaceFolder}"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated",
+				"clear": false
+			},
+			"runOptions": {
+				"runOn": "folderOpen"
+			}
+		},
+		{
+			"label": "noop",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"noop"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "noop",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"noop"
+			]
+		}
+	]
 }

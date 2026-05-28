@@ -21,8 +21,10 @@ Before starting any phase or large feature, the agent must:
 1. Re-read the relevant parts of `roadmap.md`, `docs/architecture.md`, and any active phase checklist such as `P0_todo.md`.
 2. Re-check the source PDFs, errata, extracted markdown, or open verification notes for the rule area.
 3. Identify assumptions, hard rule constraints, edge cases, and test cases.
-4. Ask for or confirm user approval to implement that phase.
-5. Create or switch to a suitable feature/bug branch if implementation is approved.
+4. Identify logging expectations: relevant rule areas, minimum log level, important decisions/candidates/diagnostics, and how browser live tests can enable the logs.
+5. Identify data-source expectations: whether unit behavior comes from shared rule/profile data, current match state, or a labeled scenario/test override.
+6. Ask for or confirm user approval to implement that phase.
+7. Create or switch to a suitable feature/bug branch if implementation is approved.
 
 ## Planning Document Workflow
 
@@ -32,10 +34,33 @@ Use a two-layer planning structure.
 - A file such as `P0_todo.md` is the active phase execution checklist.
 - The roadmap tracks phase-level status and scope.
 - The active phase checklist tracks concrete implementation tasks with `[ ]` and `[x]` markers.
-- When the next phase is being prepared, GPT-5.5 should draft the next checklist file such as `P1_todo.md` or `P2_todo.md` as the execution board for user review.
+- When the next phase is being prepared, GPT-5.5 is preferred to draft the next checklist file such as `P1_todo.md` or `P2_todo.md` as the execution board for user review, but GPT-5.4 may also draft or revise it when the user explicitly chooses that route.
 - After the user approves that phase board, GPT-5.4 should execute the active checklist one card at a time.
 - When a phase becomes active, create or update its dedicated checklist instead of overloading the roadmap with operational detail.
 - When work advances, update both the roadmap phase status and the active phase checklist.
+
+## Agent Operating Model
+
+AdG Online uses the small role model in `docs/agents/index.md` to keep planning, implementation, and rule review separate without creating a heavy agent network.
+
+Core roles:
+
+- Lead / Phase Steward: preferred model GPT-5.5, but GPT-5.4 may also fill the role when the user explicitly chooses it. Owns large planning, roadmap and phase-board changes, scope decisions, handoffs, and source-risk triage.
+- Coding Agent: preferred model GPT-5.4. Implements exactly one approved execution-board card at a time and updates the active board after validation.
+- Reviewer / Rules Agent: preferred model GPT-5.4 for normal review, GPT-5.5 for difficult source-lock or errata reconstruction. Independently reviews rule-sensitive changes and returns `Approved`, `Needs Changes`, or `Blocked`.
+
+Optional Data / Validation mode is invoked only for data-heavy work such as OCR source corpus, army lists, unit-profile tables, spreadsheet mapping, schema validation, or P11 army-builder tasks. It is not a standing fourth role for ordinary implementation.
+
+The user switches model and agent manually. The current agent must make any required switch explicit at the end of its task, using a compact handoff with next role, suggested model, exact task, expected output, files, and blockers. The workflow should avoid solving multiple unrelated tickets just to move between roles.
+
+Default routing:
+
+- New phase, roadmap change, large board, or source-risk decision: Lead / Phase Steward, preferably GPT-5.5 but GPT-5.4 is allowed when the user explicitly chooses it.
+- Approved card implementation: Coding Agent with GPT-5.4.
+- Rule-sensitive card review before closeout: Reviewer / Rules Agent with GPT-5.4 unless the source problem needs GPT-5.5.
+- Data-heavy consistency pass: optional Data / Validation mode, routed by Lead.
+
+Do not create a competing root `AGENTS.md` while `.github/copilot-instructions.md` is the active project-wide instruction file. Role details live under `docs/agents/` and are linked from governance and active boards.
 
 ## Phase TODO Execution Board Standard
 
@@ -62,9 +87,13 @@ Each implementation card must include:
 - implementation steps;
 - non-goals;
 - validation;
+- logging/instrumentation expectations, or an explicit non-goal for trivial non-rule work;
+- role routing: expected implementing role/model, required review role/model, and any Lead or optional Data / Validation gate;
 - manual acceptance;
 - stop condition;
 - expected result.
+
+The logging/instrumentation item must name, at minimum, the expected rule areas, minimum level, key events or decisions that should be visible, the intended filter entry point for browser/live debugging, and the planned browser/manual debug check when UI or live interaction exists.
 
 Before editing implementation files for a card, the agent gives the user a short PM block brief with the exact goal, planned files, new modules, shell/UI versus state/engine scope split, validation commands, manual acceptance steps, and non-goals.
 
@@ -73,10 +102,13 @@ If a card includes manual acceptance, the agent must not imply that the user-fac
 Responsibility split:
 
 - GPT-5.5 is the preferred planner for drafting the next phase execution board.
+- GPT-5.4 may also draft or revise phase boards when the user explicitly chooses it, but the same execution-board standard and source-check discipline still apply.
 - GPT-5.4 is the preferred executor for implementing the currently approved active phase board.
-- If GPT-5.5 is not available, another agent may draft the board, but it must still follow this execution-board standard.
+- If GPT-5.5 is not available, or the user explicitly keeps GPT-5.4, another agent may draft the board, but it must still follow this execution-board standard.
 
 A card is complete only when the work is implemented, focused validation has run, the checklist is updated, and the final handoff says what changed, which files were touched, what the agent validated, what the user should test manually, and what remains open. User-side manual acceptance stays pending until the user reports the result.
+
+For rule-sensitive cards, the Coding Agent closeout should normally hand off to Reviewer / Rules Agent before the Lead treats the card as accepted. If review is intentionally skipped for a trivial non-rule card, the active board must say so.
 
 ## Git Workflow
 
@@ -130,6 +162,20 @@ Validation layers should grow in this order:
 
 Every later phase should state which of these layers it actually covers, instead of implying full validation by default.
 
+## Rulebook Example Workflow
+
+Worked examples from accepted scans are first-class planning and validation assets.
+
+The product goal is not just regression coverage. AdG Online should eventually include a tutorial and example database where players can load rulebook-derived situations, learn why the rules behave that way, and prepare for tournament play.
+
+- When a rule-sensitive phase or support board is planned, identify the relevant `Rules_v2` example IDs and capture them in the roadmap or active board.
+- For future implementations, if the rule area has a relevant book example, the active board must classify that example as an in-game scenario, tutorial/drill entry, golden validation fixture, deferred reference case, or out-of-scope optional/variant example.
+- Prefer recreating readable rulebook examples as drill scenarios, stable smoke lanes, tutorial entries, or golden validation fixtures instead of relying only on synthetic layouts when the source example is strong enough.
+- If an example cannot yet be reproduced because a prerequisite system is missing, such as terrain, multi-unit conformation, support-network solving, or hidden-information flow, keep it on the board as a named deferred reference case with its exact blocker.
+- Synthetic fixtures such as Charge Drill remain useful, but they do not replace source-backed example drills when the rulebook already supplies a better canonical case.
+- Example-driven drills must stay honest: do not silently simplify a book example into a different legal case without recording the difference in the board and validation notes.
+- Examples missed by earlier phases before this workflow was adopted should be collected in `RULEBOOK_EXAMPLES_todo.md` and scheduled for a post-P16 catch-up pass, especially movement, ZOC, charge, evade, group movement, group conformation, terrain, setup, and other broad systems where the first beta track intentionally stayed narrow.
+
 ## Browser Verification
 
 For UI phases, the agent should be able to:
@@ -145,6 +191,37 @@ For visual battlefield changes, browser verification is not optional when the se
 If browser tooling is unavailable in the current session, the agent must say so explicitly in the handoff, rely on the strongest available render tests and screenshots, and avoid implying that direct browser validation already happened.
 
 Browser checks do not replace engine tests. They prove the user-facing flow can exercise the engine safely.
+
+## Logging And Instrumentation Workflow
+
+Logging is a first-class debugging and validation tool for AdG Online.
+
+- Every complex rule feature must be loggable from its first implementation slice.
+- Planning cards must state which logging areas and levels are expected, or explicitly say why logging is not needed for that card.
+- Use area filters such as `movement`, `zoc`, `charge`, `reaction`, `evade`, `contact`, `conformation`, `shooting`, `melee`, `rout`, `setup`, `visibility`, `army-builder`, `replay`, `ui`, and `perf`.
+- Use detail levels such as `error`, `warn`, `info`, `debug`, and `trace` so broad browser runs can stay small while hard bugs can expose candidate-level evidence.
+- Logs must be structured JSON/JSONL where practical, not prose-only console output.
+- Logs must include enough decision evidence to distinguish engine choice, reducer transition, UI stale state, click/hitbox issue, missing data, and source-open rule boundary.
+- Logs must be bounded and filterable; unbounded trace spam is a performance bug.
+- Logging is observational. It must not decide legality, mutate game state, or replace reducer/engine diagnostics.
+- Future multiplayer/replay work must respect hidden-information boundaries. Full-state dev logs are only for explicitly enabled local/debug contexts.
+
+See `LOGGING_todo.md` for the current support board and taxonomy.
+
+Missing logging expectations for a complex rule or reducer/UI coordination feature should be treated as a planning/review finding, not as optional polish.
+
+## Fixture And Capability Data Workflow
+
+Fixtures should test real rule behavior, not private shortcuts.
+
+- Unit instances store current match state and selected ability IDs. Reusable facts belong in unit definitions, unit profiles, rule tables, or army-list data.
+- Charge Drill and other artificial scenarios may place units in artificial positions, but normal unit behavior should come from the same profile/capability path as real units.
+- Direct per-unit fixture overrides are allowed only for labeled scenario controls or fault-injection tests.
+- New feature cards must not add `if unit.id === ...` legality behavior unless the card is explicitly a temporary diagnostic and records the follow-up removal path.
+- If a needed capability such as `can evade`, `light-troop end half-turn`, `cavalry bow`, or `pike` behavior does not exist yet, prefer adding the minimal shared capability/profile support before adding hardcoded fixture behavior.
+- Missing profile/capability data should produce explicit diagnostics or `needs-source-check`, not silent guesses.
+
+See `UNIT_CAPABILITIES_todo.md` and `CHARGE_DRILL_2_todo.md` for the current profile-first fixture plan.
 
 ## Memory Protocol
 

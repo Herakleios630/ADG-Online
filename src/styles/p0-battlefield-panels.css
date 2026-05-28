@@ -7,7 +7,6 @@
   border: 1px solid rgba(255, 248, 231, 0.34);
   background: rgba(28, 35, 20, 0.72);
   color: #f8efd8;
-  backdrop-filter: blur(3px);
 }
 
 .battlefield-minimap {
@@ -60,7 +59,6 @@
 
 .battlefield-back-button {
   background: rgba(247, 241, 224, 0.9);
-  backdrop-filter: blur(2px);
 }
 
 .battlefield-phase-tracker-card {

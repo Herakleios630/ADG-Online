@@ -185,3 +185,90 @@ test('charge wheel button arms charge wheel with the left pivot by default', asy
     globalThis.window = previousWindow;
   }
 });
+
+test('charge-start wheel drag keeps pointer offset instead of snapping to max angle', async () => {
+  const previousWindow = globalThis.window;
+  const listeners = new Map();
+
+  globalThis.window = {
+    addEventListener(type, callback) {
+      listeners.set(type, callback);
+    },
+  };
+
+  const { tryStartBattlefieldWheelDrag, stopBattlefieldWheelDragSession } = await import('./p0-wheel-controls.js?charge-start-offset-regression');
+
+  const dispatches = [];
+  const battlefieldSurface = {
+    getBoundingClientRect() {
+      return { left: 0, top: 0, width: 100, height: 100 };
+    },
+  };
+  const selectedUnit = {
+    id: 'unit-9',
+    xUd: 50,
+    yUd: 50,
+    widthUd: 1,
+    depthUd: 0.75,
+    rotationRadians: 0,
+  };
+  const state = {
+    game: {
+      wheelModeActive: false,
+      selectedUnitId: selectedUnit.id,
+      viewport: { zoom: 1 },
+      chargePreview: {
+        status: 'manoeuvre-selecting',
+        intent: {
+          unitId: selectedUnit.id,
+          startManoeuvre: {
+            type: 'wheel',
+            pivotSide: MOVEMENT_PIVOT_SIDES.LEFT,
+            wheelAngleRadians: 0,
+          },
+        },
+      },
+      movement: { preview: { status: 'idle', segments: [] } },
+    },
+  };
+
+  try {
+    const started = tryStartBattlefieldWheelDrag({
+      event: {
+        button: 0,
+        clientX: 50.8,
+        clientY: 49.55,
+        preventDefault() {},
+      },
+      battlefieldSurface,
+      state,
+      dispatch(action) {
+        dispatches.push(action);
+      },
+      battlefieldProfile: { widthUd: 100, heightUd: 100 },
+      unitId: selectedUnit.id,
+      selectedUnit,
+      cornerSide: MOVEMENT_PIVOT_SIDES.RIGHT,
+      onSuppressNextSurfaceClick() {},
+    });
+
+    assert.equal(started, true);
+
+    const mousemove = listeners.get('mousemove');
+    assert.equal(typeof mousemove, 'function');
+
+    mousemove({
+      clientX: 50.55,
+      clientY: 48.95,
+    });
+
+    const preview = dispatches.find((action) => action.type === ACTION_TYPES.PREVIEW_CHARGE_START_MANOEUVRE);
+    assert.ok(preview);
+    assert.equal(preview.pivotSide, MOVEMENT_PIVOT_SIDES.LEFT);
+    assert.ok(preview.angleRadians > 0);
+    assert.ok(preview.angleRadians < Math.PI / 2);
+  } finally {
+    stopBattlefieldWheelDragSession();
+    globalThis.window = previousWindow;
+  }
+});
