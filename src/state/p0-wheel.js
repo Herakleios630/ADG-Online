@@ -23,6 +23,8 @@ import {
   spendCommandPointsForCurrentOrder,
   withMovementValidationSnapshot,
 } from './p0-movement.js';
+import { applyUnitShootingSequenceFlags } from './p0-shooting.js';
+import { setActiveCommandMenuBranch } from './p0-state-ui-helpers.js';
 
 const MAX_WHEEL_ANGLE_RADIANS = Math.PI / 2;
 
@@ -222,13 +224,15 @@ export function reduceConfirmWheel(gameState, selectedUnit) {
   const paidGameState = spentCommandPoints.nextGameState;
 
   return {
-    ...paidGameState,
+    ...setActiveCommandMenuBranch(paidGameState, null),
     ...createInitialWheelState(),
     movement: createInitialMovementState(),
     units: paidGameState.units.map((unit) =>
       unit.id === selectedUnit.id
         ? {
-            ...applyWheelPreview(unit, paidGameState.movement.preview),
+            ...applyUnitShootingSequenceFlags(applyWheelPreview(unit, paidGameState.movement.preview), {
+              incrementMoveCount: true,
+            }),
             slideUsedThisMovementPhase: unit.slideUsedThisMovementPhase
               || paidGameState.movement.preview.segments.some((segment) => segment.commandId === MOVEMENT_COMMAND_IDS.SLIDE),
             stayedThisMovementPhase: false,

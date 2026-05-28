@@ -10,6 +10,7 @@ import { createChargeDrillScenario } from '../../data/charge-drill-scenarios.js'
 import {
   CHARGE_PATH_FAMILY_IDS,
   CHARGE_TARGET_CANDIDATE_STATUSES,
+  CHARGE_TARGET_PATH_FEASIBILITY_STATUSES,
   CHARGE_TARGET_SOURCE_STATUSES,
   getChargeTargetCandidateByUnitId,
   getChargeTargetCandidates,
@@ -74,6 +75,36 @@ test('charge declaration can reevaluate target reachability from a current charg
   });
 
   assert.equal(getChargeTargetCandidateByUnitId(candidates, 'enemy-1')?.status, CHARGE_TARGET_CANDIDATE_STATUSES.ELIGIBLE);
+});
+
+test('charge declaration can defer expensive path feasibility for broad target highlighting', () => {
+  const candidates = getChargeTargetCandidates({
+    units: UNITS,
+    chargingUnitId: 'charger',
+    battlefieldProfile: BATTLEFIELD_PROFILE,
+    deferPathFeasibility: true,
+  });
+
+  const nearEnemy = getChargeTargetCandidateByUnitId(candidates, 'enemy-1');
+  const farEnemy = getChargeTargetCandidateByUnitId(candidates, 'enemy-2');
+
+  assert.equal(nearEnemy?.status, CHARGE_TARGET_CANDIDATE_STATUSES.ELIGIBLE);
+  assert.equal(nearEnemy?.pathFeasibilityStatus, CHARGE_TARGET_PATH_FEASIBILITY_STATUSES.DEFERRED);
+  assert.match(nearEnemy?.reason ?? '', /Grundreichweite|nach Zielauswahl/);
+  assert.equal(farEnemy?.status, CHARGE_TARGET_CANDIDATE_STATUSES.BLOCKED);
+  assert.equal(farEnemy?.pathFeasibilityStatus, CHARGE_TARGET_PATH_FEASIBILITY_STATUSES.EVALUATED);
+});
+
+test('charge declaration can evaluate only a requested target id', () => {
+  const candidates = getChargeTargetCandidates({
+    units: UNITS,
+    chargingUnitId: 'charger',
+    battlefieldProfile: BATTLEFIELD_PROFILE,
+    targetUnitIds: ['enemy-1'],
+  });
+
+  assert.deepEqual(candidates.map((candidate) => candidate.unitId), ['enemy-1']);
+  assert.equal(candidates[0]?.status, CHARGE_TARGET_CANDIDATE_STATUSES.ELIGIBLE);
 });
 
 test('charge declaration blocks a previously legal target when the current charge-start pose turns the advance lane away', () => {

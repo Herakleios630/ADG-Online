@@ -1,5 +1,12 @@
 import { COMMAND_PLAYER_IDS } from '../state/p0-command-context.js';
 import {
+  getChargeReactionCapabilityForUnit,
+  getDefaultFootprintForProfile,
+  getUnitProfile,
+  UNIT_PROFILE_IDS,
+  VISUAL_PROFILE_IDS,
+} from './unit-profiles.js';
+import {
   SETUP_OBJECT_FAMILIES,
   SETUP_OBJECT_TYPE_IDS,
   createSetupObjectPlaceholder,
@@ -13,7 +20,7 @@ import {
 
 export const CHARGE_DRILL_SCENARIO_ID = 'charge-drill';
 
-function createChargeReactionCapability(overrides = {}) {
+function cloneCapability(overrides = {}) {
   return {
     family: overrides.family ?? 'medium-infantry',
     hasImpact: Boolean(overrides.hasImpact),
@@ -35,46 +42,35 @@ function createChargeReactionCapability(overrides = {}) {
   };
 }
 
-function getDefaultChargeReactionCapability(overrides) {
-  if (overrides.chargeReactionCapability) {
-    return createChargeReactionCapability(overrides.chargeReactionCapability);
+function getDefaultProfileId(overrides = {}) {
+  if (typeof overrides.profileId === 'string' && overrides.profileId.trim().length > 0) {
+    return overrides.profileId;
   }
 
   if (overrides.troopType === 'cavalry') {
-    return createChargeReactionCapability({
-      family: 'cavalry',
-      hasImpact: false,
-      hasImpetuous: false,
-      chargeWeight: overrides.owner === COMMAND_PLAYER_IDS.PLAYER_ONE ? 'heavy' : null,
-    });
-  }
-
-  if (overrides.troopType === 'general') {
-    return createChargeReactionCapability({
-      family: 'medium-infantry',
-      chargeWeight: 'heavy',
-    });
+    return UNIT_PROFILE_IDS.CAVALRY;
   }
 
   if (overrides.troopType === 'medium-infantry') {
-    return createChargeReactionCapability({
-      family: 'medium-infantry',
-    });
+    return UNIT_PROFILE_IDS.MEDIUM_INFANTRY;
   }
 
   return null;
 }
 
-function createChargeDrillUnit(overrides) {
-  return {
+export function createChargeDrillUnit(overrides) {
+  const profileId = getDefaultProfileId(overrides);
+  const defaultFootprint = profileId ? getDefaultFootprintForProfile(profileId) : null;
+  const visualProfileId = overrides.visualProfileId ?? (profileId ? getUnitProfile(profileId).visualProfileId : null);
+  const unit = {
     id: overrides.id,
     owner: overrides.owner,
     corpsId: overrides.corpsId,
     xUd: overrides.xUd,
     yUd: overrides.yUd,
     facing: overrides.facing,
-    widthUd: overrides.widthUd,
-    depthUd: overrides.depthUd,
+    widthUd: overrides.widthUd ?? defaultFootprint?.widthUd ?? null,
+    depthUd: overrides.depthUd ?? defaultFootprint?.depthUd ?? null,
     rotationRadians: overrides.rotationRadians,
     advanceUsedUd: 0,
     slideUsedThisMovementPhase: false,
@@ -82,7 +78,9 @@ function createChargeDrillUnit(overrides) {
     commanderMovePhaseStartXUd: null,
     commanderMovePhaseStartYUd: null,
     troopType: overrides.troopType,
-    baseShape: overrides.baseShape,
+    profileId,
+    visualProfileId,
+    baseShape: overrides.baseShape ?? defaultFootprint?.baseShape ?? null,
     fixtureTag: CHARGE_DRILL_SCENARIO_ID,
     isCommander: Boolean(overrides.isCommander),
     commanderQuality: overrides.commanderQuality ?? null,
@@ -96,9 +94,29 @@ function createChargeDrillUnit(overrides) {
     attachOriginAdvanceUsedUd: null,
     scenarioRole: overrides.scenarioRole,
     scenarioLabel: overrides.scenarioLabel,
+    scenarioOverrideReason: overrides.scenarioOverrideReason ?? null,
     chargeReactionProfile: overrides.chargeReactionProfile ?? null,
-    chargeReactionCapability: getDefaultChargeReactionCapability(overrides),
+    chargeReactionCapability: null,
   };
+
+  if (overrides.chargeReactionCapability) {
+    unit.chargeReactionCapability = cloneCapability(overrides.chargeReactionCapability);
+    return unit;
+  }
+
+  if (unit.profileId) {
+    unit.chargeReactionCapability = getChargeReactionCapabilityForUnit(unit);
+    return unit;
+  }
+
+  if (overrides.troopType === 'general') {
+    unit.chargeReactionCapability = cloneCapability({
+      family: 'medium-infantry',
+      chargeWeight: 'heavy',
+    });
+  }
+
+  return unit;
 }
 
 export function createChargeDrillScenario() {
@@ -252,6 +270,7 @@ export function createChargeDrillScenario() {
       depthUd: 1,
       rotationRadians: 0,
       troopType: 'general',
+      visualProfileId: VISUAL_PROFILE_IDS.COMMANDER,
       baseShape: 'circle',
       isCommander: true,
       commanderQuality: 'brilliant',
@@ -288,6 +307,36 @@ export function createChargeDrillScenario() {
       baseShape: 'rectangle',
       scenarioRole: 'double-blocker-friendly',
       scenarioLabel: 'P1 First Double Blocker',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-table-exit-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-1',
+      xUd: 27.2,
+      yUd: 5.4,
+      facing: 'north',
+      widthUd: 1,
+      depthUd: 0.75,
+      rotationRadians: 0,
+      troopType: 'cavalry',
+      baseShape: 'rectangle',
+      scenarioRole: 'table-exit-charger',
+      scenarioLabel: 'P1 Table Exit Charger',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-light-troop-hook-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-1',
+      xUd: 28.6,
+      yUd: 12.4,
+      facing: 'north',
+      widthUd: 1,
+      depthUd: 0.75,
+      rotationRadians: 0,
+      troopType: 'cavalry',
+      baseShape: 'rectangle',
+      scenarioRole: 'light-troop-hook-charger',
+      scenarioLabel: 'P1 Light Troop Hook Charger',
     }),
     createChargeDrillUnit({
       id: 'charge-drill-p2-front-target',
@@ -408,6 +457,42 @@ export function createChargeDrillScenario() {
       baseShape: 'rectangle',
       scenarioRole: 'rear-target',
       scenarioLabel: 'P2 Rear Target',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-table-exit-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-3',
+      xUd: 27.2,
+      yUd: 1.4,
+      facing: 'south',
+      widthUd: 1,
+      depthUd: 0.75,
+      rotationRadians: Math.PI,
+      troopType: 'cavalry',
+      baseShape: 'rectangle',
+      scenarioRole: 'table-exit-target',
+      scenarioLabel: 'P2 Table Exit Target',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-light-troop-hook-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-3',
+      xUd: 28.6,
+      yUd: 8.4,
+      facing: 'south',
+      widthUd: 1,
+      depthUd: 0.5,
+      rotationRadians: Math.PI,
+      troopType: 'medium-infantry',
+      profileId: UNIT_PROFILE_IDS.LIGHT_INFANTRY,
+      baseShape: 'rectangle',
+      scenarioRole: 'light-troop-hook-target',
+      scenarioLabel: 'P2 Light Troop Half-Turn Target',
+      scenarioOverrideReason: 'scenario-light-troop-hook-target-must-force-evade-pause-and-half-turn-lane',
+      chargeReactionProfile: 'may-evade',
+      chargeReactionCapability: {
+        family: 'light-infantry',
+      },
     }),
     createChargeDrillUnit({
       id: 'charge-drill-p2-zoc-sentry',
@@ -544,6 +629,110 @@ export function createChargeDrillScenario() {
       scenarioRole: 'evade-blocker-target',
       scenarioLabel: 'P2 Evade Blocked By Blockers Target',
     }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-cavalry-bow-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-2',
+      xUd: 3.8,
+      yUd: 3.4,
+      facing: 'south',
+      rotationRadians: Math.PI,
+      troopType: 'cavalry',
+      profileId: UNIT_PROFILE_IDS.CAVALRY_BOW,
+      scenarioRole: 'cavalry-bow-charger',
+      scenarioLabel: 'P1 Cavalry Bow Charger',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-cavalry-bow-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-2',
+      xUd: 3.8,
+      yUd: 6.8,
+      facing: 'north',
+      rotationRadians: 0,
+      troopType: 'cavalry',
+      profileId: UNIT_PROFILE_IDS.CAVALRY_BOW,
+      scenarioRole: 'cavalry-bow-target',
+      scenarioLabel: 'P2 Cavalry Bow Target',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-heavy-infantry-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-2',
+      xUd: 9.8,
+      yUd: 3.4,
+      facing: 'south',
+      rotationRadians: Math.PI,
+      troopType: 'heavy-infantry',
+      profileId: UNIT_PROFILE_IDS.HEAVY_INFANTRY,
+      scenarioRole: 'heavy-infantry-charger',
+      scenarioLabel: 'P1 Heavy Infantry Charger',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-heavy-infantry-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-2',
+      xUd: 9.8,
+      yUd: 6.8,
+      facing: 'north',
+      rotationRadians: 0,
+      troopType: 'heavy-infantry',
+      profileId: UNIT_PROFILE_IDS.HEAVY_INFANTRY,
+      scenarioRole: 'heavy-infantry-target',
+      scenarioLabel: 'P2 Heavy Infantry Target',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-pike-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-2',
+      xUd: 15.8,
+      yUd: 3.4,
+      facing: 'south',
+      rotationRadians: Math.PI,
+      troopType: 'pike',
+      profileId: UNIT_PROFILE_IDS.PIKE,
+      scenarioRole: 'pike-charger',
+      scenarioLabel: 'P1 Pike Charger',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-pike-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-2',
+      xUd: 15.8,
+      yUd: 6.8,
+      facing: 'north',
+      rotationRadians: 0,
+      troopType: 'pike',
+      profileId: UNIT_PROFILE_IDS.PIKE,
+      scenarioRole: 'pike-target',
+      scenarioLabel: 'P2 Pike Target',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p1-elephant-charger',
+      owner: playerOne,
+      corpsId: 'p1-corps-2',
+      xUd: 21,
+      yUd: 3.4,
+      facing: 'south',
+      rotationRadians: Math.PI,
+      troopType: 'elephant',
+      profileId: UNIT_PROFILE_IDS.ELEPHANT,
+      scenarioRole: 'elephant-charger',
+      scenarioLabel: 'P1 Elephant Charger',
+    }),
+    createChargeDrillUnit({
+      id: 'charge-drill-p2-elephant-target',
+      owner: playerTwo,
+      corpsId: 'p2-corps-2',
+      xUd: 21,
+      yUd: 6.8,
+      facing: 'north',
+      rotationRadians: 0,
+      troopType: 'elephant',
+      profileId: UNIT_PROFILE_IDS.ELEPHANT,
+      scenarioRole: 'elephant-target',
+      scenarioLabel: 'P2 Elephant Target',
+    }),
   ];
 
   const terrainPlaceholders = [
@@ -578,7 +767,7 @@ export function createChargeDrillScenario() {
   return {
     id: CHARGE_DRILL_SCENARIO_ID,
     label: 'Charge Drill',
-    description: 'Front, flank, rear, blocker, double-blocked, dedicated ZoC lane, pure ZoC blocked lane, dedicated evade-blocked-by-ZoC lane, dedicated evade-blocked-by-simple-blockers lane, out-of-range, and path-blocked charge cases.',
+    description: 'Front, flank, rear, blocker, double-blocked, dedicated ZoC lane, pure ZoC blocked lane, dedicated evade-blocked-by-ZoC lane, dedicated evade-blocked-by-simple-blockers lane, explicit table-exit and light-troop end-half-turn lanes, plus representative cavalry bow, heavy infantry, pike, and elephant family anchors for future charge, evade, and conformation smoke tests.',
     units,
     terrainPlaceholders,
     setupObjects,

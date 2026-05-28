@@ -14,9 +14,14 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [x] P6 - Corps + Command System
 - [x] P7 - Charge Declaration + Target Reaction Gate
 - [x] P7A - Evade + Charge Movement Branches
-- [ ] P7A2 - Evade Move Completion Gate (in progress; core commit gate, defender handoff popup, first direct-blocker clearance slice, initial-branch-only evade choice, and distance-maximizing solver ranking validated)
-- [ ] P7B - Conformation + Shifting Foundation
-- [ ] P7C - Command Menu Hierarchy + Flow Cleanup
+- [x] P7A2 - Evade Move Completion Gate (accepted on 2026-05-26; core commit gate, defender handoff popup, direct-blocker and wheel-capable evade resolution, committed follow-through, light-troop end-half-turn hook support, source-open table-edge surfacing, unit-17/18 regression repair, light-troop drill footprint/visual reconciliation, full test/build validation, refreshed browser/manual acceptance, module-size refactor gate closure, cancel-after-committed-evade rollback, and final source-lock closeout are complete for the supported subset)
+- [x] LOG0 - Selective Rule Logging + Browser Diagnostics (core support board completed on 2026-05-25; LOG-07 external-browser trace approved on 2026-05-27; LOG-08 completed on 2026-05-27 with safe lower-level reducer/solver memoization only and a measured rescope point at the direction-wheel evade solver; LOG-09 completed on 2026-05-27 by deferring the meaningful wheel-versus-current-orientation choice ahead of heavy solving, restoring prompt exact-path handoff for `unit 3 -> unit 20`, evade, roll `6`; LOG-10A through LOG-10C completed on 2026-05-27 for canonical replay contract, supported debug replay execution, and first-drift replay diagnostics; LOG-11 completed on 2026-05-27 as a bounded selected-branch evidence slice, confirming that the remaining bad `direction wheel` path is owned primarily by post-generation direction-wheel branch ranking / budget allocation rather than missing candidate generation; LOG-12 completed as evidence/temporary retention experiment but superseded on 2026-05-27 by LOG-13; LOG-13 set the conflict-based, pattern-driven evade path-quality direction; LOG-14 and LOG-14B landed the hard-conflict and corridor-aware natural-bypass slices; LOG-15 landed sampled wheel-arc safety and current-scope blocker threading; remaining terrain-blocker completeness is explicitly deferred until after P16 by user direction)
+- [x] UCD0 - Unit Capability Data Spine + Fixture De-Hardcoding (current support scope complete: UCD-00 through UCD-04 plus UCD-06; broader taxonomy/source-lock expansion and canonical unit-definition/table follow-up remain planned in `UNIT_CAPABILITIES_todo.md`)
+- [x] CD2 - Charge Drill Troop-Family Matrix + Readable Bases (CD2-00 through CD2-05 and BVR-00 through BVR-02 accepted for current support scope; optional atlas/visual follow-up remains deferred and should not block P7B)
+- [ ] RBE - Rulebook Example Scenario/Tutorial Library (planned long-term support program in `RULEBOOK_EXAMPLES_todo.md`)
+- [ ] CFD - Conform Drill Source-Backed Example Scenarios (planned first child board in `CONFORM_DRILL_todo.md`)
+- [ ] P7B - Conformation + Shifting Foundation (P7B-00 through P7B-08 are implemented and validated for the supported subset as of 2026-05-28; reviewer/lead closeout and user approval remain required before P8)
+- [x] P7C - Command Menu Hierarchy + Flow Cleanup (accepted on 2026-05-28 after focused UI validation, build, browser smoke, and user closeout approval)
 - [ ] P8 - Shooting System
 - [ ] P9 - Melee Combat System
 - [ ] P10 - Rout, Pursuit, Army Cohesion + Victory
@@ -33,12 +38,13 @@ The current P0-P16 roadmap should be treated as the first core playable beta / r
 
 By P16, the target is a coherent local game loop for the implemented rules subset: setup, core command/movement, ZOC, charge declaration, basic evade, basic conformation, shooting, melee, rout/victory, army creation, replay, multiplayer preparation, visual assets, and QA packaging. That milestone can be a beta candidate only if the release notes clearly identify implemented, verified, placeholder, and open rule areas.
 
-After P16, plan a dedicated rules-completeness pass for the remaining details that are too large or source-sensitive for the first beta track. Likely post-P16 work includes full group movement, multiple-move and tactical-distance completion, slide straight-advance qualification, strategist-grade command integration, group charges, group conformation, advanced evade chains, extension/contraction, difficult maneuvers, special troop exceptions, deeper terrain effects, full deployment legality, hidden reveal edge cases, advanced multiplayer privacy, AI fairness, and tournament polish.
+After P16, plan a dedicated rules-completeness pass for the remaining details that are too large or source-sensitive for the first beta track. Likely post-P16 work includes full group movement, multiple-move and tactical-distance completion, slide straight-advance qualification, strategist-grade command integration, group charges, group conformation, advanced evade chains, extension/contraction, difficult maneuvers, special troop exceptions, deeper terrain effects, full deployment legality, hidden reveal edge cases, advanced multiplayer privacy, AI fairness, and tournament polish. The post-P16 work must also include a catch-up pass for rulebook examples that earlier phases missed before the example-scenario policy was adopted.
 
-Post-P16 should be treated as three deliberate passes rather than one vague cleanup bucket:
+Post-P16 should be treated as four deliberate passes rather than one vague cleanup bucket:
 
 - Rules-completeness pass: close open verification, add source-backed edge cases, group behavior, terrain depth, and special exceptions.
 - Engine hardening/refactor pass: extract solvers that proved themselves during P7-P10, stabilize action/replay boundaries, and reduce prototype coupling.
+- Rulebook example and tutorial-library pass: convert missed accepted-scan examples into in-game scenarios, tutorial entries, golden fixtures, or explicit deferred reference cases, with group movement and group conformation as high-priority catch-up areas.
 - UX and tournament-polish pass: improve visuals, review tools, training explanations, accessibility, and user-facing flow without changing legality.
 
 Do not describe the P16 output as tournament-complete unless the rule coverage matrix proves those details are implemented, source-verified, tested, and accepted.
@@ -56,7 +62,10 @@ Before every phase:
 - treat `standard-200` as the default target unless the user explicitly approves a different format.
 - keep `roadmap.md` as the durable master plan and one active phase checklist such as `P0_todo.md` as the concrete execution list.
 - write every active phase checklist as an execution board with per-card goal, planned files, implementation steps, non-goals, validation, manual acceptance, stop condition, and expected result.
-- when preparing the next phase, GPT-5.5 should draft the next execution-board checklist such as `P1_todo.md`, `P2_todo.md`, or later phase boards; GPT-5.4 should then execute the approved active checklist card by card.
+- when preparing the next phase, GPT-5.5 is preferred to draft the next execution-board checklist such as `P1_todo.md`, `P2_todo.md`, or later phase boards, but GPT-5.4 may also draft or revise it when the user explicitly chooses that route; GPT-5.4 should then execute the approved active checklist card by card.
+- use the role model in `docs/agents/index.md`: Lead / Phase Steward, preferably GPT-5.5 but allowed on GPT-5.4 when the user explicitly chooses it, for large planning and roadmap/board changes, Coding Agent with GPT-5.4 for approved card implementation, and Reviewer / Rules Agent for independent rule review of rule-sensitive slices.
+- for every rule-sensitive phase board, check `docs/source/rules-v2-examples/index.md` and `RULEBOOK_EXAMPLES_todo.md`; relevant examples must become scenario/tutorial/golden-fixture work or an explicitly deferred reference with a blocker.
+- at the end of a task that needs role/model switching, state the next role, suggested model, exact task, and expected output clearly so the user can switch manually without extra planning chatter.
 - from P7 onward, complex confirmed actions and reducer pause decisions must preserve replay-ready serializable context even if the full replay/undo viewer remains scheduled for P13.
 - UI previews must remain read-only presentations of engine/reducer output; solver decisions for contact, reaction, conformation, shifting, combat, and legality do not belong in rendering code.
 
@@ -77,12 +86,44 @@ Current state:
 - `docs/source/new scan/Rules_Color_300DPI.pdf` exists, has `86` pages, has a readable 300-DPI image on every page, and is good enough for the Rules-v2 extraction pass.
 - `RULES_V2_todo.md` now has routing, example inventory, completeness QA, a first full digest, source-lock workspace promotion, and the first recalibration slices agent-complete; manual acceptance and final handoff wording remain open.
 - `docs/source/Rules_v2.md` now contains a first full `p1-86` digest, and `docs/source/rules-v2-examples/index.md` records explicit page decisions across the whole book.
+- `RULEBOOK_EXAMPLES_todo.md` now owns the long-term conversion of accepted-scan examples into scenarios, tutorial entries, golden fixtures, and post-P16 missed-example catch-up work.
 - For hardened rule areas, `docs/source/Rules_v2.md` plus the matching `docs/rules/` source-lock notes are now the working default lookup layer for P7A2, P7B, P8, P9, P10, and P11 planning. Manual acceptance is still required before describing that source layer as fully accepted project-wide.
 
 Constraints:
 - The corpus is not engine implementation and does not itself advance a gameplay phase.
 - The original PDFs and errata remain authoritative.
 - The corpus should be complete in coverage but not a raw full-text reproduction of commercial PDFs.
+
+## RBE - Rulebook Example Scenario/Tutorial Library
+
+Status: [ ] Planned long-term support program - draft board exists in `RULEBOOK_EXAMPLES_todo.md`; `RBE-00` policy anchoring is complete, future phase boards must now classify relevant rulebook examples before implementation, and missed pre-policy examples are parked for post-P16 catch-up
+Active task list: see `RULEBOOK_EXAMPLES_todo.md`.
+
+Goals:
+- Build a long-lived in-game tutorial and example database from accepted-scan rulebook examples.
+- Convert relevant book examples into scenario drills, tutorial entries, golden validation fixtures, or explicit deferred references.
+- Make future phase planning check example coverage as a normal source gate.
+- Catch up on examples missed by earlier phases after P16, especially where first-pass implementation intentionally deferred group movement, group conformation, terrain, support networks, or special cases.
+
+Dependencies:
+- `docs/source/Rules_v2.md` and `docs/source/rules-v2-examples/index.md` remain the source inventory.
+- Each active feature board owns only examples in its rule area and current scope.
+- `RULEBOOK_EXAMPLES_todo.md` owns global example-library policy, deferred-reference tracking, and post-P16 catch-up planning.
+- Child boards such as `CONFORM_DRILL_todo.md` own concrete drill scenarios for a specific rule area.
+
+Success criteria:
+- Every future rule-sensitive implementation board names relevant source example IDs and classifies them before code starts.
+- Examples implemented in the same phase become stable scenarios or golden fixtures with browser/manual acceptance paths.
+- Examples blocked by missing systems are tracked with exact blockers instead of being silently dropped.
+- After P16, missed examples from movement, ZOC, charge, evade, conformation, setup/terrain, and other early systems are inventoried and prioritized for tutorial/database coverage.
+
+Current planning state:
+- `Conform Drill` is the first child board under this policy and currently covers the `Rules_v2` p.53 conformation cluster.
+- Future P8 shooting planning must explicitly classify `rv2-p56` through `rv2-p59` shooting examples.
+- Future P9 melee planning must explicitly classify `rv2-p61` through `rv2-p66` melee and camp examples.
+- Future P10 rout/pursuit planning must explicitly classify `rv2-p67` through `rv2-p69` war-wagon, elephant-rampage, routing, and army-cohesion examples.
+- Future P11/setup and later terrain planning must explicitly classify `rv2-p71` through `rv2-p81` terrain, deployment, command/budget, and setup examples.
+- Pre-policy examples from basing, groups, command, movement, ZOC, interpenetration/contact, charge, evade, and early conformation should be caught up after P16 unless a current approved board pulls one forward earlier.
 
 ## P0 - Product Shell Feasibility
 
@@ -541,14 +582,14 @@ Current planning state:
 
 ## P7A2 - Evade Move Completion Gate
 
-Status: [ ] In progress - core commit gate, defender handoff popup, direction-wheel plus obstacle-wheel candidate slices, chained `direction wheel -> later slide/wheel` candidate support, supported later multi-wheel paths, first battlefield evade-choice ghosts/path trails/initial branch handles/node-by-node choice-tree progression, and the initial-branch-only distance-maximizing solver contract are validated; P7A2 is not accepted/closed until remaining fuller movement-style evade gestures, table-exit/end-half-turn, and manual-acceptance items are complete
+Status: [x] Accepted on 2026-05-26 - core commit gate, defender handoff popup, direction-wheel plus obstacle-wheel candidate slices, chained `direction wheel -> later slide/wheel` candidate support, supported later multi-wheel paths, first battlefield evade-choice ghosts/path trails/initial branch handles/node-by-node choice-tree progression, the initial-branch-only distance-maximizing solver contract, a clearer battlefield stop-versus-continue minimum preview, deferred broad charge-target feasibility, OOM guardrails for source artefact watcher churn/debug logging, charge-target/evade-roll lag fixes, light-troop end-half-turn hook support, source-open table-edge surfacing, decision traces, edge-clear later slides, unit-17/18 secondary-target regression, full test/build validation, module-size refactor gate closure, refreshed browser/manual acceptance, cancel-after-committed-evade rollback, and final source-lock closeout are complete for the supported subset
 Active task list: see `P7A2_todo.md`.
 
 Goals:
 - Resolve and commit the evading unit's actual movement before adjusted charge distance.
-- Preserve free reorientation, adjusted evade distance, slide/block decisions, direction wheel, obstacle wheel, table exit, light-troop end half-turn, final pose, and diagnostics in replay-ready reducer state.
+- Preserve free reorientation, adjusted evade distance, slide/block decisions, direction wheel, obstacle wheel, source-open table-edge diagnostics, light-troop end half-turn, final pose, and diagnostics in replay-ready reducer state.
 - Apply supported slide, wheel, obstacle, and blocked-evade outcomes without UI-owned legality.
-- Move the canonical evader token or store a source-locked table-exit/loss hook before the charger continues.
+- Move the canonical evader token or preserve an explicit source-open table-edge/loss hook before the charger continues.
 - Gate adjusted charge D6 on committed evade status.
 - Preserve cannot-shoot/repeated-evade hooks for later shooting and phase flow.
 
@@ -562,7 +603,7 @@ Success criteria:
 - A supported evader cannot remain ghost-only once the branch is ready for adjusted charge distance.
 - The player chooses only the initial evade branch. Within that branch, the solver should maximize legal distance from the charger automatically and use deterministic tie-breaks only when the branch remains exactly equal.
 - If an evade has no player choice and no source warning, the UI shows a notice and then auto-commits.
-- Direction wheel, obstacle wheel, table exit, light-troop end half-turn, cannot-shoot hooks, and repeated-evade hooks are part of the P7A2 source-lock and implementation plan.
+- Direction wheel, obstacle wheel, source-open table-edge surfacing, light-troop end half-turn, cannot-shoot hooks, and repeated-evade hooks are part of the P7A2 source-lock and implementation plan.
 - If an evade is blocked or source-open, the UI and reducer do not allow it to be confirmed as a legal committed evade.
 - `START_ADJUSTED_CHARGE_DISTANCE_ROLL` is impossible until the evade move is committed or explicitly resolved by a source-locked non-board-pose outcome.
 - Follow-through contact detection uses the committed post-evade board state.
@@ -573,10 +614,146 @@ Current planning state:
 - P7A2 exists because P7A's accepted subset stores and renders an `evadePlan` but does not yet update `game.units` before adjusted charge distance.
 - P7A2 remains single-unit-first and intentionally defers interpenetration, group evade, full terrain, full secondary recursion, conformation, melee, pursuit, downstream army-cohesion/victory accounting, and tournament-complete evade coverage unless explicitly expanded.
 - 2026-05-23 implementation slice: `evadeMove` now records committed evade movement, source-closed no-choice evades mutate canonical `game.units`, a single legal final-overlap slide can auto-commit with slide distance deducted, adjusted charge D6 is gated on committed evade status, and follow-through uses committed post-evade state. Full tests and build are green; browser tooling reached the live Charge Drill reaction flow but did not complete a stable D6 end-to-end smoke, so manual acceptance remains open.
+- Near-term follow-up requested 2026-05-24: once P7A2 closes, expand the Charge Drill into a troop-family coverage scenario rather than a mostly generic-cavalry fixture. Add representative light infantry, cavalry bow, heavy infantry, pike, elephants, and other movement-relevant families so charge-reaction, evade, and follow-through tests exercise real capability differences without pretending to be army-list-legal. Detailed support board: `CHARGE_DRILL_2_todo.md`.
+- Separate that from the visual readability pass: keep current rule/state ownership and token hitboxes, but plan a later battlefield render slice where unit tokens consume render descriptors and optionally pre-rendered foot/mounted base art from a pooled canvas atlas. Do not let that art pass block current P7A2 acceptance.
+- Near-term follow-up requested 2026-05-25: turn the successful P7A2 debug logger into a project-wide selective logging system with level plus rule-area filters. Detailed support board: `LOGGING_todo.md`. This should be usable immediately for the unresolved unit 20 wrong-evade case, unit 21 missing evade-roll case, and wheel snapping investigation.
+- Near-term follow-up requested 2026-05-25: stop expanding Charge Drill behavior through ad hoc per-unit capabilities. Build a small source-shaped unit profile/capability data spine first, then migrate fixture units to profile IDs and reserve explicit overrides only for labeled test/fault-injection cases. Detailed support board: `UNIT_CAPABILITIES_todo.md`.
+
+## LOG0 - Selective Rule Logging + Browser Diagnostics
+
+Status: [x] LOG-00 through LOG-06 complete on 2026-05-25; LOG-07 diagnosed the browser-visible stall into the reducer on 2026-05-27; LOG-08 narrowed the remaining hotspot to the direction-wheel evade solver on 2026-05-27 after retaining only safe lower-level memoization; the original LOG-09 branch-pruning attempt is paused and LOG-09 is rescoped as a deterministic tournament-style evade resolver draft after a fresh external log still showed about `43.0s` in the evade-distance reducer interval
+Active task list: see `LOGGING_todo.md`.
+
+Goals:
+- Build on the current P7A2 browser debug logger and JSONL middleware.
+- Add area filters such as `charge`, `evade`, `movement`, `zoc`, `conformation`, `shooting`, and `ui`.
+- Add level filters such as `error`, `warn`, `info`, `debug`, and `trace`.
+- Preserve bounded logs, JSONL export, browser memory mirrors, and `?debug=1` / `?perf=1` compatibility.
+- Make every future feature card state what it logs or why logging is a non-goal.
+
+Dependencies:
+- Existing debug modules in `src/debug/`.
+- Existing P7A2 `decisionTrace` and `contactDecisionTrace` facts.
+- Browser automation selectors and local Vite debug endpoint.
+
+Success criteria:
+- `?debug=1&log=charge,evade&level=debug` or equivalent filters log only relevant rule areas.
+- `trace` can explain candidate-level decisions for current P7A2 bugs without unbounded output.
+- Logs can distinguish engine decision, reducer transition, stale UI, hitbox/click issue, and missing capability data.
+- Governance and repo instructions require future complex rule features to be loggable.
+
+Current planning state:
+- `LOGGING_todo.md` has completed `LOG-00` taxonomy/governance, `LOG-01` shared config/event contract, `LOG-02` browser filter controls, `LOG-03` charge/contact/reaction/evade/movement rule trace summaries, and `LOG-04` JSONL/browser-memory guardrails with live browser/JSONL acceptance.
+- `LOG-05` converted that runbook into real P7A2 investigations: unit 20 was classified as an engine-side evade-solver decision problem; unit 21 was classified as a reducer/UI surfacing gap and then a secondary-request requeue problem; both were fixed in the owning P7A2 work.
+- The wheel-snap debug path is retained as a documented filtered-browser runbook with stable selectors and `movement.trace-summary` focus, even though the bad snap threshold was not re-observed during closeout.
+- `LOG-06` is complete: governance and future boards now treat logging expectations as a standing planning/review gate instead of optional polish.
+
+## UCD0 - Unit Capability Data Spine + Fixture De-Hardcoding
+
+Status: [x] Current support scope complete - UCD-00 through UCD-04 plus UCD-06 are closed for the accepted representative profile/data/render-bridge/handoff scope; UCD-05 and canonical UnitDefinition/profile-table follow-up remain future work
+Active task list: see `UNIT_CAPABILITIES_todo.md`.
+
+Goals:
+- Introduce source-shaped unit profiles for representative families such as light infantry, medium infantry, heavy infantry, cavalry, cavalry bow, pike, and elephant.
+- Keep unit instances focused on current match state and selected ability IDs.
+- Move reusable charge reaction, evade, movement, shooting-hook, combat-hook, base, and visual-profile facts into data profiles or rule tables.
+- Migrate Charge Drill behavior toward profile IDs instead of per-unit hardcoded capabilities.
+- Keep explicit scenario overrides only for labeled test/fault-injection cases.
+
+Dependencies:
+- P7A-01 capability resolver decision: source-shaped capability data is the default, explicit profile hooks are overrides.
+- Rules-v2 and army-list source notes enough to define representative profiles without claiming full army-list completeness.
+- `docs/army-builder.md` architecture so this support slice remains compatible with later P11.
+
+Success criteria:
+- Current Charge Drill units can derive behavior from profile IDs where possible.
+- Missing capability/profile data produces explicit diagnostics instead of silent guesses.
+- CD2 fixture expansion starts from profiles, not bespoke per-unit behavior.
+- P7B/P8 smoke anchors can talk about real unit families without pretending the full army builder exists.
+
+Current planning state:
+- `UNIT_CAPABILITIES_todo.md` now contains a first-pass representative profile matrix for `light-infantry`, `medium-infantry`, `heavy-infantry`, `cavalry`, `cavalry-bow`, `pike`, and `elephant`, tied to current charge/movement source locks and the Army Builder data boundary.
+- `src/data/unit-profiles.js` now provides a reusable profile data module plus strict lookup helpers and test coverage; this is the approved representative data spine that `UCD-03` later consumed for Charge Drill migration.
+- `UCD-00` still keeps exact light-troop family boundaries and the shared base-profile catalog open instead of treating them as silently settled.
+- `UCD-02` is complete for the current approved scope: `src/engine/charge/reaction.js` derives charge reaction capability from profile data by default, `src/engine/charge/evade.js` resolves the light-troop end-half-turn hook through profile/default abilities first, and explicit scenario/test overrides still win.
+- Future override-reason enforcement remains a fixture/governance concern for the migration slice rather than a blocker on the resolver path itself.
+- `UCD-03` is complete for the current drill: representative Charge Drill units now carry `profileId` and derive their default capability data from the shared profile spine; only the commander and the labeled light-troop hook lane remain explicit special cases.
+- This support baseline should stay in force before adding many more Charge Drill lanes.
+- It is not a full Army Builder and must not overclaim tournament-complete unit taxonomy.
+
+## CD2 - Charge Drill Troop-Family Matrix + Readable Bases
+
+Status: [x] Current support scope accepted - detailed execution board exists in `CHARGE_DRILL_2_todo.md`; `CD2-00` through `CD2-05` and `BVR-00` through `BVR-02` are complete for the accepted support scope on 2026-05-25, while optional `BVR-03` through `BVR-05` visual follow-up remains deferred
+Active task list: see `CHARGE_DRILL_2_todo.md`.
+
+Goals:
+- Expand Charge Drill into a representative troop-family matrix for charge reaction, evade, follow-through, and later conformation/shooting smoke tests.
+- Add light infantry, cavalry bow, heavy infantry, medium infantry, pike, elephants, cavalry, and any other source-readable movement-relevant families as artificial fixture anchors.
+- Keep the fixture scenario-driven and explicitly not army-list-legal.
+- Plan readable unit bases through render descriptors and optional pooled canvas/offscreen-canvas base art while preserving DOM token hitboxes and engine geometry.
+
+Dependencies:
+- P7A2 accepted before the `CD2` fixture/data slice starts, unless the user explicitly chooses to treat CD2 as a support preflight while P7A2 remains open.
+- UCD0 accepted or at least UCD-01/UCD-03 implemented enough that new lanes can reference source-shaped profiles instead of hardcoded per-unit capabilities.
+- Army-list and Rules-v2 source notes available enough to choose representative families without claiming legal army composition.
+- Current Charge Drill scenario and browser automation selectors.
+- For the visual-base `BVR` slice, battlefield token/overlay surfaces should be stable after P7B/P7C or explicitly prioritized by the user.
+
+Success criteria:
+- Charge Drill contains stable lanes for representative troop families with source-shaped capability data and stable IDs.
+- Tests cover the expanded fixture matrix and representative charge reaction/evade branches.
+- Browser/manual smoke can navigate new lanes without dragging setup units first.
+- Readable base visuals improve infantry/mounted/elephant/pike recognition without changing legal footprints, contact, ZOC, or conformation geometry.
+- GPT-5.5 reviews the troop matrix and visual architecture at the planned gates if the user wants the extra check.
+
+Current planning state:
+- CD2 is a support board, not a replacement for P7B or P8.
+- The data/fixture slice is useful immediately after P7A2 acceptance, but should consume UCD0 profile IDs rather than adding another layer of bespoke fixture behavior.
+- The visual-base slice is deliberately later and should not become a hidden full visual-asset-system phase.
+- `CD2-00` completed the representative source-review matrix for `light-infantry`, `medium-infantry`, `heavy-infantry`, `pike`, `cavalry`, `cavalry-bow`, and `elephant`, with mounted-subfamily expansion deliberately deferred behind explicit open verification; GPT-5.5 review approved the matrix with no findings.
+- `CD2-01` completed the data-spine part by extending `src/data/unit-profiles.js` with fixture-planning base profiles, inert visual descriptors, and Charge Drill default-footprint derivation from `profileId`; these base profiles remain source-open planning defaults, not an official base-size catalog.
+- `CD2-02` adds stable family anchors for `cavalry-bow`, `heavy-infantry`, `pike`, and `elephant` while preserving the existing cavalry/light/medium drill roles; selectors and scenario tests were updated, the user confirmed the lanes are usable through the intended corps gate, and a later review cleanup flipped the new Corps II targets inward so they do not immediately evade off the north table edge.
+- `CD2-03` turns those anchors into a real automated reaction/evade regression surface: scenario-backed tests cover mounted `may-evade`, the explicit light-troop hook lane, blocked-evade corridor behavior, non-evade pike/elephant anchors, and the live light-troop/cavalry-bow evade-plan differences.
+- `CD2-04` now adds a reusable browser smoke runbook with shared Charge Drill selectors, corps-aware flow steps, and expected DOM/state markers for baseline cavalry, light-troop evade, cavalry-bow reaction, heavy-infantry adjusted-charge, and pike/elephant future-special anchors; the user accepted that runbook for the current phase, with the caveat that corps ownership should keep being named explicitly until later visual readability work lands.
+- `CD2-05` now completes the downstream handoff for the accepted fixture/data slice: `P7B_todo.md` names the current Charge Drill anchors as support smoke baselines, future P8 use is recorded in board/roadmap wording because no dedicated `P8_todo.md` exists yet, and `P7C_todo.md` did not need extra CD2-specific changes.
+- `BVR-00` is accepted after review: `docs/battlefield-visuals.md` plus `docs/architecture.md` define readable bases as a rendering layer over legal geometry, DOM tokens as the interactive surface, and CSS/DOM first with optional atlas fallback later.
+- `BVR-01` is complete for the accepted data-only scope: the existing `VISUAL_PROFILES` spine now carries render-family, figure-count, figure-shape, facing-marker, accent-slot, and owner-color-treatment descriptors; Charge Drill units expose `visualProfileId`; and battlefield tokens surface the resolved descriptor seam as data attributes without starting renderer or CSS work.
+- `BVR-02` is complete for the accepted CSS/DOM readability baseline: rule-relevant inner token marks distinguish current representative families without changing legal geometry, hitboxes, overlays, or selection behavior. Future added UI symbols should remain rule-relevant.
+- A separate `Conform Drill` support board is now the planned home for source-backed conformation example reconstruction from `Rules_v2` p.53. Charge Drill remains the troop-family, charge, reaction, and evade matrix rather than absorbing every book example.
+
+## CFD - Conform Drill Source-Backed Example Scenarios
+
+Status: [ ] Paused support board - `CFD-E1` is accepted as the first live source-backed shifting lane, but further Conform Drill examples are paused until missing multi-unit, support-network, terrain, and follow-up conformation rule implementations exist
+Active task list: see `CONFORM_DRILL_todo.md`.
+
+Goals:
+- Create a dedicated `Conform Drill` scenario instead of overloading Charge Drill.
+- Recreate the `Rules_v2` p.53 conformation example cluster as stable in-game reference drills.
+- Keep each drill lane tied to a named example image and caption summary.
+- Use the drill as a manual/browser smoke surface and later golden-example validation surface for conformation work.
+
+Dependencies:
+- `docs/source/Rules_v2.md` and `docs/source/rules-v2-examples/index.md` remain the accepted source basis for the page-53 example cluster.
+- `P7B_todo.md` remains the active conformation implementation board; this support board does not replace it.
+- Terrain and multi-unit support-network work remain explicit blockers for the examples that need them.
+
+Success criteria:
+- The app has a separate `Conform Drill` scenario entry with stable selectors and labeled lanes.
+- Example lanes map one-to-one to `rv2-p53-shifting-units-a`, `rv2-p53-incomplete-conformation-a`, `rv2-p53-conformation-terrain-a`, and `rv2-p53-incomplete-flank-conforming-a`.
+- Supported examples run as honest live drills; unsupported examples remain visible as deferred or source-open references rather than fake implemented behavior.
+- Browser/manual smoke and later tests can name the rulebook example ID directly.
+
+Current planning state:
+- `CFD-01` added the separate `conform-drill` scenario entry, source example lane metadata, and stable browser selectors without adding new conformation legality.
+- `CFD-02` turned `rv2-p53-shifting-units-a` into the first live drill by using the existing P7B one-blocker shifting path: B1 charges A1, no-evade opens the front conformation preview, and B2 receives a rear shift ghost and explanation surface.
+- `CFD-03` is paused after review/manual concern: a selector-only six-anchor attempt exists, but it is not yet source-faithful enough as a reference lane and the underlying example needs multi-unit in-contact plus support-network-aware conformation.
+- `rv2-p53-conformation-terrain-a` is deferred until terrain and terrain-sensitive conformation choice work exist.
+- `rv2-p53-incomplete-flank-conforming-a` remains a named future reference case for flank-to-front fallback and later defender-turn conformation, with terrain and follow-up sequencing still blocking direct implementation.
+- Charge Drill remains the troop-family and charge or reaction or evade smoke board; Conform Drill becomes the source-example conformation board.
 
 ## P7B - Conformation + Shifting Foundation
 
-Status: [ ] Not started - draft board exists in `P7B_todo.md`, gated on P7A2 user approval and completion
+Status: [ ] In progress - P7A2 is accepted; `P7B-00` through `P7B-08` are implemented and validated for the approved single-unit subset; wording/fixture-honesty corrections are landed and only a short Reviewer recheck plus user approval remain before P8
 Active task list: see `P7B_todo.md`.
 
 Goals:
@@ -588,7 +765,7 @@ Goals:
 
 Dependencies:
 - P7A approved.
-- P7A2 approved and accepted, so evading targets are committed to canonical board state before adjusted charge distance and conformation.
+- P7A2 approved and accepted, so evade outcomes are reducer-owned before adjusted charge distance and conformation: committed evade moves update canonical board state immediately, while supported `source-open` no-choice lanes may still continue into adjusted charge without a fake board commit.
 - Relevant conformation source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/conformation.md`, `docs/rules/zoc.md`, and the narrowed conformation/ZOC items in `docs/rules/open-verification.md`.
 - Source-page verification for conformation p.50-54 and errata.
 - Contact/classification snapshots from P7 and reaction/evade branch state from P7A.
@@ -605,10 +782,17 @@ Success criteria:
 Current planning state:
 - P7B exists because conformation is foundational for later melee and should not wait until a vague post-P16 cleanup.
 - P7B remains single-unit-first. Group conformation, full support networks, special-base cases, full terrain optional-choice UI, and advanced shifting chains remain deferred unless explicitly approved.
+- Current implemented subset now includes a dedicated serializable conformation model, front/flank/rear and reducer-selected `rear-or-flank` candidate resolution, incomplete/optional or source-open diagnostics, one-blocker shifting, and a first preview-UI slice with focused UI tests already green.
+- `P7B-06` is accepted for the supported preview subset, using `CFD-E1` as the source-backed live shifting acceptance example.
+- Source-backed page-53 example reconstruction is now split into `CONFORM_DRILL_todo.md` so the book examples can become stable reference drills without distorting Charge Drill or silently widening P7B scope.
+- Open closeout check from 2026-05-26: verify that the accepted P7A/P7A2 full-evade not-caught branch commits the charger's canonical pose instead of leaving the charger only in follow-through preview state. If that gap is real, repair the owning charge follow-through slice before describing P7B as a stable pre-melee foundation.
+- Routing decision 2026-05-26: keep that repair inside `P7B-08 - Validation And Handoff` instead of deferring it to a later charge board. P7B should not close until the Coding Agent fixes or disproves the gap and the Reviewer / Rules Agent re-reviews the repaired branch.
+- Focused implementation update 2026-05-26: the first repair slice for that gap is now in place. Supported no-contact full-evade follow-through can commit the charger to canonical unit state when no continuation pause remains, with focused regression coverage for the impetuous auto-continue case and the non-impetuous stop-choice case. Wider validation and reviewer re-review still remain before P7B can close.
+- Focused implementation update 2026-05-26: the later Charge Drill evade-follow-up investigation separated two exact drill lanes and now has a narrower front-case repair that stays inside the straight-first reading. The exact front lane no longer invents a start-origin wheel; it now resolves through the late-avoidance solver as a committed left slide off the straight evade path before adjusted charge is surfaced. The exact flank `choice-required` lane still correctly requires the hotseat handoff before defender choice. Focused engine, reducer, and command-panel regressions are green for both exact drill lanes, and the old impetuous continuation command-panel test remains aligned with the already-supported auto-commit completion record rather than a no-longer-open preview.
 
 ## P7C - Command Menu Hierarchy + Flow Cleanup
 
-Status: [ ] Not started - draft board exists in `P7C_todo.md`, pending user review after P7B closes
+Status: [x] Complete - user accepted P7C closeout on 2026-05-28 after focused UI validation, build, browser smoke, and final nested-menu review
 Active task list: see `P7C_todo.md`.
 
 Goals:
@@ -635,13 +819,21 @@ Success criteria:
 Current planning state:
 - P7C is a UI information-architecture and interaction-flow cleanup phase, not a rule-expansion phase.
 - P7C must not move legality, CP, contact, reaction, conformation, or attach validation into rendering code.
-- P7C should introduce a reducer-owned or reducer-projected command-menu mode only if needed to keep the nested command state serializable and replay-safe.
+- `P7C-00` locked the ownership decision for implementation start: branch-entry menu state should use a minimal reducer-owned serializable seam, while branch contents stay derived from the existing reducer-owned preview state.
+- `P7C-00A` is complete: the existing front strip now carries the active-corps movement status cue for visualized units, using reducer-owned `pending`/`mandatory`/`done` state rather than new legality logic.
+- `P7C-01` is complete: the command panel now has a minimal reducer-owned serializable menu-state spine (`root` plus derived `move` / `charge` / `attach` branches) that resets deterministically through the existing preview cancel/reset seams. Visible first-level grouping remains for `P7C-02` and `P7C-03`.
+- `P7C-02` is complete: normal units now open on `Move` / `Charge` / `Stay`, with move-family controls revealed only inside `Move`, a `Ziel waehlen` cue during charge target selection, and only `Wheel` / `Slide` exposed for post-target charge direction. The user accepted this flow on 2026-05-28.
+- `P7C-03` is complete: commanders now open on `Move` / `Attach` / `Stay`, with the commander `Move` branch keeping the existing drag preview flow and surfacing confirm/cancel only once a commander preview is active. Browser smoke and reviewer signoff both confirmed that legality ownership remained reducer-side.
+- `P7C-04` is complete: focused UI tests and build pass, a fresh browser smoke on `http://127.0.0.1:4177/` covered unit and commander root/branch flows plus confirm/cancel visibility, and completed units now collapse to reset-only instead of reopening root movement actions. The user accepted the overall nested hierarchy on 2026-05-28.
 - P7C should preserve the current direct-manipulation commander drag flow; only the visible command entry structure changes.
 - P7C is the right place to prepare clean submenu seams for later movement families such as `1/4 turn`, `1/2 turn`, group extensions, or other source-locked additions, without exposing them early.
+- User-requested near-term readability addition: before the deeper command-menu refactor, add a small `P7C-00A` card that colors the existing white unit front strip for active-corps status: yellow for movement still open, red for mandatory movement still open, and green for finished movement this round. This replaces the earlier yellow/red/green frame idea and must remain a presentation of existing reducer-owned status, not new legality.
 
 ## P8 - Shooting System
 
-Status: [ ] Not started
+Status: [ ] In progress - `P8_todo.md` is Lead-approved for source/scope; `P8-00` through `P8-07` are now implemented and validated as of 2026-05-28, with Reviewer / Rules Agent closeout still required for the latest rule-sensitive slice before advancing deeper into P8.
+
+Active task list: see `P8_todo.md` once approved.
 
 Goals:
 - Shooting ranges.
@@ -650,7 +842,8 @@ Goals:
 - Shooting modifiers and results.
 
 Dependencies:
-- P7C approved.
+- P7B approved.
+- P7C complete and accepted.
 - Relevant shooting source-lock baseline accepted from the Rules-v2 pass: `docs/source/Rules_v2.md` plus `docs/rules/shooting.md`, `docs/rules/terrain-and-setup.md`, and the narrowed shooting items in `docs/rules/open-verification.md`.
 - Deterministic dice/random module.
 
@@ -660,7 +853,22 @@ Success criteria:
 - Dice results are deterministic and replayable.
 - Cohesion effects from shooting are applied through engine state transitions.
 - Tests cover range boundaries, blocked line of sight, cover, and illegal targets.
+- `Rules_v2` shooting examples are classified in the active P8 board as live scenarios, tutorial entries, golden fixtures, or deferred references before P8 implementation starts.
 - User approves P8 before P9 begins.
+
+Current planning state:
+
+- `P8_todo.md` is approved as the next execution board for planning/scope, and `P8-00` has locked the first implementation subset.
+- P8 implementation started after P7B Reviewer / Rules Agent recheck approval and explicit user instruction to continue into `P8-01`.
+- `P8-01` through `P8-05` now provide the first profile/model spine, deterministic shooting record model, reducer-owned eligibility seam, front-edge range/normal-rectangle zone geometry, and first target-priority/unit-blocker-LOS subset for the current approved shooting slice.
+- `P8-06` now adds the first pure engine/state combined-shot support aggregation slice: one main shooter plus supporting shooters, light-troop half-support rounding, `+3` cap enforcement, reducer-owned one-target-per-phase declaration tracking, and explicit rejection of source-open support families from the supported state seam.
+- `P8-07` now adds the first pure shooting-resolution slice: support bonus enters the deterministic shooter total, target protection currently resolves only through explicit verified input in the supported narrow subset, simultaneous-resolution metadata stays serializable, and broader circumstance/protection families plus unresolved basic protection remain explicit source-open diagnostics instead of guessed table values.
+- `P8-08` remains in progress after the guided-procedure, UX rework, and shooting-sequence handoff follow-up on 2026-05-28: reducer/UI flow now uses phasing-player-selected unresolved shooters instead of an automatic left-to-right queue, unique priority targets auto-select, same-target support is limited to shooters whose own priority state allows that target, support lines plus `+1` / `+1/2` labels render from reducer projections, the left rail now collapses to a slim `Waehle Schuetzen` / `Schiessen` procedure shell, shot declaration now opens a popup-owned dice/protection flow that returns to choose-shooter mode with finished markers and target lock preserved, and completing the last eligible shooters now opens a reducer-owned shooting handoff chain that routes the current round's active player into the passive player's shooting segment before the melee handoff. The direct `Shooting Drill` fixture now starts in the active guided-procedure state and has been expanded into a mirrored two-sided lane with player-1 and player-2 support shots, alternate-target references, and player-2 return fire toward player 1, so the first selected shooter exposes both `Schiessen` and `Pass` and the passive side can legally shoot back in the same debug fixture. Focused reducer/UI/data tests, `npm run build`, and rebuilt live browser smoke on the direct `Shooting Drill` now pass; reviewer/manual closeout is the remaining gate.
+- `P8-09` has now started with the reviewer-requested `rv2-p58-line-of-sight-a` slice on 2026-05-28: the repo exposes a dedicated `Shooting LoS p.58` scenario bound to the page 58 source example, with focused tests proving `B` blocks `C1` from both bowmen, `A2` still sees `C2`, `B` remains the priority target for both shooters, and either bowman can be the main shooter while the other supports. This validates the currently supported unit-blocker LoS plus priority subset against one exact book case without claiming broader p.58 coverage beyond the supported seam.
+- Lead replanning inside `P8-08` now also tightens the UX target before closeout: the phase should open into a slim `Waehle Schuetzen` rail with counts, selecting a shooter should immediately show the priority target marker and supported shooting-zone overlay on the battlefield, and pressing `Schiessen` should move dice/protection input into a popup instead of the left command stack. Zone overlays remain limited to the current normal front-edge rectangle subset; deferred special-zone families must stay source-open rather than faked.
+- First P8 subset: shared-profile `sp-light-missile-foot` and `sp-mounted-bow`, normal front-edge rectangular zones only, unit-blocker LOS, basic target priority, one-target-per-phase support aggregation, deterministic opposed-roll records, and only source-checked baseline/support/protection resolution.
+- P8-08 now includes the planned direct-to-shooting debug/browser fixture so user and reviewer smoke tests can enter the supported declaration flow without clicking through earlier phases; this fixture remains a validation aid, not a replacement for normal sequence progression.
+- Deferred until later source gates: all special shooting zones, including the future light-cavalry `360 degrees` edge-based coverage family, overhead fire, terrain/cover/ambush LOS, broad missile taxonomy, stable target retention across later turns, and ordered special modifier/protection interactions.
 
 ## P9 - Melee Combat System
 
@@ -685,6 +893,7 @@ Success criteria:
 - Cohesion loss is applied from the rule table.
 - Errata-sensitive abilities are tested.
 - UI presents combat resolution without owning combat logic.
+- `Rules_v2` melee examples are classified in the active P9 board as live scenarios, tutorial entries, golden fixtures, or deferred references before P9 implementation starts.
 - User approves P9 before P10 begins.
 
 ## P10 - Rout, Pursuit, Army Cohesion + Victory
@@ -708,6 +917,7 @@ Success criteria:
 - Army cohesion is computed from rule data and current state.
 - Victory/end-of-game state is deterministic and explained.
 - Tests cover light troop destruction, pursuit choices, and army cohesion thresholds.
+- `Rules_v2` rout, pursuit, war-wagon, elephant-rampage, and army-cohesion examples are classified in the active P10 board as live scenarios, tutorial entries, golden fixtures, or deferred references before P10 implementation starts.
 - User approves P10 before P11 begins.
 
 ## P11 - Army Builder
@@ -733,6 +943,7 @@ Success criteria:
 - Roster validation catches illegal lists and explains every violation.
 - Valid roster exports units into game setup format.
 - Errata overlay can modify list data without changing engine code.
+- `Rules_v2` setup, terrain, deployment, command, and budget examples are classified in the active P11 or terrain/setup board as live scenarios, tutorial entries, golden fixtures, or deferred references before implementation starts.
 - User approves P11 before P12 begins.
 
 ## P12 - Full Match Flow + Local Singleplayer

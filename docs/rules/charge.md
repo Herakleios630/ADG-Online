@@ -1,6 +1,6 @@
 # Charge
 
-Status: P7 planning note. This file is a source-lock workspace for charge behavior and must not be treated as rule-complete until open verification items are resolved against `Rules.pdf` plus `Errata_ADG_V4_English.pdf`.
+Status: RV2-05A source-lock baseline from Rules-v2 p.41-49 and p.50-54; implementation-grade only for the explicitly listed P7/P7A/P7A2 invariants after direct errata cross-check and manual acceptance.
 
 ## Planning Boundary
 
@@ -115,9 +115,9 @@ Working contract for source verification:
 - No-choice legal evades should show a notice and then auto-commit.
 - Direction wheel and obstacle wheel remain confirmed P7A2 scope. The current working baseline is to inherit the ordinary single-unit wheel geometry from the movement chapter unless evade wording or errata says otherwise: pivot on an outer front corner, measure the opposite front corner, and cap the wheel at `90 degrees`.
 - The scan-confirmed evade text allows a combined obstacle-avoidance sequence during one evade: after the free initial reorientation, the unit may optionally wheel to match the charge direction, and during the later straight evade move it may still use up to one slide plus one or more wheels totalling up to `90 degrees` to avoid new obstacles, with all such manoeuvres deducted from evade distance.
-- Table exit is confirmed P7A2 scope. If an evading unit exits the table, P7A2 may commit removal from play immediately and store any later army-cohesion or victory accounting as a deferred hook for P10 rather than blocking the evade result.
-- Light troops may take an additional free half-turn at the end of their evade. The current working family boundary is the rules' `light troops` subset, not every evade-capable troop, and only the exact direct wording/errata confirmation remains open.
-- No troops may shoot after they have evaded. Repeated-evade and reset timing remain hooks that still need explicit phase-boundary confirmation.
+- Table-edge handling remains a P7A2/P7B source-check boundary inside the current supported subset. The live reducer path currently surfaces `charge.evade.table-edge` as source-open and keeps adjusted charge blocked until direct page/errata confirmation closes whether immediate removal from play is legal or whether a different table-exit consequence applies.
+- Light troops may take an additional free half-turn at the end of their evade. The direct 300-DPI scan wording uses generic `light troops`, so for the current project baseline this inherits the normal `light troops` privilege from the troop/movement rules and binds to the usual `LI` plus `LH` family boundary rather than to every evade-capable troop.
+- No troops may shoot after they have evaded in that same player sequence. Because the shooting phase allows fire from both active and passive players, an evading passive unit misses the immediately following shooting phase of the opponent's sequence, then regains normal eligibility in its own next sequence subject to ordinary movement and shooting limits. The reducer reset of `hasEvadedThisSequence`, `cannotShootThisSequence`, and `evadeCountThisPhase` at that player's next `ROUND_BEGIN` matches this working source-locked boundary.
 - A blocked evade, source-open evade, or unsupported obstacle/interpenetration case must not be confirmed as if it were legal.
 - Enemy ZoCs during the actual evade movement and the exact reset/side-effect boundaries require explicit source-lock before implementation claims.
 - Interpenetration remains deferred from P7A2 unless the user explicitly expands the phase.

@@ -23,6 +23,7 @@ test('charge preview model initializes as a serializable placeholder spine', () 
 
   assert.equal(preview.status, CHARGE_PREVIEW_STATUSES.IDLE);
   assert.equal(preview.intent, null);
+  assert.deepEqual(preview.unitRollbackSnapshot, []);
   assert.deepEqual(preview.pathSegments, []);
   assert.deepEqual(preview.contactEvents, []);
   assert.deepEqual(preview.reactionRequests, []);
@@ -120,6 +121,8 @@ test('evade move resolution preserves committed replay facts', () => {
     rollResult: { dieRoll: 4 },
     autoCommit: true,
     notice: 'Evade committed.',
+    tableExit: { exitsTable: true, removeFromPlay: true },
+    endHalfTurnHook: { available: true, applied: true, reason: 'light-troop-end-half-turn' },
     cannotShootHook: true,
     repeatEvadeHook: { increment: 1 },
     sourceStatus: 'verified',
@@ -129,6 +132,8 @@ test('evade move resolution preserves committed replay facts', () => {
   assert.equal(resolution.reactingUnitId, 'target-1');
   assert.equal(resolution.finalPose?.yUd, 9);
   assert.equal(resolution.autoCommit, true);
+  assert.equal(resolution.tableExit?.exitsTable, true);
+  assert.equal(resolution.endHalfTurnHook?.applied, true);
   assert.equal(resolution.cannotShootHook, true);
   assert.deepEqual(resolution.repeatEvadeHook, { increment: 1 });
   assert.doesNotThrow(() => JSON.stringify(resolution));

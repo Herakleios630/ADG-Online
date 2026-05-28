@@ -1,9 +1,14 @@
 import {
+  COMMAND_PLAYER_IDS,
   COMMAND_CORPS_STATUSES,
   reduceCompleteActiveCorps,
   resetCorpsActivationState,
   syncCommandContextSnapshots,
 } from './p0-command-context.js';
+import {
+  beginShootingPhaseState,
+  createInitialShootingState,
+} from './p0-shooting.js';
 
 export const ROUND_PHASE_IDS = {
   CORPS_MOVEMENT: 'corps-movement',
@@ -26,6 +31,7 @@ export const ROUND_DIALOG_TYPES = {
   CORPS_SELECTION: 'corps-selection',
   NEXT_CORPS_PROMPT: 'next-corps-prompt',
   PHASE_ANNOUNCE: 'phase-announce',
+  SHOOTING_SEQUENCE_HANDOFF: 'shooting-sequence-handoff',
   PLAYER_SWITCH: 'player-switch',
 };
 
@@ -59,6 +65,16 @@ function setGameBattlePhase(gameState, phaseId) {
   };
 }
 
+function enterShootingPhase(gameState, round) {
+  return setGameBattlePhase(
+    beginShootingPhaseState(gameState, {
+      phaseId: ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING],
+      actingPlayerId: round.turnPlayerId,
+    }),
+    ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING],
+  );
+}
+
 export function createInitialRoundState() {
   return {
     roundNumber: 1,
@@ -83,8 +99,15 @@ function resetPlayerUnitsMovement(units, playerId) {
       ? {
           ...unit,
           advanceUsedUd: 0,
+          moveCountThisSequence: 0,
           slideUsedThisMovementPhase: false,
           stayedThisMovementPhase: false,
+          hasChargedThisSequence: false,
+          hasEvadedThisSequence: false,
+          hasDisengagedThisSequence: false,
+          retreatedOutOfZocThisSequence: false,
+          cannotShootThisSequence: false,
+          evadeCountThisPhase: 0,
           commanderMovePhaseStartXUd: null,
           commanderMovePhaseStartYUd: null,
           attachOriginXUd: null,
@@ -169,6 +192,70 @@ function buildPhaseAnnounceState(round, phaseId) {
   };
 }
 
+export function openShootingSequenceHandoffDialog(gameState) {
+  const round = gameState.round;
+  if (!round) {
+    return gameState;
+  }
+
+  return {
+    ...gameState,
+    round: {
+      ...round,
+      dialog: {
+        type: ROUND_DIALOG_TYPES.SHOOTING_SEQUENCE_HANDOFF,
+        phaseLabel: null,
+      },
+    },
+  };
+}
+
+export function beginShootingSequenceForPlayer(gameState, actingPlayerId) {
+  const round = gameState.round;
+  if (!round || !actingPlayerId) {
+    return gameState;
+  }
+
+  const phaseAnnounceRound = buildPhaseAnnounceState(round, ROUND_PHASE_IDS.SHOOTING);
+  const nextGameState = beginShootingPhaseState({
+    ...gameState,
+    selectedUnitId: null,
+    round: phaseAnnounceRound,
+    commandContext: {
+      ...gameState.commandContext,
+      activePlayerId: actingPlayerId,
+      activeCorpsId: null,
+    },
+  }, {
+    phaseId: ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING],
+    actingPlayerId,
+  });
+
+  return setGameBattlePhase(nextGameState, ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING]);
+}
+
+export function advanceFromShootingToCombat(gameState) {
+  const round = gameState.round;
+  if (!round) {
+    return gameState;
+  }
+
+  return setGameBattlePhase({
+    ...gameState,
+    selectedUnitId: null,
+    round: {
+      ...round,
+      roundPhase: ROUND_PHASE_IDS.COMBAT,
+      dialog: null,
+    },
+    commandContext: {
+      ...gameState.commandContext,
+      activePlayerId: round.turnPlayerId ?? COMMAND_PLAYER_IDS.PLAYER_ONE,
+      activeCorpsId: null,
+    },
+  }, ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.COMBAT]);
+}
+
 // ROUND_BEGIN: "Beginnen" clicked on round-start or player-switch dialog.
 // Opens corps-selection for the current turn player and resets that player's movement state.
 export function reduceRoundBegin(gameState) {
@@ -183,6 +270,7 @@ export function reduceRoundBegin(gameState) {
   const nextGameState = resetTurnCommandState({
     ...gameState,
     units: resetPlayerUnitsMovement(gameState.units, round.turnPlayerId),
+    shooting: createInitialShootingState(),
     round: {
       ...round,
       roundPhase: ROUND_PHASE_IDS.CORPS_MOVEMENT,
@@ -224,10 +312,10 @@ export function reduceRequestNextCorps(gameState) {
   }
 
   // No remaining corps — advance to shooting
-  return setGameBattlePhase({
+  return enterShootingPhase({
     ...nextGameState,
     round: buildPhaseAnnounceState(round, ROUND_PHASE_IDS.SHOOTING),
-  }, ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING]);
+  }, round);
 }
 
 // CONFIRM_NEXT_CORPS: "Ja" clicked in next-corps-prompt dialog.
@@ -249,10 +337,10 @@ export function reduceSkipRemainingCorps(gameState) {
   const round = gameState.round;
   if (!round || round.dialog.type !== ROUND_DIALOG_TYPES.NEXT_CORPS_PROMPT) return gameState;
 
-  return setGameBattlePhase({
+  return enterShootingPhase({
     ...gameState,
     round: buildPhaseAnnounceState(round, ROUND_PHASE_IDS.SHOOTING),
-  }, ROUND_TO_BATTLE_PHASE_ID[ROUND_PHASE_IDS.SHOOTING]);
+  }, round);
 }
 
 // ADVANCE_ROUND_PHASE: "Weiter" clicked in phase-announce dialog.
@@ -281,6 +369,7 @@ export function reduceAdvanceRoundPhase(gameState) {
     return setGameBattlePhase({
       ...gameState,
       units: clearPlayerCommanderAttachments(gameState.units, 'player-1'),
+      shooting: createInitialShootingState(),
       round: {
         ...round,
         turnPlayerId: 'player-2',
@@ -295,6 +384,7 @@ export function reduceAdvanceRoundPhase(gameState) {
   return setGameBattlePhase({
     ...gameState,
     units: clearPlayerCommanderAttachments(gameState.units, 'player-2'),
+    shooting: createInitialShootingState(),
     commandContext: resetAllCorpsActivation(gameState.commandContext),
     round: {
       roundNumber: nextRoundNumber,

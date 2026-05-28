@@ -1,3 +1,5 @@
+import { createConformationPlan } from '../conformation/model.js';
+
 export const CHARGE_PREVIEW_STATUSES = {
   IDLE: 'idle',
   TARGETING: 'targeting',
@@ -88,6 +90,7 @@ export function createChargeReactionRequest(overrides = {}) {
     status: overrides.status ?? 'idle',
     diagnostics: Array.isArray(overrides.diagnostics) ? overrides.diagnostics : [],
     sourceStatus: overrides.sourceStatus ?? null,
+    decisionTrace: Array.isArray(overrides.decisionTrace) ? cloneSerializable(overrides.decisionTrace) : [],
     contactEventIndex: Number.isInteger(overrides.contactEventIndex) ? overrides.contactEventIndex : null,
     chargePathSnapshot: Array.isArray(overrides.chargePathSnapshot) ? overrides.chargePathSnapshot : [],
     contactSnapshot: overrides.contactSnapshot ?? null,
@@ -136,13 +139,7 @@ export function createChargeBranchDistanceState(overrides = {}) {
 }
 
 export function createChargeConformationPlan(overrides = {}) {
-  return {
-    status: overrides.status ?? 'idle',
-    selectedCandidateId: overrides.selectedCandidateId ?? null,
-    candidates: Array.isArray(overrides.candidates) ? overrides.candidates : [],
-    shiftingPlan: overrides.shiftingPlan ?? null,
-    diagnostics: Array.isArray(overrides.diagnostics) ? overrides.diagnostics : [],
-  };
+  return createConformationPlan(overrides);
 }
 
 export function createEvadeMoveResolution(overrides = {}) {
@@ -160,14 +157,18 @@ export function createEvadeMoveResolution(overrides = {}) {
     rollResult: cloneSerializable(overrides.rollResult ?? null),
     avoidanceSteps: Array.isArray(overrides.avoidanceSteps) ? cloneSerializable(overrides.avoidanceSteps) : [],
     avoidanceCandidates: Array.isArray(overrides.avoidanceCandidates) ? cloneSerializable(overrides.avoidanceCandidates) : [],
+    pathSegments: Array.isArray(overrides.pathSegments) ? cloneSerializable(overrides.pathSegments) : [],
     choicePathStepIds: Array.isArray(overrides.choicePathStepIds) ? cloneSerializable(overrides.choicePathStepIds) : [],
     choiceRequired: Boolean(overrides.choiceRequired),
+    choiceKind: overrides.choiceKind ?? 'none',
     autoCommit: Boolean(overrides.autoCommit),
     notice: overrides.notice ?? null,
     tableExit: cloneSerializable(overrides.tableExit ?? null),
+    endHalfTurnHook: cloneSerializable(overrides.endHalfTurnHook ?? null),
     cannotShootHook: Boolean(overrides.cannotShootHook),
     repeatEvadeHook: cloneSerializable(overrides.repeatEvadeHook ?? null),
     diagnostics: Array.isArray(overrides.diagnostics) ? cloneSerializable(overrides.diagnostics) : [],
+    decisionTrace: Array.isArray(overrides.decisionTrace) ? cloneSerializable(overrides.decisionTrace) : [],
     sourceStatus: overrides.sourceStatus ?? null,
   };
 }
@@ -199,10 +200,14 @@ export function createInitialChargePreview(overrides = {}) {
   return {
     status: overrides.status ?? CHARGE_PREVIEW_STATUSES.IDLE,
     intent: overrides.intent ?? null,
+    unitRollbackSnapshot: Array.isArray(overrides.unitRollbackSnapshot)
+      ? cloneSerializable(overrides.unitRollbackSnapshot)
+      : [],
     targetCandidates: Array.isArray(overrides.targetCandidates) ? overrides.targetCandidates : [],
     startManoeuvreOptions: Array.isArray(overrides.startManoeuvreOptions) ? overrides.startManoeuvreOptions : [],
     pathSegments: Array.isArray(overrides.pathSegments) ? overrides.pathSegments : [],
     contactEvents: Array.isArray(overrides.contactEvents) ? overrides.contactEvents : [],
+    contactDecisionTrace: Array.isArray(overrides.contactDecisionTrace) ? overrides.contactDecisionTrace : [],
     selectedContactSide: overrides.selectedContactSide && typeof overrides.selectedContactSide === 'object'
       ? {
           defenderId: overrides.selectedContactSide.defenderId ?? null,

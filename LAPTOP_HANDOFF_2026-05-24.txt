@@ -1,0 +1,49 @@
+AdG Online laptop handoff - 2026-05-24
+
+Current project state
+- Active phase: P7A2 - Evade Move Completion Gate
+- Overall roadmap state: P7, P7A complete; P7A2 still in progress; do not start P7B yet
+- Current branch: feature/p7a2-evade-move-completion
+- Current commit at handoff creation: f777054
+
+Recent update
+- Added a planning follow-up to P7A2_todo.md for the next battlefield UI polish.
+- New note: strengthen the visual separation between Continue and Stop follow-through previews, preferably by either a stronger color split or a direct 2 UD badge on the minimum line/ghost.
+- PR #8 for that planning-only update exists and is already merged: https://github.com/Herakleios630/ADG-Online/pull/8
+
+What is already working in P7A2
+- Evade commit gate exists before adjusted charge distance.
+- Defender hotseat handoff popup exists.
+- Evade candidates can render directly on the battlefield after handoff acknowledgement.
+- Supported slide-choice and wheel-style obstacle-wheel battlefield ghosts are already covered.
+- The all-targets-evade follow-through preview already shows the minimum continuation separately while Stop vs Continue is still unresolved.
+
+Recommended next implementation step
+- Implement the queued P7A2-07 UI polish:
+  1. Either make Continue and Stop previews much more visually distinct with stronger colors.
+  2. Or add a direct 2 UD badge on the minimum preview line/ghost.
+- Keep the change narrow and UI-only first.
+- After the first edit, run a focused validation immediately for the touched UI slice.
+
+Important constraints
+- Do not treat P7A2 as complete yet.
+- Do not start P7B before P7A2-09 is complete and manual acceptance is recorded.
+- Keep rule timing invariant intact: evade must commit before adjusted charge distance can start.
+- Keep UI previews as presentation only; solver logic stays in engine/reducer layers.
+
+Key files to check first
+- P7A2_todo.md
+- roadmap.md
+- src/ui/p0-battlefield.js
+- src/ui/p0-battlefield.test.js
+- src/ui/battlefield-command-panel.js
+- src/styles/p0-battlefield.css
+
+Working tree caution
+- The repo currently has many untracked OCR/scan/image files under docs/source/new scan/ and docs/source/rules-v2-examples/.
+- These appear unrelated to the small P7A2 UI follow-up.
+- Be careful to stage only the intended files when committing.
+
+Manual acceptance still open later
+- Browser/manual checks for the full P7A2 UI flow are still not fully closed.
+- If continuing beyond the small preview-polish slice, keep manual acceptance explicit and do not imply it already happened.

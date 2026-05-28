@@ -56,6 +56,18 @@ export function createChargeContactDiagnostic(overrides = {}) {
   };
 }
 
+function summarizeChargeContactEventForDecisionTrace(event) {
+  return {
+    type: event?.type ?? null,
+    defenderId: event?.defenderId ?? null,
+    selectedTargetId: event?.selectedTargetId ?? null,
+    distanceUd: Number.isFinite(event?.distanceUd) ? event.distanceUd : null,
+    guideDistanceUd: Number.isFinite(event?.guideDistanceUd) ? event.guideDistanceUd : null,
+    pathSampleIndex: Number.isInteger(event?.pathSampleIndex) ? event.pathSampleIndex : null,
+    classificationType: event?.classification?.type ?? null,
+  };
+}
+
 function interpolateNumber(start, end, ratio) {
   return start + ((end - start) * ratio);
 }
@@ -384,11 +396,16 @@ function selectEarliestContactEvent(events) {
   return [...events].sort(compareChargeContactEvents)[0] ?? null;
 }
 
+function sortChargeContactEvents(events) {
+  return [...events].sort(compareChargeContactEvents);
+}
+
 export function resolveChargeContactState({ selectedUnit, targetUnit, pathSegments, battlefieldProfile, units }) {
   if (!selectedUnit || !targetUnit || !Array.isArray(pathSegments) || pathSegments.length === 0) {
     return {
       pathSegments: Array.isArray(pathSegments) ? pathSegments : [],
       contactEvents: [],
+      decisionTrace: [],
       diagnostics: [],
     };
   }
@@ -406,6 +423,19 @@ export function resolveChargeContactState({ selectedUnit, targetUnit, pathSegmen
     pathSampleIndex,
   }));
   const blockerUnits = (units ?? []).filter((unit) => unit.id !== selectedUnit.id && unit.id !== targetUnit.id);
+  const accumulatedEvents = [];
+  const seenDefenderIds = new Set();
+  const decisionTrace = [
+    {
+      stage: 'path-preview',
+      selectedUnitId: selectedUnit.id ?? null,
+      targetUnitId: targetUnit.id ?? null,
+      guideDistanceUd: acceptedGuideDistanceUd,
+      edgeLimited: Boolean(edgeLimited),
+      sampleCount: pathSamples.length,
+      blockerUnitIds: blockerUnits.map((unit) => unit.id ?? null).filter(Boolean),
+    },
+  ];
 
   for (let index = 0; index < pathSamples.length; index += 1) {
     const sample = pathSamples[index];
@@ -475,19 +505,72 @@ export function resolveChargeContactState({ selectedUnit, targetUnit, pathSegmen
       }));
     }
 
-    const event = selectEarliestContactEvent(candidateEvents);
-    if (event) {
+    const orderedEvents = sortChargeContactEvents(candidateEvents)
+      .filter((event) => {
+        const defenderId = String(event?.defenderId ?? '');
+        if (!defenderId || seenDefenderIds.has(defenderId)) {
+          return false;
+        }
+
+        seenDefenderIds.add(defenderId);
+        return true;
+      });
+
+    if (orderedEvents.length > 0) {
+      accumulatedEvents.push(...orderedEvents);
+      decisionTrace.push({
+        stage: 'sample-contacts',
+        pathSampleIndex: sample.pathSampleIndex,
+        sampleDistanceUd: Number.isFinite(sample.distanceUd) ? sample.distanceUd : null,
+        events: orderedEvents.map(summarizeChargeContactEventForDecisionTrace),
+      });
+    }
+
+    const terminalEvent = orderedEvents.find((event) => event.type !== CHARGE_CONTACT_EVENT_TYPES.EARLIER_ENEMY_CONTACT) ?? null;
+    if (terminalEvent) {
+      const firstEvent = accumulatedEvents[0] ?? terminalEvent;
+      const lastEvent = accumulatedEvents[accumulatedEvents.length - 1] ?? terminalEvent;
+      decisionTrace.push({
+        stage: 'return-terminal',
+        terminalEvent: summarizeChargeContactEventForDecisionTrace(terminalEvent),
+        accumulatedEvents: accumulatedEvents.map(summarizeChargeContactEventForDecisionTrace),
+        clippedGuideDistanceUd: lastEvent.guideDistanceUd,
+      });
       return {
-        pathSegments: replaceGuideDistance(pathSegments, event.guideDistanceUd),
-        contactEvents: [event],
-        diagnostics: createContactDiagnostic(event),
+        pathSegments: replaceGuideDistance(pathSegments, lastEvent.guideDistanceUd),
+        contactEvents: accumulatedEvents,
+        decisionTrace,
+        diagnostics: createContactDiagnostic(firstEvent),
       };
     }
   }
 
+  if (accumulatedEvents.length > 0) {
+    const firstEvent = accumulatedEvents[0];
+    const lastEvent = accumulatedEvents[accumulatedEvents.length - 1];
+    decisionTrace.push({
+      stage: 'return-earlier-enemy-sequence',
+      accumulatedEvents: accumulatedEvents.map(summarizeChargeContactEventForDecisionTrace),
+      clippedGuideDistanceUd: lastEvent.guideDistanceUd,
+    });
+
+    return {
+      pathSegments: replaceGuideDistance(pathSegments, lastEvent.guideDistanceUd),
+      contactEvents: accumulatedEvents,
+      decisionTrace,
+      diagnostics: createContactDiagnostic(firstEvent),
+    };
+  }
+
+  decisionTrace.push({
+    stage: edgeLimited ? 'return-table-edge' : 'return-no-contact',
+    clippedGuideDistanceUd: acceptedGuideDistanceUd,
+  });
+
   return {
     pathSegments: edgeLimited ? replaceGuideDistance(pathSegments, acceptedGuideDistanceUd) : pathSegments,
     contactEvents: [],
+    decisionTrace,
     diagnostics: edgeLimited
       ? [
           createChargeContactDiagnostic({

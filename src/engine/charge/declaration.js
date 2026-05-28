@@ -16,6 +16,10 @@ import {
   splitMovementPreviewIntoPathSamples,
 } from '../movement/index.js';
 import { getUnitMovementBudgetUd } from '../movement/budget.js';
+import {
+  getUnitBaseGeometry,
+  worldPointToLocalPoint,
+} from '../geometry/index.js';
 
 export const CHARGE_TARGET_CANDIDATE_STATUSES = {
   ELIGIBLE: 'eligible',
@@ -27,6 +31,11 @@ export const CHARGE_TARGET_SOURCE_STATUSES = {
   NEEDS_SOURCE_CHECK: 'needs-source-check',
 };
 
+export const CHARGE_TARGET_PATH_FEASIBILITY_STATUSES = {
+  EVALUATED: 'evaluated',
+  DEFERRED: 'deferred',
+};
+
 export const CHARGE_PATH_FAMILY_IDS = {
   ADVANCE: 'advance',
   SLIDE_ADVANCE: 'slide+advance',
@@ -35,6 +44,7 @@ export const CHARGE_PATH_FAMILY_IDS = {
 
 const CHARGE_PATH_EPSILON = 1e-6;
 const CHARGE_ADVANCE_STEP_UD = 0.1;
+const CHARGE_ADVANCE_CONTACT_WINDOW_PADDING_UD = 0.2;
 const CHARGE_SLIDE_STEP_UD = 0.25;
 const CHARGE_WHEEL_STEP_DISTANCE_UD = 0.25;
 const CHARGE_FAILURE_REASON_PRIORITIES = {
@@ -60,6 +70,7 @@ export function createChargeTargetCandidate(overrides = {}) {
     maxChargeRangeUd: Number.isFinite(overrides.maxChargeRangeUd) ? overrides.maxChargeRangeUd : null,
     status: overrides.status ?? CHARGE_TARGET_CANDIDATE_STATUSES.BLOCKED,
     sourceStatus: overrides.sourceStatus ?? CHARGE_TARGET_SOURCE_STATUSES.VERIFIED,
+    pathFeasibilityStatus: overrides.pathFeasibilityStatus ?? CHARGE_TARGET_PATH_FEASIBILITY_STATUSES.EVALUATED,
     reason: overrides.reason ?? '',
     diagnostics: Array.isArray(overrides.diagnostics) ? overrides.diagnostics : [],
   };
@@ -133,6 +144,89 @@ function getEndPoseUnit(baseUnit, preview) {
   });
 
   return createPosedUnit(baseUnit, endPose);
+}
+
+function getLocalBoundsForTargetRelativeToUnit(targetUnit, baseUnit) {
+  const baseGeometry = getUnitBaseGeometry({
+    center: { x: Number(baseUnit.xUd ?? 0), y: Number(baseUnit.yUd ?? 0) },
+    widthUd: Number(baseUnit.widthUd ?? 1),
+    depthUd: Number(baseUnit.depthUd ?? baseUnit.widthUd ?? 1),
+    rotationRadians: Number(baseUnit.rotationRadians ?? 0),
+  });
+  const targetGeometry = getUnitBaseGeometry({
+    center: { x: Number(targetUnit.xUd ?? 0), y: Number(targetUnit.yUd ?? 0) },
+    widthUd: Number(targetUnit.widthUd ?? 1),
+    depthUd: Number(targetUnit.depthUd ?? targetUnit.widthUd ?? 1),
+    rotationRadians: Number(targetUnit.rotationRadians ?? 0),
+  });
+  const localPoints = [
+    targetGeometry.center,
+    targetGeometry.corners.frontLeft,
+    targetGeometry.corners.frontRight,
+    targetGeometry.corners.rearRight,
+    targetGeometry.corners.rearLeft,
+  ].map((point) => worldPointToLocalPoint({
+    center: baseGeometry.center,
+    widthUd: baseGeometry.widthUd,
+    depthUd: baseGeometry.depthUd,
+    rotationRadians: baseGeometry.rotationRadians,
+  }, point));
+
+  return {
+    minX: Math.min(...localPoints.map((point) => point.x)),
+    maxX: Math.max(...localPoints.map((point) => point.x)),
+    minY: Math.min(...localPoints.map((point) => point.y)),
+    maxY: Math.max(...localPoints.map((point) => point.y)),
+  };
+}
+
+function getAdvanceDistanceWindowToTarget(baseUnit, targetUnit, remainingAdvanceUd) {
+  const targetBounds = getLocalBoundsForTargetRelativeToUnit(targetUnit, baseUnit);
+  const halfWidth = Number(baseUnit.widthUd ?? 1) / 2;
+  const halfDepth = Number(baseUnit.depthUd ?? baseUnit.widthUd ?? 1) / 2;
+  const overlapsForwardLaneX = targetBounds.maxX > -halfWidth + CHARGE_PATH_EPSILON
+    && targetBounds.minX < halfWidth - CHARGE_PATH_EPSILON;
+  if (!overlapsForwardLaneX) {
+    return null;
+  }
+
+  const earliestContactDistanceUd = Math.max(0, targetBounds.minY - halfDepth);
+  const latestContactDistanceUd = targetBounds.maxY + halfDepth;
+  if (latestContactDistanceUd < -CHARGE_PATH_EPSILON || earliestContactDistanceUd > remainingAdvanceUd + CHARGE_PATH_EPSILON) {
+    return null;
+  }
+
+  return {
+    startUd: Math.max(0, earliestContactDistanceUd - CHARGE_ADVANCE_CONTACT_WINDOW_PADDING_UD),
+    endUd: Math.min(remainingAdvanceUd, latestContactDistanceUd + CHARGE_ADVANCE_CONTACT_WINDOW_PADDING_UD),
+  };
+}
+
+function* iterateAdvanceDistancesForTarget(baseUnit, targetUnit, remainingAdvanceUd) {
+  const window = getAdvanceDistanceWindowToTarget(baseUnit, targetUnit, remainingAdvanceUd);
+  if (!window) {
+    if (remainingAdvanceUd > CHARGE_PATH_EPSILON) {
+      yield Number(remainingAdvanceUd.toFixed(3));
+    }
+    return;
+  }
+
+  const yielded = new Set();
+  const yieldDistance = function* yieldDistance(distanceUd) {
+    const normalizedDistanceUd = Number(Math.max(0, Math.min(remainingAdvanceUd, distanceUd)).toFixed(3));
+    const key = normalizedDistanceUd.toFixed(3);
+    if (!yielded.has(key)) {
+      yielded.add(key);
+      yield normalizedDistanceUd;
+    }
+  };
+
+  yield* yieldDistance(window.startUd);
+  const firstStepUd = Math.ceil((window.startUd - CHARGE_PATH_EPSILON) / CHARGE_ADVANCE_STEP_UD) * CHARGE_ADVANCE_STEP_UD;
+  for (let distanceUd = firstStepUd; distanceUd <= window.endUd + CHARGE_PATH_EPSILON; distanceUd += CHARGE_ADVANCE_STEP_UD) {
+    yield* yieldDistance(distanceUd);
+  }
+  yield* yieldDistance(window.endUd);
 }
 
 function findFirstOverlappingSample(pathSamples, chargingUnit, units) {
@@ -295,8 +389,36 @@ function createAdvanceSequenceEvaluation({
   const baseUnit = getEndPoseUnit(chargingUnit, prefixPreview);
   let bestFailure = null;
 
-  for (let distanceUd = 0; distanceUd <= remainingAdvanceUd + CHARGE_PATH_EPSILON; distanceUd += CHARGE_ADVANCE_STEP_UD) {
-    const clampedDistanceUd = Math.min(remainingAdvanceUd, Number(distanceUd.toFixed(3)));
+  const fullAdvancePreview = createAdvancePreview(baseUnit, remainingAdvanceUd, battlefieldProfile);
+  if (fullAdvancePreview.status === MOVEMENT_PREVIEW_STATUSES.ACCEPTED) {
+    const preview = buildAcceptedPreview([
+      ...prefixPreview.segments,
+      ...fullAdvancePreview.segments,
+    ]);
+    const pathEvaluation = evaluateChargePathContact({
+      preview,
+      chargingUnit,
+      targetUnit,
+      blockerUnits,
+      enemyZocUnits,
+    });
+
+    return pathEvaluation.ok
+      ? {
+          ok: true,
+          sequenceLabel,
+          preview,
+          sourceStatus: pathEvaluation.sourceStatus,
+        }
+      : {
+          ok: false,
+          code: pathEvaluation.code,
+          reason: formatFailureText(sequenceLabel, pathEvaluation.text),
+          sourceStatus: pathEvaluation.sourceStatus,
+        };
+  }
+
+  for (const clampedDistanceUd of iterateAdvanceDistancesForTarget(baseUnit, targetUnit, remainingAdvanceUd)) {
     const advancePreview = createAdvancePreview(baseUnit, clampedDistanceUd, battlefieldProfile);
     if (advancePreview.status !== MOVEMENT_PREVIEW_STATUSES.ACCEPTED) {
       continue;
@@ -495,7 +617,7 @@ function createChargeContextChargingUnit(chargingUnit, chargeContext) {
   return createPosedUnit(chargingUnit, startPose);
 }
 
-function createEnemyTargetCandidate(unit, chargingUnit, units, battlefieldProfile, chargeContext = null) {
+function createEnemyTargetCandidate(unit, chargingUnit, units, battlefieldProfile, chargeContext = null, options = {}) {
   const evaluationChargingUnit = createChargeContextChargingUnit(chargingUnit, chargeContext);
   const remainingChargeRangeUd = Number.isFinite(chargeContext?.remainingChargeRangeUd)
     ? Math.max(0, Number(chargeContext.remainingChargeRangeUd))
@@ -519,6 +641,37 @@ function createEnemyTargetCandidate(unit, chargingUnit, units, battlefieldProfil
           code: 'charge.target.range',
           status: 'blocked',
           text: `Die Distanz zwischen den naechsten Punkten betraegt ${formatLengthUd(rangeEvaluation.distanceUd)} UD und ueberschreitet die aktuelle Charge-Reichweite von ${formatLengthUd(rangeEvaluation.maxChargeRangeUd)} UD.`,
+        }),
+      ],
+    });
+  }
+
+  if (options.deferPathFeasibility) {
+    return createChargeTargetCandidate({
+      unitId: unit.id,
+      distanceUd: rangeEvaluation.distanceUd,
+      maxChargeRangeUd: rangeEvaluation.maxChargeRangeUd,
+      status: CHARGE_TARGET_CANDIDATE_STATUSES.ELIGIBLE,
+      sourceStatus: CHARGE_TARGET_SOURCE_STATUSES.VERIFIED,
+      pathFeasibilityStatus: CHARGE_TARGET_PATH_FEASIBILITY_STATUSES.DEFERRED,
+      reason: `Charge-Ziel liegt innerhalb der Grundreichweite: ${formatLengthUd(rangeEvaluation.distanceUd)} UD zwischen den naechsten Punkten bei maximal ${formatLengthUd(rangeEvaluation.maxChargeRangeUd)} UD. Der genaue Pfad wird nach Zielauswahl geprueft.`,
+      diagnostics: [
+        createChargeTargetDiagnostic({
+          code: 'charge.target.enemy',
+          status: 'ok',
+          text: 'Feindliche Einheit erkannt.',
+        }),
+        createChargeTargetDiagnostic({
+          code: 'charge.target.range',
+          status: 'ok',
+          text: `Die Distanz zwischen den naechsten Punkten betraegt ${formatLengthUd(rangeEvaluation.distanceUd)} UD und liegt innerhalb der aktuellen Charge-Reichweite von ${formatLengthUd(rangeEvaluation.maxChargeRangeUd)} UD.`,
+          sourceStatus: CHARGE_TARGET_SOURCE_STATUSES.VERIFIED,
+        }),
+        createChargeTargetDiagnostic({
+          code: 'charge.target.path-feasibility',
+          status: 'info',
+          text: 'Pfad-Feasibility wird fuer die schnelle Zielauswahl erst nach dem Klick auf dieses Ziel exakt berechnet.',
+          sourceStatus: CHARGE_TARGET_SOURCE_STATUSES.VERIFIED,
         }),
       ],
     });
@@ -591,7 +744,14 @@ function createEnemyTargetCandidate(unit, chargingUnit, units, battlefieldProfil
   });
 }
 
-export function getChargeTargetCandidates({ units, chargingUnitId, battlefieldProfile, chargeContext = null }) {
+export function getChargeTargetCandidates({
+  units,
+  chargingUnitId,
+  battlefieldProfile,
+  chargeContext = null,
+  targetUnitIds = null,
+  deferPathFeasibility = false,
+}) {
   if (!Array.isArray(units) || !chargingUnitId) {
     return [];
   }
@@ -608,11 +768,16 @@ export function getChargeTargetCandidates({ units, chargingUnitId, battlefieldPr
     return [];
   }
 
+  const targetUnitIdSet = Array.isArray(targetUnitIds)
+    ? new Set(targetUnitIds.filter(Boolean))
+    : null;
+
   return units
     .filter((unit) => unit.id !== chargingUnit.id)
+    .filter((unit) => !targetUnitIdSet || targetUnitIdSet.has(unit.id))
     .map((unit) => (unit.owner === chargingUnit.owner
       ? createFriendlyTargetCandidate(unit)
-      : createEnemyTargetCandidate(unit, chargingUnit, units, resolvedBattlefieldProfile, chargeContext)));
+      : createEnemyTargetCandidate(unit, chargingUnit, units, resolvedBattlefieldProfile, chargeContext, { deferPathFeasibility })));
 }
 
 export function getChargeTargetCandidateByUnitId(candidates, unitId) {

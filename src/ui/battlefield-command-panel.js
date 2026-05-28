@@ -16,10 +16,19 @@ import {
   EVADE_MOVE_RESOLUTION_STATUSES,
 } from '../engine/charge/index.js';
 import { getRemainingAdvanceBudgetUd } from '../state/p0-advance.js';
+import { isEvadeMoveReadyForAdjustedCharge } from '../state/p0-evade-move-state-helpers.js';
 import { canUseFreeCommandPointForCurrentOrder, doesMovementPreviewContainCommand, getSlideQualifiedMovementDistanceUd } from '../state/p0-movement.js';
+import {
+  getShootingDeclarationPresentation,
+  getShootingProcedurePresentation,
+  getShootingResolutionPresentation,
+} from '../state/p0-shooting.js';
+import { ROUND_DIALOG_TYPES } from '../state/p0-round.js';
 import { hasUnitUsedSlideThisMovementPhase, isSlideAvailableForUnit } from '../state/p0-slide.js';
+import { resolveEffectiveCommandMenuBranch } from '../state/p0-state-ui-helpers.js';
 import {
   canConfirmChargePreviewDirection,
+  canConfirmChargeConformation,
   canStartChargePreview,
   getChargePreviewUnavailableReason,
 } from '../state/p0-state.js';
@@ -113,7 +122,7 @@ function getChargeFollowThroughResolutionLabel(state, chargePreview) {
 
 function getSecondaryChargeReactionLabel(state, chargePreview) {
   const secondaryRequest = Array.isArray(chargePreview?.reactionRequests)
-    ? (chargePreview.reactionRequests[1] ?? null)
+    ? chargePreview.reactionRequests.find((request, index) => index > 0 && request?.status === 'pending') ?? null
     : null;
 
   if (!secondaryRequest || secondaryRequest.status !== 'pending') {
@@ -145,6 +154,113 @@ function getChargeContactLabel(contactEvent, selectedContactSide) {
   }
 
   return classification.type;
+}
+
+function getConformationPlanStatusLabel(conformationPlan) {
+  switch (conformationPlan?.status) {
+    case 'ready':
+      return 'Bereit';
+    case 'choice-required':
+      return 'Auswahl offen';
+    case 'blocked':
+      return 'Blockiert';
+    case 'source-open':
+      return 'Quellenoffen';
+    case 'applied':
+      return 'Angewendet';
+    case 'idle':
+    default:
+      return 'Keine Vorschau';
+  }
+}
+
+function getConformationCandidateStatusLabel(candidate) {
+  switch (candidate?.status) {
+    case 'complete':
+      return 'Vollstaendig';
+    case 'incomplete':
+      return 'Unvollstaendig';
+    case 'optional':
+      return 'Optional';
+    case 'blocked':
+      return 'Blockiert';
+    case 'needs-source-check':
+      return 'Quellenpruefung';
+    default:
+      return candidate?.status ?? 'Keine';
+  }
+}
+
+function getSourceStatusLabel(sourceStatus) {
+  switch (sourceStatus) {
+    case 'verified':
+      return 'verifiziert';
+    case 'errata-check':
+      return 'Errata-Check';
+    case 'needs-source-check':
+      return 'Quellenpruefung';
+    default:
+      return sourceStatus ?? 'offen';
+  }
+}
+
+function getShootingStatusLabel(status) {
+  switch (status) {
+    case 'targeting':
+      return 'Zielwahl';
+    case 'ready':
+      return 'Bereit';
+    case 'blocked':
+      return 'Blockiert';
+    case 'source-open':
+      return 'Quellenoffen';
+    case 'idle':
+    default:
+      return 'Inaktiv';
+  }
+}
+
+function getShootingResolutionStatusLabel(status) {
+  switch (status) {
+    case 'resolved':
+      return 'Bereit';
+    case 'source-open':
+      return 'Quellenoffen';
+    case 'invalid':
+      return 'Ungueltig';
+    default:
+      return status ?? 'Offen';
+  }
+}
+
+function getPreferredConformationCandidate(conformationPlan) {
+  if (!conformationPlan) {
+    return null;
+  }
+
+  return (conformationPlan.candidates ?? []).find((candidate) => candidate.id === conformationPlan.selectedCandidateId)
+    ?? conformationPlan.candidates?.[0]
+    ?? null;
+}
+
+function getConformationShiftSummary(state, shiftingPlan) {
+  if (!shiftingPlan || shiftingPlan.status === 'none') {
+    return null;
+  }
+
+  if (shiftingPlan.status === 'ready') {
+    const steps = Array.isArray(shiftingPlan.steps) ? shiftingPlan.steps : [];
+    if (steps.length === 0) {
+      return 'Shift vorbereitet';
+    }
+
+    return steps.map((step) => {
+      const label = getUnitScenarioLabel(state, step.unitId);
+      return `${label}: ${step.direction ?? 'unknown'} ${formatLengthUd(Number(step.distanceUd ?? 0))} UD`;
+    }).join('; ');
+  }
+
+  return shiftingPlan.diagnostics?.[0]?.message ?? shiftingPlan.status;
 }
 
 function getChargeStartLabel(startManoeuvre) {
@@ -188,6 +304,21 @@ function buildChargeWhyItems({ state, chargePreview }) {
   const followThroughLabel = getChargeFollowThroughResolutionLabel(state, chargePreview);
   const secondaryReactionLabel = getSecondaryChargeReactionLabel(state, chargePreview);
   const secondaryReactionDecisionLabel = getSecondaryChargeReactionDecisionLabel(state, chargePreview);
+  const conformationPlan = chargePreview?.conformationPlan ?? null;
+  const selectedConformationCandidate = getPreferredConformationCandidate(conformationPlan);
+  const shiftingPlan = conformationPlan?.shiftingPlan ?? null;
+  const conformationDiagnostic = conformationPlan?.diagnostics?.[0] ?? selectedConformationCandidate?.diagnostics?.[0] ?? null;
+  const shiftingLocks = Array.isArray(shiftingPlan?.lockEffects)
+    ? shiftingPlan.lockEffects.map((effect) => {
+      const unitLabel = getUnitScenarioLabel(state, effect.unitId);
+      return effect.lightTroopsException
+        ? `${unitLabel}: Light troops exception`
+        : effect.movedOrRalliedLock
+          ? `${unitLabel}: move/rally lock`
+          : `${unitLabel}: no lock`;
+    }).join('; ')
+    : null;
+  const shiftingSummary = getConformationShiftSummary(state, shiftingPlan);
 
   return [
     { label: 'Status', value: getChargeStatusLabel(chargePreview.status) },
@@ -196,6 +327,27 @@ function buildChargeWhyItems({ state, chargePreview }) {
     { label: 'Pfad', value: getChargePathLabel(referencePath, referenceContact) },
     { label: 'Kontakt', value: getChargeContactLabel(referenceContact, selectedContactSide) },
     { label: 'Reaktion', value: getChargeReactionTypeLabel(referenceReaction?.type ?? null) },
+    conformationPlan?.status && conformationPlan.status !== 'idle'
+      ? { label: 'Konformation', value: getConformationPlanStatusLabel(conformationPlan) }
+      : null,
+    selectedConformationCandidate
+      ? {
+        label: 'Konform-Ziel',
+        value: `${getConformationCandidateStatusLabel(selectedConformationCandidate)}${selectedConformationCandidate.contactSide ? ` (${selectedConformationCandidate.contactSide})` : ''}`,
+      }
+      : null,
+    conformationPlan?.sourceStatus || selectedConformationCandidate?.sourceStatus
+      ? { label: 'Konform-Quelle', value: getSourceStatusLabel(selectedConformationCandidate?.sourceStatus ?? conformationPlan?.sourceStatus) }
+      : null,
+    shiftingSummary
+      ? { label: 'Shift', value: shiftingSummary }
+      : null,
+    shiftingLocks
+      ? { label: 'Shift-Folgen', value: shiftingLocks }
+      : null,
+    conformationDiagnostic?.message
+      ? { label: 'Konform-Hinweis', value: conformationDiagnostic.message }
+      : null,
     followThroughLabel ? { label: 'Follow-through', value: followThroughLabel } : null,
     secondaryReactionLabel ? { label: 'Next reaction', value: secondaryReactionLabel } : null,
     secondaryReactionDecisionLabel ? { label: 'Recorded reaction', value: secondaryReactionDecisionLabel } : null,
@@ -205,6 +357,122 @@ function buildChargeWhyItems({ state, chargePreview }) {
 
 function formatLengthUd(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function renderLeanShootingProcedurePanel({
+  selectedUnit,
+  helperCopy,
+  diagnostics,
+  shootingProcedureStatus,
+  shootingProcedureOverview,
+  shootingSequenceHandoffPending,
+  shootingSequenceHandoffKind,
+  canOpenShootingSequenceHandoff,
+  canPassActiveShooter,
+  shootingPreviewActive,
+  canConfirmShootingDeclaration,
+  hasDeclaredShotToResolve,
+  resolutionDraftActive,
+  shootDisabledReason,
+  shootingWhyItems,
+  shootingSupportingShooters,
+  shootingSupportTargetUnitId,
+  shootingSupportBonus,
+  helperSection,
+}) {
+  const currentTargetLabel = shootingWhyItems.find((item) => item.label === 'Target')?.value
+    ?? shootingWhyItems.find((item) => item.label === 'Declared target')?.value
+    ?? 'Noch kein Ziel';
+  const headline = resolutionDraftActive
+    ? 'Schussdialog offen'
+    : shootingSequenceHandoffPending
+      ? 'Schiessfolge fertig'
+    : hasDeclaredShotToResolve
+      ? 'Schuss bereit'
+      : shootingPreviewActive
+        ? 'Schiessen'
+        : 'Waehle Schuetzen';
+  const copy = resolutionDraftActive
+    ? 'Wuerfel, Schutz und Resultat liegen jetzt im Popup.'
+    : shootingSequenceHandoffPending
+      ? shootingSequenceHandoffKind === 'next-player'
+        ? 'Alle eligiblen Schuetzen sind abgeschlossen. Die Abgabe an den naechsten Spieler wartet im Popup.'
+        : 'Alle Shooting-Sequenzen sind abgeschlossen. Der Wechsel in die Nahkampfphase wartet im Popup.'
+    : hasDeclaredShotToResolve
+      ? 'Der Schuss ist gebunden und kann bei Bedarf erneut im Popup geoeffnet werden.'
+      : shootingPreviewActive
+        ? `Prio-Ziel: ${currentTargetLabel}`
+        : 'Waehle eine noch offene Fernkampfeinheit auf dem Feld.';
+  const showPrimaryShootButton = shootingPreviewActive && canConfirmShootingDeclaration && !resolutionDraftActive;
+  const showPopupFallbackButton = hasDeclaredShotToResolve && !resolutionDraftActive;
+  const showHandoffPopupButton = shootingSequenceHandoffPending && canOpenShootingSequenceHandoff && !resolutionDraftActive;
+
+  return `
+    <div class="battlefield-placeholder-card battlefield-shooting-procedure-card" data-shooting-procedure-status="${shootingProcedureStatus}">
+      <strong>Befehle</strong>
+      <div class="battlefield-command-primary">
+        <div class="battlefield-shooting-procedure-rail" data-testid="shooting-procedure-rail">
+          <div class="battlefield-shooting-procedure-banner" data-testid="shooting-procedure-banner">
+            <strong>${headline}</strong>
+            <span>${copy}</span>
+          </div>
+          ${shootingProcedureOverview ? `
+            <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="shooting-procedure-overview-card">
+              <strong>Procedure</strong>
+              <ul>
+                <li><strong>Ranged:</strong> ${shootingProcedureOverview.totalRangedUnits}</li>
+                <li><strong>Eligible:</strong> ${shootingProcedureOverview.eligibleUnits}</li>
+                <li><strong>Blocked:</strong> ${shootingProcedureOverview.blockedUnits}</li>
+                <li><strong>Done:</strong> ${shootingProcedureOverview.completedUnits}</li>
+              </ul>
+            </div>
+          ` : ''}
+          ${shootingSupportingShooters.length > 0 ? `
+            <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="shooting-support-card" data-support-target-unit-id="${shootingSupportTargetUnitId ?? ''}">
+              <strong>Support Fire</strong>
+              <ul>
+                <li><strong>Bonus:</strong> +${shootingSupportBonus}</li>
+                ${shootingSupportingShooters.map((supporter) => `
+                  <li><strong>${supporter.label ?? supporter.id}:</strong> ${supporter.supportValueLabel}</li>
+                `).join('')}
+              </ul>
+            </div>
+          ` : ''}
+          <div class="battlefield-command-actions battlefield-command-actions-shooting-lean">
+            ${showPrimaryShootButton ? `
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="confirm-shooting-declaration" aria-label="Schiessen" title="Schuss deklarieren und Popup oeffnen">
+                <span>Schiessen</span>
+              </button>
+            ` : ''}
+            ${showPopupFallbackButton ? `
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="start-shooting-resolution-draft" aria-label="Schusspopup oeffnen" title="Schusspopup erneut oeffnen">
+                <span>Popup oeffnen</span>
+              </button>
+            ` : ''}
+            ${showHandoffPopupButton ? `
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="open-shooting-sequence-handoff" aria-label="Phasenpopup oeffnen" title="Schiessphasen-Handoff erneut oeffnen">
+                <span>Popup oeffnen</span>
+              </button>
+            ` : ''}
+            ${canPassActiveShooter && !resolutionDraftActive ? `
+              <button class="ghost-button battlefield-command-action" type="button" data-action="pass-active-shooter" aria-label="Aktiven Shooter ueberspringen" title="Diesen Shooter ohne Schuss als abgeschlossen markieren">
+                <span>Pass</span>
+              </button>
+            ` : ''}
+            ${selectedUnit && !resolutionDraftActive ? `
+              <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="deselect-unit" aria-label="Shooter abwaehlen" title="Aktuelle Schuetzenauswahl aufheben">
+                <span>Abwaehlen</span>
+              </button>
+            ` : ''}
+          </div>
+          ${selectedUnit && shootDisabledReason && !showPrimaryShootButton && !showPopupFallbackButton ? `
+            <span class="muted-copy">${shootDisabledReason}</span>
+          ` : ''}
+        </div>
+        ${helperSection}
+      </div>
+    </div>
+  `;
 }
 
 function formatAngleDegrees(angleRadians) {
@@ -276,7 +544,31 @@ function getChargeBranchDistanceOutcomeLabel(distanceOutcome) {
   }
 }
 
+function getTableExitEdgeLabel(exitEdges = []) {
+  const primaryEdge = Array.isArray(exitEdges) ? exitEdges[0] : null;
+  switch (primaryEdge) {
+    case 'north':
+      return 'Nordkante';
+    case 'south':
+      return 'Suedkante';
+    case 'west':
+      return 'Westkante';
+    case 'east':
+      return 'Ostkante';
+    default:
+      return 'Tischkante';
+  }
+}
+
 export function getEvadeAvoidanceChoiceLabel(candidate) {
+  if (candidate?.type === 'initial-branch-current-orientation') {
+    return 'Aktuelle Orientierung beibehalten';
+  }
+
+  if (candidate?.type === 'initial-branch-direction-wheel') {
+    return 'Mit Direction-Wheel anpassen';
+  }
+
   if (candidate?.type === 'straight') {
     return 'Evade gerade ausfuehren';
   }
@@ -428,9 +720,14 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
         helperCopy = 'Charge pausiert im Reaktionsschritt. Die eingefrorene Deklaration wartet jetzt auf die Reaktionsentscheidung des Verteidigers.';
       } else if (chargePreview.status === 'no-evade-handoff') {
         const secondaryReactionDecisionLabel = getSecondaryChargeReactionDecisionLabel(state, chargePreview);
+        const hasConformationPreview = chargePreview.conformationPlan?.status && chargePreview.conformationPlan.status !== 'idle';
         helperCopy = secondaryReactionDecisionLabel
-          ? `Die Sekundaerziel-Reaktion ist als ${secondaryReactionDecisionLabel} abgeschlossen. Der Geradeaus-Follow-Through wartet jetzt im expliziten No-Evade-Handoff auf den naechsten P7A/P7B-Slice.`
-          : 'Reaktion abgeschlossen: kein Ausweichen. Die Charge wartet jetzt im expliziten No-Evade-Handoff auf P7A/P7B.';
+          ? hasConformationPreview
+            ? `Die Sekundaerziel-Reaktion ist als ${secondaryReactionDecisionLabel} abgeschlossen. Die Charge ist jetzt im No-Evade-Handoff und zeigt die erste Konformationsvorschau fuer das aktuelle Ziel.`
+            : `Die Sekundaerziel-Reaktion ist als ${secondaryReactionDecisionLabel} abgeschlossen. Der Geradeaus-Follow-Through wartet jetzt im expliziten No-Evade-Handoff auf den naechsten P7A/P7B-Slice.`
+          : hasConformationPreview
+            ? 'Reaktion abgeschlossen: kein Ausweichen. Die Charge ist jetzt im No-Evade-Handoff und zeigt die erste Konformationsvorschau.'
+            : 'Reaktion abgeschlossen: kein Ausweichen. Die Charge wartet jetzt im expliziten No-Evade-Handoff auf P7A/P7B.';
       } else if (chargePreview.status === 'evade-required') {
         const branchDistanceClaim = chargePreview?.branchDistanceRoll?.claim ?? null;
         const branchDistanceResult = chargePreview?.branchDistanceRoll?.result ?? null;
@@ -438,6 +735,12 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
         const continuationChoice = chargePreview?.chargeMovementPlan?.continuationChoice ?? null;
         const followThroughResolution = chargePreview?.followThroughResolution ?? null;
         const evadeMove = chargePreview?.evadeMove ?? null;
+        const canStartAdjustedChargeDistanceRoll = Boolean(
+          isEvadeMoveReadyForAdjustedCharge(evadeMove)
+            && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE
+            && branchClaimTargetsPrimaryReaction
+            && branchDistanceResult
+        );
         const secondaryReactionLabel = getSecondaryChargeReactionLabel(state, chargePreview);
         const secondaryReactionDecisionLabel = getSecondaryChargeReactionDecisionLabel(state, chargePreview);
 
@@ -450,7 +753,7 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
         } else if (followThroughResolution?.status === CHARGE_FOLLOW_THROUGH_RESOLUTION_STATUSES.CAUGHT_EVADER) {
           helperCopy = `Der Geradeaus-Follow-Through hat den Evader ${getUnitScenarioLabel(state, followThroughResolution.defenderId)} eingeholt. Der spaetere Kampf bleibt als Rear-Attack-Hook markiert; 1 Cohesion Loss bleibt vorgemerkt, waehrend die Light-Charger-Ausnahme erst in einem spaeteren P7A/P9-Slice sauber geschlossen wird.`;
         } else if (followThroughResolution?.status === CHARGE_FOLLOW_THROUGH_RESOLUTION_STATUSES.SECONDARY_TARGET) {
-          helperCopy = `Der Geradeaus-Follow-Through trifft zuerst das Sekundaerziel ${getUnitScenarioLabel(state, followThroughResolution.defenderId)} und pausiert dort. ${secondaryReactionLabel ? `Die naechste pausierte Reaktion ist ${secondaryReactionLabel}.` : (chargePreview.evadePlan && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE && branchDistanceResult && !branchClaimTargetsPrimaryReaction) ? `Die Sekundaerziel-Reaktion ist jetzt als ${secondaryReactionDecisionLabel ?? 'sekundaere Ausweichreaktion'} aufgeloest. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)} fuer ${getUnitScenarioLabel(state, chargePreview.evadePlan?.reactingUnitId)}. Die weitere Kette bleibt im aktuellen P7A-Schnitt noch angehalten.` : secondaryReactionDecisionLabel ? `Die Sekundaerziel-Reaktion ist bereits als ${secondaryReactionDecisionLabel} erfasst; die Kette bleibt bis zum naechsten P7A-Slice angehalten.` : 'Die Sekundaerziel-Reaktion bleibt fuer den naechsten P7A-Slice offen.'}`;
+          helperCopy = `Der Geradeaus-Follow-Through trifft zuerst das Sekundaerziel ${getUnitScenarioLabel(state, followThroughResolution.defenderId)} und pausiert dort. ${secondaryReactionLabel ? `Die naechste pausierte Reaktion ist ${secondaryReactionLabel}.` : (chargePreview.evadePlan && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE && branchDistanceResult && !branchClaimTargetsPrimaryReaction) ? `Die Sekundaerziel-Reaktion ist jetzt als ${secondaryReactionDecisionLabel ?? 'sekundaere Ausweichreaktion'} aufgeloest. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)} fuer ${getUnitScenarioLabel(state, chargePreview.evadePlan?.reactingUnitId)}. Der bereits gewuerfelte adjusted charge wird weiterverwendet und die Kette wird von dort neu geprueft.` : secondaryReactionDecisionLabel ? `Die Sekundaerziel-Reaktion ist bereits als ${secondaryReactionDecisionLabel} erfasst; der bereits gewuerfelte adjusted charge bleibt gueltig und die Kette wird von dort weitergefuehrt.` : 'Die Sekundaerziel-Reaktion bleibt offen.'}`;
         } else if (followThroughResolution?.status === CHARGE_FOLLOW_THROUGH_RESOLUTION_STATUSES.FRIENDLY_BLOCKER) {
           helperCopy = `Der Geradeaus-Follow-Through laeuft in den befreundeten Blocker ${getUnitScenarioLabel(state, followThroughResolution.defenderId)}. Die genaue Folge bleibt im aktuellen P7A-Schnitt noch offen.`;
         } else if (chargePreview.chargeMovementPlan && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.ADJUSTED_CHARGE_DISTANCE && branchDistanceResult) {
@@ -465,6 +768,12 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
           && chargePreview?.evadeChoiceHandoff?.status === 'acknowledged'
         ) {
           helperCopy = 'Spieler B waehlt jetzt nur den initialen Ausweichpfad. Danach optimiert der Solver den restlichen legalen Fluchtweg auf maximale Distanz und erst dann wird Adjusted Charge freigeschaltet.';
+        } else if (canStartAdjustedChargeDistanceRoll && evadeMove?.status !== EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED) {
+          helperCopy = evadeMove?.tableExit?.exitsTable
+            ? `Das Ausweichen bleibt vor dem Board-Commit source-open. ${getUnitScenarioLabel(state, evadeMove.reactingUnitId)} verlaesst ueber die ${getTableExitEdgeLabel(evadeMove.tableExit.exitEdges)} den Tisch; die spaetere P10-Abrechnung bleibt nur als Hook vorgemerkt. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt trotzdem den Folgewurf fuer die angepasste Charge-Distanz.`
+            : evadeMove?.endHalfTurnHook?.applied
+              ? `Das Ausweichen bleibt vor dem Board-Commit source-open. ${getUnitScenarioLabel(state, evadeMove.reactingUnitId)} legt ${formatLengthUd(Number(evadeMove.distanceUd ?? branchDistanceResult.resolvedDistanceUd ?? 0))} UD Evade-Distanz zurueck; der Light-Troop-End-Half-Turn kommt erst danach kostenlos dazu${evadeMove.cannotShootHook ? ' und sperrt spaeteres Schiessen' : ''}. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt den Folgewurf fuer die angepasste Charge-Distanz.`
+              : `Das Ausweichen bleibt vor dem Board-Commit source-open. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt den Folgewurf fuer die angepasste Charge-Distanz.`;
         } else if (
           chargePreview.evadePlan
           && evadeMove?.status !== EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED
@@ -480,9 +789,13 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
           && branchDistanceResult
           && branchClaimTargetsPrimaryReaction
         ) {
-          helperCopy = `Ausweichen ist committed. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt den Folgewurf fuer die angepasste Charge-Distanz.`;
+          helperCopy = evadeMove?.tableExit?.exitsTable
+            ? `Ausweichen ist committed. ${getUnitScenarioLabel(state, evadeMove.reactingUnitId)} verlaesst ueber die ${getTableExitEdgeLabel(evadeMove.tableExit.exitEdges)} den Tisch und wird vor Adjusted Charge aus dem Spiel entfernt; die spaetere P10-Abrechnung bleibt nur als Hook vorgemerkt. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}.`
+            : evadeMove?.endHalfTurnHook?.applied
+              ? `Ausweichen ist committed. ${getUnitScenarioLabel(state, evadeMove.reactingUnitId)} legt ${formatLengthUd(Number(evadeMove.distanceUd ?? branchDistanceResult.resolvedDistanceUd ?? 0))} UD Evade-Distanz zurueck; der Light-Troop-End-Half-Turn kommt erst danach kostenlos dazu${evadeMove.cannotShootHook ? ' und sperrt spaeteres Schiessen' : ''}. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt den Folgewurf fuer die angepasste Charge-Distanz.`
+              : `Ausweichen ist committed. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)}. Starte jetzt den Folgewurf fuer die angepasste Charge-Distanz.`;
         } else if (chargePreview.evadePlan && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE && branchDistanceResult) {
-          helperCopy = `Die Sekundaerziel-Reaktion ist jetzt als ${secondaryReactionDecisionLabel ?? 'sekundaere Ausweichreaktion'} aufgeloest. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)} fuer ${getUnitScenarioLabel(state, chargePreview.evadePlan?.reactingUnitId)}. Die weitere Kette bleibt im aktuellen P7A-Schnitt noch angehalten.`;
+          helperCopy = `Die Sekundaerziel-Reaktion ist jetzt als ${secondaryReactionDecisionLabel ?? 'sekundaere Ausweichreaktion'} aufgeloest. Ergebnis: ${getChargeBranchDistanceOutcomeLabel(branchDistanceResult.distanceOutcome)} fuer ${getUnitScenarioLabel(state, chargePreview.evadePlan?.reactingUnitId)}. Der bereits gewuerfelte adjusted charge bleibt gueltig.`;
         } else {
           helperCopy = 'Reaktion abgeschlossen: Ausweichen erforderlich. Die Charge bleibt jetzt explizit fuer P7A blockiert.';
         }
@@ -518,10 +831,15 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
       ? 'Auswahl gesperrt: Diese Einheit hat eine laufende Charge-Vorschau. Erst weiterfuehren oder abbrechen.'
       : 'Auswahl gesperrt: Diese Einheit hat eine laufende, noch nicht bestaetigte Bewegung. Erst bestaetigen, abbrechen oder resetten.'
     : '';
+  const chargeConformationConfirmReady = Boolean(
+    selectedUnit
+      && chargePreview?.intent?.unitId === selectedUnit.id
+      && canConfirmChargeConformation(chargePreview)
+  );
   const canConfirmMovement = Boolean(
     commanderFreeMovePreview?.status === 'ready'
       && commanderFreeMovePreview.unitId === selectedUnit?.id,
-  ) || state.game.movement.confirmation.status === 'ready' || chargeConfirmReady;
+  ) || state.game.movement.confirmation.status === 'ready' || chargeConfirmReady || chargeConformationConfirmReady;
   const canCancelMovement = hasPendingCommanderPreview
     || hasPendingChargePreview
     || Boolean(state.game.movement.selectedCommandId)
@@ -567,7 +885,7 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
     chargePreview?.intent?.unitId === selectedUnit?.id
       && chargePreview?.status === 'evade-required'
       && chargePreview?.evadePlan
-      && chargePreview?.evadeMove?.status === EVADE_MOVE_RESOLUTION_STATUSES.COMMITTED
+      && isEvadeMoveReadyForAdjustedCharge(chargePreview?.evadeMove)
       && branchDistanceClaim?.reason === CHARGE_BRANCH_ROLL_REASONS.EVADE_DISTANCE
       && branchClaimTargetsPrimaryReaction
       && branchDistanceResult,
@@ -592,6 +910,39 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
       && !continuationChoice?.selectedOption,
   );
   const chargeWhyItems = chargePreviewActive ? buildChargeWhyItems({ state, chargePreview }) : [];
+  const shootingPhaseActive = state.game.commandContext.currentPhaseId === 'shooting';
+  const shootingPresentation = shootingPhaseActive
+    ? getShootingDeclarationPresentation({ gameState: state.game, selectedUnit })
+    : null;
+  const shootingProcedurePresentation = shootingPhaseActive
+    ? getShootingProcedurePresentation(state.game, selectedUnit?.id ?? null)
+    : null;
+  const shootingResolutionPresentation = shootingPhaseActive
+    ? getShootingResolutionPresentation({ gameState: state.game, selectedUnit })
+    : null;
+  const commandMenuBranch = resolveEffectiveCommandMenuBranch(state.game, selectedUnit);
+  const commandMenuLevel = commandMenuBranch ? 'branch' : 'root';
+  const shootingFlowActive = Boolean(
+    shootingPresentation?.shootingPreviewActive
+      || shootingResolutionPresentation?.resolutionDraftActive
+      || shootingResolutionPresentation?.hasDeclaredShotToResolve
+      || shootingResolutionPresentation?.resolvedShotRecord,
+  );
+  const effectiveShootingSupporters = shootingPresentation?.supportingShooters?.length
+    ? shootingPresentation.supportingShooters
+    : shootingResolutionPresentation?.supportingShooters ?? [];
+  const effectiveShootingDeclaredShotGroup = shootingPresentation?.declaredShotGroup
+    ?? shootingResolutionPresentation?.declaredShotGroup
+    ?? null;
+  const activeShootingHelperCopy = shootingResolutionPresentation?.resolutionDraftActive
+    || shootingResolutionPresentation?.hasDeclaredShotToResolve
+    || shootingResolutionPresentation?.resolvedShotRecord
+    ? shootingResolutionPresentation?.helperCopy
+    : shootingPresentation?.helperCopy;
+  const activeShootingDiagnostics = [
+    ...(shootingPresentation?.diagnostics ?? []),
+    ...(shootingResolutionPresentation?.diagnostics ?? []),
+  ];
 
   return {
     advanceModeActive,
@@ -608,8 +959,8 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
     maxAdvanceUd,
     previewUnitStyle,
     advanceReachStyle,
-    helperCopy,
-    diagnostics,
+    helperCopy: shootingPhaseActive ? activeShootingHelperCopy : helperCopy,
+    diagnostics: shootingPhaseActive ? activeShootingDiagnostics : diagnostics,
     canCancelMovement,
     canConfirmMovement,
     selectionLockActive,
@@ -632,8 +983,46 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
     minimumChargeContinuationDistanceUd: continuationChoice?.minimumDistanceUd ?? 0,
     maximumChargeContinuationDistanceUd: continuationChoice?.maximumDistanceUd ?? 0,
     chargeWhyItems,
-    confirmActionLabel: chargeConfirmReady ? 'Richtung bestaetigen' : 'Bewegung beenden',
-    confirmActionTitle: chargeConfirmReady ? 'Charge-Deklaration einfrieren und Reaktion oeffnen' : 'Bewegung beenden',
+    canShowShootingButton: Boolean(selectedUnit) && shootingPhaseActive && !selectedUnit?.isCommander,
+    shootingProcedureStatus: shootingProcedurePresentation?.status ?? 'idle',
+    activeShootingUnitId: shootingProcedurePresentation?.activeShooterUnitId ?? null,
+    shootingProcedureOverview: shootingProcedurePresentation?.overview ?? null,
+    shootingSequenceHandoffPending: state.game.shooting?.handoff?.status === 'pending',
+    shootingSequenceHandoffKind: state.game.shooting?.handoff?.kind ?? null,
+    canOpenShootingSequenceHandoff: state.game.shooting?.handoff?.status === 'pending'
+      && state.game.round?.dialog?.type !== ROUND_DIALOG_TYPES.SHOOTING_SEQUENCE_HANDOFF,
+    canPassActiveShooter: shootingProcedurePresentation?.canPassActiveShooter ?? false,
+    isActiveShootingUnit: Boolean(selectedUnit?.id) && shootingProcedurePresentation?.activeShooterUnitId === selectedUnit?.id,
+    shootingPreviewActive: shootingPresentation?.shootingPreviewActive ?? false,
+    shootingTargetingActive: shootingPresentation?.shootingTargetingActive ?? false,
+    canStartShootingDeclaration: shootingPresentation?.canStartShootingDeclaration ?? false,
+    canCancelShootingDeclaration: shootingPresentation?.canCancelShootingDeclaration ?? false,
+    canConfirmShootingDeclaration: shootingPresentation?.canConfirmShootingDeclaration ?? false,
+    hasDeclaredShotToResolve: shootingResolutionPresentation?.hasDeclaredShotToResolve ?? false,
+    resolvedShotRecord: shootingResolutionPresentation?.resolvedShotRecord ?? null,
+    resolutionDraftActive: shootingResolutionPresentation?.resolutionDraftActive ?? false,
+    canStartShootingResolution: shootingResolutionPresentation?.canStartShootingResolution ?? false,
+    canConfirmShootingResolution: shootingResolutionPresentation?.canConfirmShootingResolution ?? false,
+    shootingResolutionDraft: shootingResolutionPresentation?.resolutionDraft ?? null,
+    shootingResolutionPreview: shootingResolutionPresentation?.resolutionPreview ?? null,
+    shootDisabledReason: shootingPresentation?.shootDisabledReason ?? '',
+    shootingWhyItems: ([...(shootingPresentation?.whyItems ?? []), ...(shootingResolutionPresentation?.whyItems ?? [])]).map((item) => ({
+      ...item,
+      value: item.label === 'Status'
+        ? getShootingStatusLabel(item.value)
+        : item.label === 'Resolution'
+          ? getShootingResolutionStatusLabel(item.value)
+          : item.value,
+    })),
+    shootingTargetCandidates: shootingPresentation?.targetCandidates ?? [],
+            shootingSupportingShooters: effectiveShootingSupporters,
+            shootingSupportTargetUnitId: effectiveShootingDeclaredShotGroup?.targetUnitId ?? null,
+            shootingSupportBonus: effectiveShootingDeclaredShotGroup?.supportBonus ?? 0,
+    shootingFlowActive,
+    commandMenuBranch,
+    commandMenuLevel,
+    confirmActionLabel: chargeConformationConfirmReady ? 'Konformation bestaetigen' : chargeConfirmReady ? 'Richtung bestaetigen' : 'Bewegung beenden',
+    confirmActionTitle: chargeConformationConfirmReady ? 'Charge mit aktueller Konformation abschliessen' : chargeConfirmReady ? 'Charge-Deklaration einfrieren und Reaktion oeffnen' : 'Bewegung beenden',
     movementBudgetLabel: isFreeCommander
       ? 'General-Budget'
       : movementBudgetSubset?.troopType === 'heavy-infantry'
@@ -686,6 +1075,35 @@ export function renderAdvanceCommandPanel({
   minimumChargeContinuationDistanceUd = 0,
   maximumChargeContinuationDistanceUd = 0,
   chargeWhyItems = [],
+  canShowShootingButton = false,
+  shootingProcedureStatus = 'idle',
+  activeShootingUnitId = null,
+  shootingProcedureOverview = null,
+  shootingSequenceHandoffPending = false,
+  shootingSequenceHandoffKind = null,
+  canOpenShootingSequenceHandoff = false,
+  canPassActiveShooter = false,
+  isActiveShootingUnit = false,
+  shootingPreviewActive = false,
+  shootingTargetingActive = false,
+  canStartShootingDeclaration = false,
+  canCancelShootingDeclaration = false,
+  canConfirmShootingDeclaration = false,
+  hasDeclaredShotToResolve = false,
+  resolvedShotRecord = null,
+  resolutionDraftActive = false,
+  canStartShootingResolution = false,
+  canConfirmShootingResolution = false,
+  shootingResolutionDraft = null,
+  shootingResolutionPreview = null,
+  shootDisabledReason = '',
+  shootingWhyItems = [],
+  shootingSupportingShooters = [],
+  shootingSupportTargetUnitId = null,
+  shootingSupportBonus = 0,
+  shootingFlowActive = false,
+  commandMenuBranch = null,
+  commandMenuLevel = 'root',
   confirmActionLabel = 'Bewegung beenden',
   confirmActionTitle = 'Bewegung beenden',
   canToggleCommanderEngagedDiagnostic = false,
@@ -700,6 +1118,46 @@ export function renderAdvanceCommandPanel({
       && !selectedUnit?.hasIncludedCommander
       && !selectedUnit?.attachedUnitId,
   );
+  const showCommanderBranchGrouping = Boolean(selectedUnit?.isCommander);
+  const showUnitBranchGrouping = Boolean(canShowMovementButtons) && !showCommanderBranchGrouping;
+  const showShootingBranchGrouping = Boolean(canShowShootingButton) && !showCommanderBranchGrouping;
+  const showLeanShootingPanel = Boolean(
+    shootingProcedureStatus !== 'idle'
+      || shootingSequenceHandoffPending
+      || shootingPreviewActive
+      || hasDeclaredShotToResolve
+      || resolvedShotRecord
+      || resolutionDraftActive
+      || shootingProcedureOverview,
+  );
+  const showRootActions = commandMenuLevel === 'root' && (showUnitBranchGrouping || showCommanderBranchGrouping);
+  const showShootRootActions = commandMenuLevel === 'root' && showShootingBranchGrouping && !showLeanShootingPanel;
+  const showUnitRootActions = showUnitBranchGrouping && showRootActions && canIssueMovementCommands;
+  const showCommanderRootActions = showCommanderBranchGrouping && showRootActions && (canIssueMovementCommands || canAttachCommander);
+  const showMoveBranchActions = commandMenuBranch === 'move';
+  const showChargeBranchActions = showUnitBranchGrouping && commandMenuBranch === 'charge';
+  const showShootBranchActions = showShootingBranchGrouping && commandMenuBranch === 'shoot';
+  const showAttachBranchActions = showCommanderBranchGrouping && commandMenuBranch === 'attach';
+  const showChargeTargetHint = showChargeBranchActions && chargePreviewActive && !chargeStartControlsActive;
+  const showShootTargetHint = showShootBranchActions && shootingTargetingActive;
+  const showShootProcedureHint = showShootBranchActions && shootingProcedureStatus === 'active' && !shootingPreviewActive && !resolutionDraftActive && !hasDeclaredShotToResolve;
+  const showLegacyMovementSurface = !showUnitBranchGrouping && !showCommanderBranchGrouping && !showShootingBranchGrouping;
+  const showAdvanceButton = !showCommanderBranchGrouping && canShowMovementButtons && (!showUnitBranchGrouping || showMoveBranchActions);
+  const showDirectionButtons = !showCommanderBranchGrouping && canShowMovementButtons && (!showUnitBranchGrouping || showMoveBranchActions || chargeStartControlsActive);
+  const showChargeButton = !showCommanderBranchGrouping && canShowMovementButtons && !showUnitBranchGrouping;
+  const showBranchBackButton = (showUnitBranchGrouping || showCommanderBranchGrouping) && commandMenuLevel === 'branch' && !canCancelMovement;
+  const showStayButton = showLegacyMovementSurface || showUnitRootActions || showCommanderRootActions;
+  const showResetButton = showLegacyMovementSurface || showRootActions;
+  const showShootingCommandActions = showShootBranchActions || shootingPreviewActive || resolutionDraftActive;
+  const showCommandActions = showLegacyMovementSurface
+    || (showMoveBranchActions && (!showCommanderBranchGrouping || canCancelMovement || canConfirmMovement))
+    || showChargeBranchActions
+    || showAttachBranchActions
+    || showShootingCommandActions
+    || chargePreviewActive
+    || canStartAdjustedChargeDistanceRoll
+    || canResolveEvadeAvoidanceChoice
+    || canResolveChargeContinuationChoice;
   const isReadySetupStep = setupStepId === 'ready';
   const setupPrimaryLabel = isReadySetupStep ? 'In die Schlacht' : 'Naechster Schritt';
 
@@ -709,7 +1167,7 @@ export function renderAdvanceCommandPanel({
         <strong>Befehle</strong>
         <div class="battlefield-command-primary">
           <div class="battlefield-command-round-actions battlefield-command-round-actions-setup-top">
-            <button class="shell-button battlefield-command-button" type="button" data-action="${isReadySetupStep ? 'complete-setup' : 'setup-next'}">
+            <button class="shell-button battlefield-command-button" type="button" data-action="${isReadySetupStep ? 'complete-setup' : 'setup-next'}" data-testid="setup-primary-button" data-automation-id="${isReadySetupStep ? 'complete-setup' : 'setup-next'}" aria-label="${setupPrimaryLabel}" autofocus>
               ${setupPrimaryLabel}
             </button>
           </div>
@@ -718,13 +1176,19 @@ export function renderAdvanceCommandPanel({
     `;
   }
 
-  const selectedUnitSummary = selectedUnit ? `
-    <div class="battlefield-command-summary">
+  const selectedUnitSummary = selectedUnit ? (canShowShootingButton ? `
+    <div class="battlefield-command-summary" data-command-menu-level="${commandMenuLevel}" data-command-menu-branch="${commandMenuBranch ?? 'none'}">
+      <span>Shooting phase declaration surface</span>
+      <span>${resolutionDraftActive ? 'Roll/Result aktiv' : shootingPreviewActive ? 'Zielvorschau aktiv' : hasDeclaredShotToResolve ? 'Deklariert, noch offen' : resolvedShotRecord ? 'Schuss aufgeloest' : 'Noch keine Schussvorschau'}</span>
+      <span>${shootingWhyItems.find((item) => item.label === 'Target')?.value ?? shootingWhyItems.find((item) => item.label === 'Declared target')?.value ?? 'Noch kein Ziel gewaehlt'}</span>
+    </div>
+  ` : `
+    <div class="battlefield-command-summary" data-command-menu-level="${commandMenuLevel}" data-command-menu-branch="${commandMenuBranch ?? 'none'}">
       <span>Distanz: ${formatLengthUd(wheelModeActive ? wheelDistanceUd : slideModeActive ? slidePreviewUd : advancePreviewUd)} UD / ${formatLengthUd((wheelModeActive ? wheelDistanceUd : slideModeActive ? slidePreviewUd : advancePreviewUd) * 4)} cm</span>
       <span>Preview gesamt: ${formatLengthUd(previewDistanceUd)} UD / ${formatLengthUd(previewDistanceUd * 4)} cm</span>
       <span>${movementBudgetLabel}: ${formatLengthUd(remainingAdvanceBudgetUd)} UD / ${formatLengthUd(remainingAdvanceBudgetUd * 4)} cm verbleibend</span>
     </div>
-  ` : '';
+  `) : '';
 
   const helperSection = `
     <details class="battlefield-collapsible-card battlefield-command-details">
@@ -745,6 +1209,16 @@ export function renderAdvanceCommandPanel({
             </ul>
           </div>
         ` : ''}
+        ${selectedUnit && shootingWhyItems.length > 0 ? `
+          <div class="battlefield-command-diagnostics battlefield-command-why-card" data-shooting-why-card>
+            <strong>Shoot-Status</strong>
+            <ul>
+              ${shootingWhyItems.map((item) => `
+                <li><strong>${item.label}:</strong> ${item.value}</li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
         ${selectedUnit ? `
           <div class="battlefield-command-diagnostics">
             <strong>Diagnostics</strong>
@@ -759,22 +1233,159 @@ export function renderAdvanceCommandPanel({
     </details>
   `;
 
+  if (showLeanShootingPanel) {
+    return renderLeanShootingProcedurePanel({
+      selectedUnit,
+      helperCopy,
+      diagnostics,
+      shootingProcedureStatus,
+      shootingProcedureOverview,
+      shootingSequenceHandoffPending,
+      shootingSequenceHandoffKind,
+      canOpenShootingSequenceHandoff,
+      canPassActiveShooter,
+      shootingPreviewActive,
+      canConfirmShootingDeclaration,
+      hasDeclaredShotToResolve,
+      resolutionDraftActive,
+      shootDisabledReason,
+      shootingWhyItems,
+      shootingSupportingShooters,
+      shootingSupportTargetUnitId,
+      shootingSupportBonus,
+      helperSection,
+    });
+  }
+
   return `
     <div class="battlefield-placeholder-card">
       <strong>Befehle</strong>
       <div class="battlefield-command-primary">
         <div class="battlefield-command-grid">
-          ${canShowMovementButtons ? `
-            <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" ${!chargePreviewActive && canIssueMovementCommands && (advanceModeActive || maxAdvanceUd > 0) ? '' : 'disabled'}>Advance</button>
-            <button class="shell-button battlefield-command-button ${(wheelModeActive || (chargeStartControlsActive && selectedChargeStartType === 'wheel')) ? 'is-active' : ''}" type="button" data-action="toggle-wheel-mode" ${chargeStartControlsActive ? chargeWheelOption?.status === 'available' ? '' : 'disabled' : !chargePreviewActive && canIssueMovementCommands && (wheelModeActive || remainingAdvanceBudgetUd > 0) ? '' : 'disabled'}>Wheel</button>
-            <button class="shell-button battlefield-command-button ${(slideModeActive || (chargeStartControlsActive && selectedChargeStartType === 'shift-slide')) ? 'is-active' : ''}" type="button" data-action="toggle-slide-mode" ${chargeStartControlsActive ? chargeSlideOption?.status === 'available' ? '' : 'disabled' : !chargePreviewActive && canIssueMovementCommands && (slideModeActive || slideAvailable) ? '' : 'disabled'}>Slide</button>
-            <button class="shell-button battlefield-command-button ${chargePreviewActive ? 'is-active' : ''}" type="button" data-action="start-charge-preview" title="${chargeDisabledReason || 'Charge vor anderer Bewegung starten'}" ${canStartCharge || chargePreviewActive ? '' : 'disabled'}>Charge</button>
+          ${showUnitRootActions ? `
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'move' ? 'is-active' : ''}" type="button" data-action="set-command-menu-branch" data-branch="move" data-testid="command-move-branch-button" aria-label="Move oeffnen">Move</button>
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'charge' ? 'is-active' : ''}" type="button" data-action="start-charge-preview" data-testid="command-charge-branch-button" aria-label="Charge oeffnen" title="${chargeDisabledReason || 'Charge vor anderer Bewegung starten'}" ${canStartCharge ? '' : 'disabled'}>Charge</button>
           ` : ''}
-          <button class="ghost-button battlefield-command-button" type="button" data-action="mark-unit-stay" ${canMarkStay ? '' : 'disabled'}>Stay</button>
-          ${showAttachCommanderButton ? `<button class="ghost-button battlefield-command-button" type="button" data-action="attach-commander" ${canAttachCommander ? '' : 'disabled'}>Kommandeur anhaengen</button>` : ''}
-          <button class="ghost-button battlefield-command-button" type="button" data-action="reset-test-units" ${isSetupActive || !selectedUnit ? 'disabled' : ''}>Einheit zuruecksetzen</button>
+          ${showCommanderRootActions ? `
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'move' ? 'is-active' : ''}" type="button" data-action="set-command-menu-branch" data-branch="move" data-testid="command-move-branch-button" aria-label="Move oeffnen">Move</button>
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'attach' ? 'is-active' : ''}" type="button" data-action="attach-commander" data-testid="command-attach-branch-button" aria-label="Attach oeffnen" ${canAttachCommander ? '' : 'disabled'}>Attach</button>
+          ` : ''}
+          ${showShootRootActions ? `
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'shoot' ? 'is-active' : ''}" type="button" data-action="${hasDeclaredShotToResolve || resolvedShotRecord || shootingProcedureStatus === 'active' ? 'set-command-menu-branch' : 'start-shooting-declaration-preview'}" ${hasDeclaredShotToResolve || resolvedShotRecord || shootingProcedureStatus === 'active' ? 'data-branch="shoot"' : ''} data-testid="command-shoot-branch-button" aria-label="Shoot oeffnen" title="${hasDeclaredShotToResolve || resolvedShotRecord ? 'Shoot branch with declaration and roll/result state' : shootDisabledReason || 'Shoot declaration starten'}" ${(hasDeclaredShotToResolve || resolvedShotRecord || canStartShootingDeclaration || shootingProcedureStatus === 'active') ? '' : 'disabled'}>Shoot</button>
+          ` : ''}
+          ${showBranchBackButton ? `
+            <button class="ghost-button battlefield-command-button" type="button" data-action="set-command-menu-branch" data-branch="" data-testid="command-branch-back-button" aria-label="Zur ersten Befehlsebene zurueck">Zurueck</button>
+          ` : ''}
+          ${showChargeTargetHint ? `
+            <div class="shell-button battlefield-command-button battlefield-command-branch-hint" data-testid="command-charge-target-hint" aria-live="polite">Ziel waehlen</div>
+          ` : ''}
+          ${showShootTargetHint ? `
+            <div class="shell-button battlefield-command-button battlefield-command-branch-hint" data-testid="command-shoot-target-hint" aria-live="polite">Ziel fuer den Schuss waehlen</div>
+          ` : ''}
+          ${showShootProcedureHint ? `
+            <div class="shell-button battlefield-command-button battlefield-command-branch-hint" data-testid="command-shoot-procedure-hint" aria-live="polite">${isActiveShootingUnit ? 'Ausgewaehlter Shooter: Shoot oder Pass' : activeShootingUnitId ? `Ausgewaehlter Shooter: ${activeShootingUnitId}` : 'Naechsten Shooter waehlen'}</div>
+          ` : ''}
+          ${showAdvanceButton ? `
+            <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" data-testid="command-advance-button" data-automation-id="toggle-advance-mode" aria-label="Advance" ${!chargePreviewActive && canIssueMovementCommands && (advanceModeActive || maxAdvanceUd > 0) ? '' : 'disabled'}>Advance</button>
+          ` : ''}
+          ${showDirectionButtons ? `
+            <button class="shell-button battlefield-command-button ${(wheelModeActive || (chargeStartControlsActive && selectedChargeStartType === 'wheel')) ? 'is-active' : ''}" type="button" data-action="toggle-wheel-mode" data-testid="command-wheel-button" data-automation-id="toggle-wheel-mode" aria-label="Wheel" ${chargeStartControlsActive ? chargeWheelOption?.status === 'available' ? '' : 'disabled' : !chargePreviewActive && canIssueMovementCommands && (wheelModeActive || remainingAdvanceBudgetUd > 0) ? '' : 'disabled'}>Wheel</button>
+            <button class="shell-button battlefield-command-button ${(slideModeActive || (chargeStartControlsActive && selectedChargeStartType === 'shift-slide')) ? 'is-active' : ''}" type="button" data-action="toggle-slide-mode" data-testid="command-slide-button" data-automation-id="toggle-slide-mode" aria-label="Slide" ${chargeStartControlsActive ? chargeSlideOption?.status === 'available' ? '' : 'disabled' : !chargePreviewActive && canIssueMovementCommands && (slideModeActive || slideAvailable) ? '' : 'disabled'}>Slide</button>
+          ` : ''}
+          ${showChargeButton ? `
+            <button class="shell-button battlefield-command-button ${chargePreviewActive ? 'is-active' : ''}" type="button" data-action="start-charge-preview" data-testid="command-charge-button" data-automation-id="start-charge-preview" aria-label="Charge starten" title="${chargeDisabledReason || 'Charge vor anderer Bewegung starten'}" ${canStartCharge || chargePreviewActive ? '' : 'disabled'}>Charge</button>
+          ` : ''}
+          ${showStayButton ? `<button class="ghost-button battlefield-command-button" type="button" data-action="mark-unit-stay" ${canMarkStay ? '' : 'disabled'}>Stay</button>` : ''}
+          ${showLegacyMovementSurface && showAttachCommanderButton ? `<button class="ghost-button battlefield-command-button" type="button" data-action="attach-commander" ${canAttachCommander ? '' : 'disabled'}>Kommandeur anhaengen</button>` : ''}
+          ${showResetButton ? `<button class="ghost-button battlefield-command-button" type="button" data-action="reset-test-units" ${isSetupActive || !selectedUnit ? 'disabled' : ''}>Einheit zuruecksetzen</button>` : ''}
         </div>
+        ${showCommandActions ? `
         <div class="battlefield-command-actions">
+          ${showShootingCommandActions ? `
+            ${resolutionDraftActive ? `
+              <label class="battlefield-command-free-cp-toggle" data-testid="shooting-protection-input-row">
+                <span>Verified protection</span>
+                <select data-action="set-shooting-resolution-protection" aria-label="Verified protection value">
+                  <option value="" ${Number.isFinite(shootingResolutionDraft?.resolvedTargetProtectionValue) ? '' : 'selected'}>choose</option>
+                  ${[0, 1, 2, 3, 4, 5, 6].map((value) => `<option value="${value}" ${shootingResolutionDraft?.resolvedTargetProtectionValue === value ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+              </label>
+              <label class="battlefield-command-free-cp-toggle" data-testid="shooting-shooter-die-input-row">
+                <span>Shooter D6</span>
+                <select data-action="set-shooting-resolution-shooter-die" aria-label="Shooter D6 value">
+                  ${[1, 2, 3, 4, 5, 6].map((value) => `<option value="${value}" ${shootingResolutionDraft?.shooterDieRoll === value ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+              </label>
+              <label class="battlefield-command-free-cp-toggle" data-testid="shooting-target-die-input-row">
+                <span>Target D6</span>
+                <select data-action="set-shooting-resolution-target-die" aria-label="Target D6 value">
+                  ${[1, 2, 3, 4, 5, 6].map((value) => `<option value="${value}" ${shootingResolutionDraft?.targetDieRoll === value ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+              </label>
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="confirm-shooting-resolution" aria-label="Roll/result bestaetigen" title="Deterministisches Roll/result im Reducer speichern" ${isSetupActive || !canConfirmShootingResolution ? 'disabled' : ''}>
+                <span>Roll/Result bestaetigen</span>
+              </button>
+              <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="cancel-shooting-resolution-draft" aria-label="Roll/result verwerfen" title="Roll/result verwerfen" ${isSetupActive ? 'disabled' : ''}>
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+            ` : hasDeclaredShotToResolve ? `
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="start-shooting-resolution-draft" aria-label="Roll/result starten" title="Expliziten verified protection input und deterministische D6-Werte eingeben">
+                <span>Roll/Result</span>
+              </button>
+              ${canPassActiveShooter ? `
+                <button class="ghost-button battlefield-command-action" type="button" data-action="pass-active-shooter" aria-label="Aktiven Shooter ueberspringen" title="Diesen Shooter ohne Schuss als abgeschlossen markieren">
+                  <span>Pass</span>
+                </button>
+              ` : ''}
+              <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="set-command-menu-branch" data-branch="" aria-label="Shoot branch schliessen" title="Shoot branch schliessen">
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+            ` : `
+              <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="confirm-shooting-declaration" aria-label="Schuss deklarieren" title="Schuss deklarieren" ${isSetupActive || !canConfirmShootingDeclaration ? 'disabled' : ''}>
+                <span>Schuss deklarieren</span>
+              </button>
+              ${canPassActiveShooter ? `
+                <button class="ghost-button battlefield-command-action" type="button" data-action="pass-active-shooter" aria-label="Aktiven Shooter ueberspringen" title="Diesen Shooter ohne Schuss als abgeschlossen markieren">
+                  <span>Pass</span>
+                </button>
+              ` : ''}
+              <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="cancel-shooting-declaration-preview" aria-label="Schussvorschau verwerfen" title="Schussvorschau verwerfen" ${isSetupActive || !canCancelShootingDeclaration ? 'disabled' : ''}>
+                <span aria-hidden="true">&#10005;</span>
+              </button>
+            `}
+            ${shootingProcedureOverview ? `
+              <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="shooting-procedure-overview-card">
+                <strong>Shooting Procedure</strong>
+                <ul>
+                  <li><strong>Ranged:</strong> ${shootingProcedureOverview.totalRangedUnits}</li>
+                  <li><strong>Eligible:</strong> ${shootingProcedureOverview.eligibleUnits}</li>
+                  <li><strong>Blocked:</strong> ${shootingProcedureOverview.blockedUnits}</li>
+                  <li><strong>Done:</strong> ${shootingProcedureOverview.completedUnits}</li>
+                </ul>
+              </div>
+            ` : ''}
+            ${shootingSupportingShooters.length > 0 ? `
+              <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="shooting-support-card" data-support-target-unit-id="${shootingSupportTargetUnitId ?? ''}">
+                <strong>Support Fire</strong>
+                <ul>
+                  <li><strong>Bonus:</strong> +${shootingSupportBonus}</li>
+                  ${shootingSupportingShooters.map((supporter) => `
+                    <li><strong>${supporter.label ?? supporter.id}:</strong> ${supporter.supportValueLabel}</li>
+                  `).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            ${shootingResolutionPreview?.result ? `
+              <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="shooting-resolution-preview-card">
+                <strong>Roll/Result Preview</strong>
+                <ul>
+                  <li><strong>Shooter:</strong> ${shootingResolutionPreview.result.shooterTotal}</li>
+                  <li><strong>Target:</strong> ${shootingResolutionPreview.result.targetTotal}</li>
+                  <li><strong>Cohesion:</strong> ${shootingResolutionPreview.result.cohesionLoss}</li>
+                </ul>
+              </div>
+            ` : ''}
+          ` : ''}
           ${canStartAdjustedChargeDistanceRoll ? `
             <button class="shell-button battlefield-command-action battlefield-command-action-confirm" type="button" data-action="start-adjusted-charge-distance-roll" aria-label="Adjusted Charge-Distanz auswuerfeln" title="Deterministischen Folgewurf fuer die angepasste Charge-Distanz starten">
               <span>Adjusted Charge wuerfeln</span>
@@ -798,13 +1409,16 @@ export function renderAdvanceCommandPanel({
               <span>Continue to ${formatLengthUd(maximumChargeContinuationDistanceUd)} UD</span>
             </button>
           ` : ''}
+          ${!showShootingCommandActions ? `
           <button class="shell-button battlefield-command-action battlefield-command-action-confirm is-active" type="button" data-action="confirm-movement" aria-label="${confirmActionLabel}" title="${confirmActionTitle}" ${isSetupActive || !canConfirmMovement ? 'disabled' : ''}>
             <span>${confirmActionLabel}</span>
           </button>
           <button class="ghost-button battlefield-command-action battlefield-command-action-reset" type="button" data-action="cancel-movement-preview" aria-label="Vorschau verwerfen" title="Vorschau verwerfen" ${isSetupActive || !canCancelMovement ? 'disabled' : ''}>
             <span aria-hidden="true">&#10005;</span>
           </button>
+          ` : ''}
         </div>
+        ` : ''}
         ${canUseFreeCommandPoint ? `
           <label class="battlefield-command-free-cp-toggle">
             <input type="checkbox" data-action="toggle-use-free-command-point" ${useFreeCommandPoint ? 'checked' : ''} />
