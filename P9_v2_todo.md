@@ -1402,7 +1402,7 @@ Reviewer handoff packet (MINI-11C):
   - cohesion event channel remains non-additive to arithmetic totals.
 - Expected verdict format: `Approved`, `Needs Changes`, or `Blocked` with file-level findings.
 
-### [ ] P9V2-MINI-11D - Cohesion Event Channel Hard Split (No Numeric Coupling)
+### [x] P9V2-MINI-11D - Cohesion Event Channel Hard Split (No Numeric Coupling)
 
 Goal:
 - close the remaining ambiguity by enforcing a hard separation between cohesion events and combat-factor arithmetic in state/resolution payload contracts.
@@ -1434,6 +1434,545 @@ Stop condition:
 Reviewer routing:
 
 - Reviewer / Rules Agent must return explicit verdict: `Approved`, `Needs Changes`, or `Blocked` with file-level findings.
+
+Closeout 2026-05-31:
+
+- Hardened V2 batch-application event handling in `src/engine/melee-v2/resolution.js`:
+  - immediate multiple-attack cohesion events now require explicit precondition truth (`defenderAlreadyInMeleeOrSupport` and `newQualifyingFlankRearContact`) before contributing any cohesion loss,
+  - one-per-defender cap is now enforced from event payload (`capPerDefenderPerSequencePhase`, default `1`) with bounded cap diagnostics,
+  - event-channel diagnostics are now emitted when preconditions fail or caps are enforced,
+  - cohesion channels remain split (`multipleAttackImmediateByUnitId` vs `combatResultCohesionByUnitId`) with no legacy aggregated numeric lane.
+- Surfaced batch-plan diagnostics into reducer state in `src/state/p9-melee-v2.js` so event-channel enforcement is visible in normal diagnostics flow.
+- Added focused regressions in `src/state/p9-melee-v2.test.js`:
+  - `p9v2-mini-11D batch plan enforces immediate-event precondition and keeps arithmetic decoupled`,
+  - `p9v2-mini-11D batch plan enforces one-per-defender cap for immediate events`.
+- Updated `p9v2-mini-11A batch application plan separates multiple-attack and combat-result cohesion channels` fixture to include explicit precondition fields required by the new 11D contract.
+- Focused validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js` (`72/72`).
+
+### [ ] P9V2-MINI-12 - Combat Decision Matrix V2 Controlled Migration And Source-Locked Adoption
+
+Goal:
+- migrate from Decision Matrix v1 mini-slice to a controlled Decision Matrix v2 path without big-bang regressions, while keeping source-honesty and ledger transparency.
+
+Problem statement:
+- current v1 mini-slice is test-stable but still has an interpretation mismatch on flank/rear arithmetic expectations.
+- base combat-factor and modifier closure still has residual source-risk lanes.
+- broad wave-C through wave-E work remains open, so uncontrolled matrix rewrite would increase regression risk.
+
+Scope contract:
+- MINI-12 covers core matrix migration only (base CF, flank/rear branch semantics, modifier pipeline, engine/UI ledger parity, controlled rollout).
+- special families remain out of MINI-12 scope and stay in existing cards:
+  - `P9V2-30` camp/fortification/obstacle
+  - `P9V2-31` war-wagon
+- legacy V1 implementation files remain untouched.
+- any new lane must be either source-closed with exact provenance or explicit source-open with diagnostics.
+
+Rule baseline:
+- Rules_v2 p.22 and p.60-p.63
+- docs/rules/melee.md
+- docs/rules/errata.md
+- docs/rules/open-verification.md item `melee.main-unit-support-multiple-attack-and-modifiers`
+- docs/source/Rules_v2.md
+
+Global gates for MINI-12:
+- Gate M12-G1 Source: 12A must be reviewer-approved before 12B implementation starts.
+- Gate M12-G2 Core correctness: source-closed lanes must meet exact expected values.
+- Gate M12-G3 Ledger parity: engine and UI must show identical arithmetic on source-closed lanes.
+- Gate M12-G4 Transparency: source-open lanes remain explicit and never silently upgraded.
+- Gate M12-G5 Safety: parallel-path feature flag is temporary with explicit sunset condition.
+- Gate M12-G6 Review: no default-switch to v2 without Reviewer / Rules Agent `Approved` verdict.
+
+### [x] P9V2-MINI-12A - Source Closure Packet (Flank/Rear + p.22 Base CF)
+
+Goal:
+- produce a source-locked decision packet for flank/rear arithmetic semantics and base combat-factor bindings.
+
+Planned files:
+
+- docs/rules/melee.md
+- docs/rules/open-verification.md
+- docs/source/Rules_v2.md
+- docs/rules/melee-decision-matrix.md
+
+Implementation steps:
+1. Re-check p.22 and p.60-p.63 wording with errata notes and existing matrix-v1 decisions.
+2. Build 8-10 representative reference situations (front, flank, rear, to-zero, cancellation-family relevant lanes).
+3. For each lane, classify behavior as `branch-owned`, `additive`, or `source-open`.
+4. Record exact source provenance and unresolved blockers in docs.
+
+Non-goals:
+
+- no engine code edits
+- no UI flow changes
+- no special-family closure
+
+Validation:
+
+- source-consistency review against docs/rules/melee.md and docs/source/Rules_v2.md
+- blocker alignment with docs/rules/open-verification.md
+
+Manual acceptance:
+
+- user confirms the source-closure packet as coding baseline for 12B/12C.
+
+Stop condition:
+
+- stop if source or errata wording is internally inconsistent and cannot be resolved honestly.
+
+Expected result:
+
+- reviewer-usable source packet with explicit lane-level ownership decisions.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent approval is required before 12B starts.
+
+Progress note 2026-05-31:
+
+- Prepared first source-closure decision draft in `docs/rules/melee-decision-matrix.md` with lane-level ownership/status markers (`source-closed` vs `source-open`) for core matrix lanes.
+- Draft includes explicit blocker ledger for:
+  - flank/rear additive-lane closure,
+  - residual p.22 binding completeness,
+  - cancellation-family edge combinations,
+  - commander timing edge cases.
+- Linked open-verification next-check wording to the new draft in `docs/rules/open-verification.md` under `melee.main-unit-support-multiple-attack-and-modifiers`.
+- Reviewer / Rules Agent decision is still required before 12B implementation starts.
+
+Closeout 2026-05-31 (Reviewer gate passed):
+
+- Reviewer / Rules Agent combined packet verdict for `MINI-11D + MINI-12A`: `Approved`.
+- Approval scope recorded:
+  - `MINI-11D` implementation: event-channel split, precondition gate, and cap enforcement accepted.
+  - `MINI-12A` decision draft: lane tags and blocker ledger accepted as source-honest gate for 12B.
+- Mandatory source cross-check set for approval path confirmed in handoff:
+  - `docs/rules/melee.md`
+  - `docs/rules/errata.md`
+  - `docs/source/Rules_v2.md`
+- 12B implementation start is unblocked under Gate `M12-G1`.
+
+### [x] P9V2-MINI-12B - Base Combat Factor Lookup V2
+
+Goal:
+- implement stable base combat-factor lookup for source-closed troop, quality, and formation lanes.
+
+Planned files:
+
+- src/engine/melee-v2/factor-lookup.js
+- src/engine/melee-v2/factor-lookup.test.js
+- src/engine/melee-v2/resolution.js
+
+Implementation steps:
+1. Add a deterministic lookup structure for source-closed p.22 bindings.
+2. Implement base-CF calculation helper with explicit source-status output.
+3. Keep unresolved troop/profile lanes source-open with diagnostics.
+4. Add focused tests for known baseline matchups.
+
+Non-goals:
+
+- no full matrix rollout
+- no special-family logic
+
+Validation:
+
+- node --test src/engine/melee-v2/factor-lookup.test.js src/engine/melee/resolution.test.js
+
+Manual acceptance:
+
+- user verifies representative base-CF outcomes in debug recap.
+
+Stop condition:
+
+- stop if p.22 binding cannot be represented without guessing unresolved lanes.
+
+Expected result:
+
+- base-CF layer is deterministic for source-closed lanes and explicit for unresolved lanes.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12C.
+
+Closeout 2026-05-31 (initial lookup slice):
+
+- Added first source-locked V2 base-combat-factor lookup module in `src/engine/melee-v2/factor-lookup.js`:
+  - deterministic binding result shape with explicit `status` and per-binding `sourceStatus`,
+  - source-closed bindings return numeric `value` + provenance,
+  - unresolved lanes return `source-open` with explicit deferred reason and diagnostics.
+- Wired resolver-side profile binding through the new V2 lookup in `src/engine/melee/resolution.js`:
+  - profile lookup failures remain explicit (`profile-lookup-source-open`),
+  - unresolved bindings remain explicit (`combat-factor-profile-deferred`),
+  - resolved bindings keep provenance and source references in breakdown output.
+- Added focused MINI-12B regressions in `src/engine/melee-v2/factor-lookup.test.js`:
+  - source-closed lane resolves with `sourceStatus: verified`,
+  - unresolved lane stays `source-open` with deferred reason,
+  - explicit profile-id lookup path resolves deterministically,
+  - profile lookup failure path remains explicit and source-open.
+- Focused validation passed:
+  - `node --test src/engine/melee-v2/factor-lookup.test.js src/engine/melee/resolution.test.js`.
+
+### [x] P9V2-MINI-12C - Decision Matrix V2 Core (Core Lanes Only)
+
+Goal:
+- implement prioritized v2 core matrix evaluation without special-family scope expansion.
+
+Planned files:
+
+- src/engine/melee-v2/combat-matrix-v2.js
+- src/engine/melee-v2/modifier-pipeline.js
+- src/engine/melee-v2/resolution.js
+- src/state/p9-melee-v2.test.js
+
+Implementation steps:
+1. Add matrix-core evaluation order for core lanes only: flank/rear branch, base CF, support, situation/disorder, die, final.
+2. Emit per-stage structure with value, sourceStatus, explanation, and lane type.
+3. Preserve source-open diagnostics and block silent upgrades.
+4. Keep MINI-11 parity contracts as guard regressions.
+
+Non-goals:
+
+- no camp/fortification/obstacle/war-wagon handling
+- no UI redesign
+
+Validation:
+
+- node --test src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js
+
+Manual acceptance:
+
+- user checks one front lane and one flank lane against stage-ledger output.
+
+Stop condition:
+
+- stop if matrix requires hidden post-stage corrections not represented in ledger.
+
+Expected result:
+
+- deterministic core matrix with explicit stage ownership.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12D.
+
+Closeout 2026-05-31 (core-matrix slice):
+
+- Added dedicated matrix-core evaluator in `src/engine/melee-v2/combat-matrix-v2.js`:
+  - lane order is explicit and fixed: `flankRearBranch`, `baseCf`, `support`, `situationDisorder`, `die`, `final`,
+  - each lane emits `value`, `sourceStatus`, and short explanation,
+  - source status remains explicit (`verified` vs `source-open`) with no silent upgrades.
+- Added shared modifier-stage source-status helpers in `src/engine/melee-v2/modifier-pipeline.js` for matrix lane ownership evaluation.
+- Integrated matrix-core payload into runtime draft/result surfaces in `src/state/p9-melee-v2.js`:
+  - `resolutionPreview.matrixCore` now ships with every confirmed draft,
+  - resolved entries persist matrix-core output on `resolution.matrixCore` for batch/runtime consumers.
+- Extended batch preview source-status aggregation in `src/engine/melee-v2/resolution.js`:
+  - new `hasSourceOpenMatrixCore` flag is tracked,
+  - batch preview remains `source-open` when matrix-core lanes are unresolved.
+- Added focused 12C regressions in `src/state/p9-melee-v2.test.js`:
+  - matrix-core lane order and resolved status are present in preview,
+  - base lane parity guard: matrix `baseCf` equals stage-ledger `base`,
+  - source-open matrix lanes propagate to batch preview (`hasSourceOpenMatrixCore`).
+- Focused validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js` (`74/74`).
+- Reviewer / Rules Agent verdict 2026-05-31: `Approved`.
+
+### [x] P9V2-MINI-12D - Modifier Pipeline Alignment (No Hidden Lanes)
+
+Goal:
+- align modifier pipeline with v2 stage ledger so branch and additive lanes are explicit and auditable.
+
+Planned files:
+
+- src/engine/melee-v2/modifier-pipeline.js
+- src/engine/melee-v2/resolution.js
+- src/engine/melee/resolution.test.js
+
+Implementation steps:
+1. Normalize modifier lanes to matrix-v2 stage ownership.
+2. Keep branch effects and additive effects explicitly separated.
+3. Add residual checks that fail when non-ledger lanes alter final totals silently.
+4. Preserve source-open diagnostics for unresolved lanes.
+
+Non-goals:
+
+- no new rule interpretation outside 12A decision packet
+- no UI-only fallback arithmetic
+
+Validation:
+
+- node --test src/engine/melee/resolution.test.js src/state/p9-melee-v2.test.js
+
+Manual acceptance:
+
+- user can reconcile displayed stage sums with final totals line by line.
+
+Stop condition:
+
+- stop if result totals depend on undocumented post-stage math.
+
+Expected result:
+
+- full stage-to-final traceability with no hidden arithmetic.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12E.
+
+Implementation closeout (2026-05-31):
+- Added `MELEE_V2_MODIFIER_LANE_OWNERSHIP` export to `src/engine/melee-v2/modifier-pipeline.js`.
+- Updated `src/engine/melee/resolution.js`: import ownership constant; pass `laneOwnership` through `createBreakdownEntry`; tag all internally derived entries (`flank-or-rear`, cancellation, to-zero = `branch`; quality, height, commander = `additive`); added `allNonLedgerEntriesOwned` invariant to stage ledger that is `false` when untagged non-zero residual entries exist.
+- Added 4 guard tests in `src/engine/melee/resolution.test.js`.
+- Validation: 78/78 pass.
+
+### [x] P9V2-MINI-12E - Engine to UI Ledger Parity Lock
+
+Goal:
+- enforce exact arithmetic parity between engine outputs and UI breakdown/recap views.
+
+Planned files:
+
+- src/state/p9-melee-v2.js
+- src/ui/melee-v2-adapter.js
+- src/ui/battlefield-dialogs.js
+- src/state/p9-melee-v2.test.js
+- src/ui/p0-app.test.js
+
+Implementation steps:
+1. Normalize one canonical ledger payload for UI read paths.
+2. Render breakdown rows from engine ledger only.
+3. Add drift tests for pre-roll summary versus post-roll recap.
+4. Keep pending-versus-committed parity assertions active.
+
+Non-goals:
+
+- no rule math rewrites in UI
+- no special-family additions
+
+Validation:
+
+- node --test src/state/p9-melee-v2.test.js src/ui/p0-app.test.js src/state/p0-state-melee.test.js
+
+Manual acceptance:
+
+- user verifies that pre-roll and post-roll arithmetic match for fixed-dice checks.
+
+Stop condition:
+
+- stop if UI requires local arithmetic to display totals.
+
+Expected result:
+
+- zero arithmetic drift between engine and UI on source-closed lanes.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12F.
+
+Implementation closeout (2026-05-31):
+- Removed the pre-roll branch to-zero row from the modifier-sum arithmetic in `src/ui/battlefield-dialogs.js` so the visible pre-roll sum now matches the committed recap ledger instead of double-counting the to-zero display lane.
+- Updated the case1 parity regression in `src/ui/p0-app.test.js` to the current canonical ledger values:
+  - pre-roll attacker sum `+1`, defender sum `0`
+  - post-roll attacker recap `base 1 / modifiers 1 / final 6`, defender recap `base 0 / modifiers 0 / final 4`
+- Focused validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/ui/p0-app.test.js src/state/p0-state-melee.test.js`
+  - pass `77/77`
+
+Follow-up fix 2026-05-31 (review packet 12E):
+- Moved flank-to-zero display-row ownership into shared factor-presentation payload in `src/state/p9-melee-v2.js`:
+  - added `attackerDisplayModifierRows` / `defenderDisplayModifierRows` payload lanes,
+  - each to-zero display row now carries explicit `countsTowardModifierSum: false` from state (not authored in UI).
+- Updated `src/ui/battlefield-dialogs.js` to consume only payload-provided display rows for modifier rendering; local row-construction parity logic was removed.
+- Added state regression in `src/state/p9-melee-v2.test.js` (`p9v2-14C1 case1 draft modifier sums match resolved factor recap`) to assert payload non-counting row contract.
+- Revalidated focused suites:
+  - `node --test src/state/p9-melee-v2.test.js src/ui/p0-app.test.js src/state/p0-state-melee.test.js` (`77/77`).
+- Browser verification (case1 live dialog on `http://localhost:5174/`):
+  - pre-roll: attacker modifier sum `+1`, defender modifier sum `0` while defender to-zero display row stays visible,
+  - post-roll recap observed: attacker `base 1, modifiers 1`, defender `base 0, modifiers 0`.
+
+### [x] P9V2-MINI-12F - Temporary Parallel Path And Feature Flag
+
+Goal:
+- introduce a temporary guarded rollout path for matrix-v2 with controlled fallback and measurable differences.
+
+Planned files:
+
+- src/state/p9-melee-v2.js
+- src/state/p0-state.js
+- src/state/p9-melee-v2.test.js
+
+Implementation steps:
+1. Add temporary feature flag `melee.matrixV2` for matrix selection.
+2. Keep v1/v2 comparable on identical source-closed inputs.
+3. Emit bounded diff diagnostics for lane-level mismatches.
+4. Define explicit sunset condition and removal criteria for the flag.
+
+Non-goals:
+
+- no permanent dual-maintenance model
+
+Validation:
+
+- node --test src/state/p9-melee-v2.test.js src/state/p0-state-melee.test.js
+
+Manual acceptance:
+
+- user can reproduce one representative case in both paths and inspect lane diffs.
+
+Stop condition:
+
+- stop if ownership between matrix paths is ambiguous or long-term dual stack is required.
+
+Expected result:
+
+- controlled migration path with explicit rollback safety and bounded diagnostics.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12G.
+
+Closeout 2026-05-31:
+
+- Added temporary matrix feature-flag path in `src/state/p9-melee-v2.js` under `melee.v2.featureFlags.matrixV2` (logical path `melee.matrixV2`):
+  - default is enabled (`true`) for existing runtime behavior,
+  - fallback path can be selected without changing resolver math ownership,
+  - matrix payload now carries explicit `selection` metadata (`activePath`, `comparedPath`, `featureFlagPath`, `sunsetCondition`).
+- Added bounded lane-level comparison diagnostics in `src/state/p9-melee-v2.js` between v2-core and ledger-fallback matrix payloads:
+  - mismatch payload is capped at 12 entries,
+  - warning diagnostic `melee.v2.matrix-parallel-path-diff` is emitted only when mismatches exist,
+  - comparison metadata is always present for measurable parity checks.
+- Added reducer wiring in `src/state/p0-state.js`:
+  - new action `SET_MELEE_MATRIX_V2_FEATURE_FLAG` for controlled parallel-path switching in runtime/tests.
+- Added focused regressions in `src/state/p9-melee-v2.test.js`:
+  - default v2-core selection and comparison payload shape,
+  - reducer-driven fallback selection and bounded mismatch payload assertions.
+- Sunset/removal criteria recorded in runtime metadata and this closeout:
+  - remove `melee.matrixV2` after MINI-12G gold packet approval and MINI-12H default-switch acceptance with no rollback findings.
+- Validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/state/p0-state-melee.test.js`
+
+### [x] P9V2-MINI-12G - Gold Standard Regression Packet (Core Lanes)
+
+Goal:
+- lock a robust regression packet for matrix-v2 core lanes before default switch.
+
+Planned files:
+
+- src/data/melee-drill-scenarios.js
+- src/data/melee-drill-scenarios.test.js
+- src/state/p9-melee-v2.test.js
+- src/engine/melee/resolution.test.js
+
+Implementation steps:
+1. Add 15-20 representative core-lane scenarios (front/flank/rear/support/disorder/dice parity).
+2. Assert exact expected values on source-closed lanes.
+3. Assert mandatory diagnostics on source-open lanes.
+4. Keep lifecycle parity and cohesion-channel split assertions in packet.
+
+Non-goals:
+
+- no special-family scenarios (kept for P9V2-30/P9V2-31)
+
+Validation:
+
+- node --test src/data/melee-drill-scenarios.test.js src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js
+
+Manual acceptance:
+
+- user confirms representative gold scenarios in UI recap and test logs.
+
+Stop condition:
+
+- stop if expected values cannot be sourced without assumptions.
+
+Expected result:
+
+- stable core regression packet suitable for default-switch decision.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent re-check required before 12H.
+
+Closeout 2026-05-31:
+
+- Added deterministic core-lane gold packet fixture in `src/data/melee-drill-scenarios.js`:
+  - `createP9V2Mini12GCoreLaneGoldRows()` provides 16 representative rows.
+  - Packet split: 13 source-closed rows + 3 source-open rows.
+  - Coverage tags include front, flank, rear, support, disorder, dice, and source-open lanes.
+- Added fixture-contract regression in `src/data/melee-drill-scenarios.test.js`:
+  - validates deterministic row order/content,
+  - validates unique row ids and coverage tags,
+  - validates source-closed/source-open packet split.
+- Added resolver gold assertions in `src/engine/melee/resolution.test.js`:
+  - source-closed rows assert exact stage-ledger values (`base`, `support`, `flankRear`, `disorder`, `die`, `final`) and result parity,
+  - source-open rows assert mandatory diagnostic codes and no resolved result.
+- Added state-facing gold assertions in `src/state/p9-melee-v2.test.js`:
+  - enforces packet cardinality,
+  - keeps stage-ledger invariants stable on source-closed rows,
+  - enforces source-open result separation and diagnostic presence.
+- Focused validation passed:
+  - `node --test src/data/melee-drill-scenarios.test.js src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js` (`100/100`).
+
+### [x] P9V2-MINI-12H - Reviewer Gate And Default Switch
+
+Goal:
+- complete controlled adoption by switching default matrix path only after independent review approval.
+
+Planned files:
+
+- P9_v2_todo.md
+- roadmap.md
+- src/state/p9-melee-v2.js
+
+Implementation steps:
+1. Request independent Reviewer / Rules Agent verdict for MINI-12 packet.
+2. If `Approved`, switch default runtime path to matrix-v2.
+3. Schedule and execute feature-flag removal or bounded decommission plan.
+4. Update board and roadmap with explicit adoption notes and residual risks.
+
+Non-goals:
+
+- no new matrix logic additions
+
+Validation:
+
+- focused v2 suite green
+- browser smoke for current melee loop checkpoints
+
+Manual acceptance:
+
+- user confirms v2-default flow in battlefield loop.
+
+Stop condition:
+
+- stop if reviewer verdict is `Needs Changes` or `Blocked`.
+
+Expected result:
+
+- controlled, documented matrix-v2 default adoption with explicit risk posture.
+
+Reviewer routing:
+
+- Reviewer / Rules Agent final sign-off is required.
+
+Closeout 2026-05-31:
+
+- Reviewer / Rules Agent verdict for MINI-12G packet recorded as `Approved` (no blocking findings).
+- Default runtime path is now hard-switched to matrix-v2 core in `src/state/p9-melee-v2.js`:
+  - selection `activePath` is forced to `matrix-v2-core`,
+  - fallback path remains comparison-only (`comparedPath: matrix-ledger-fallback`),
+  - mismatch diagnostics remain bounded and visible.
+- Executed bounded decommission plan for `melee.matrixV2` flag in `src/state/p9-melee-v2.js`:
+  - legacy flag value is retained as requested metadata only,
+  - runtime switching by flag is disabled (`matrixV2Runtime: true`, `matrixV2Decommissioned: true`),
+  - decommission diagnostics and rollout metadata now expose the transition contract.
+- Updated focused regressions in `src/state/p9-melee-v2.test.js`:
+  - decommissioned selection metadata on default path,
+  - reducer flag toggle no longer changes active runtime path,
+  - initial state exposes rollout decommission metadata.
+- Validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/state/p0-state-melee.test.js`
+  - `node --test src/data/melee-drill-scenarios.test.js src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js`
+- Residual risk:
+  - reducer/action wiring for `SET_MELEE_MATRIX_V2_FEATURE_FLAG` remains as compatibility surface and should be removed in the next cleanup card if no rollback evidence appears.
 
 ### [ ] P9V2-15 - Cohesion Marker UX Pending/Committed
 
@@ -1578,8 +2117,8 @@ Manual acceptance:
 
 ## Immediate Next Two Cards
 
-- `P9V2-MINI-11B` Pair 11 vs 12 Stage-Parity Test Contract.
-- `P9V2-MINI-11C` Pair 15 vs 16 Pending/Committed Parity Lock.
+- `P9V2-15` Cohesion Marker UX Pending/Committed.
+- `P9V2-20` Melee Start/End Popups.
 
 ## Notes
 

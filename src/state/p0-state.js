@@ -218,6 +218,7 @@ import {
   moveMeleeQueueSelection,
   previewMeleeBatch,
   setMeleeProcedureDialogOpen,
+  setMeleeMatrixV2FeatureFlag,
   setMeleeResolutionDraftCommanderEngaged,
   setMeleeResolutionDraftValue,
   startMeleeResolutionDraft,
@@ -403,6 +404,7 @@ export const ACTION_TYPES = {
   CLOSE_MELEE_PHASE_PROCEDURE: 'game/close-melee-phase-procedure',
   ACKNOWLEDGE_MELEE_PHASE_PROCEDURE: 'game/acknowledge-melee-phase-procedure',
   TOGGLE_MELEE_QUEUE_SELECTION: 'game/toggle-melee-queue-selection',
+  SET_MELEE_MATRIX_V2_FEATURE_FLAG: 'game/set-melee-matrix-v2-feature-flag',
   MOVE_MELEE_QUEUE_ENTRY_UP: 'game/move-melee-queue-entry-up',
   MOVE_MELEE_QUEUE_ENTRY_DOWN: 'game/move-melee-queue-entry-down',
   START_MELEE_RESOLUTION_DRAFT: 'game/start-melee-resolution-draft',
@@ -1277,6 +1279,12 @@ export function reduceAppState(state, action) {
       return {
         ...state,
         game: toggleMeleeQueueSelection(state.game, action.meleeId),
+      };
+
+    case ACTION_TYPES.SET_MELEE_MATRIX_V2_FEATURE_FLAG:
+      return {
+        ...state,
+        game: setMeleeMatrixV2FeatureFlag(state.game, action.isEnabled),
       };
 
     case ACTION_TYPES.MOVE_MELEE_QUEUE_ENTRY_UP:

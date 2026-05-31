@@ -1457,6 +1457,460 @@ export function createP9V2Mini11BPair11vs12FixtureRows() {
   ];
 }
 
+export function createP9V2Mini12GCoreLaneGoldRows() {
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const createExplicitUnit = ({ id, owner, combatFactor = 5 }) => ({
+    id,
+    owner,
+    profileId: UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN,
+    meleeCombatFactorValue: combatFactor,
+    meleeCombatFactorSourceStatus: 'verified',
+  });
+  const createExpectedResolved = ({
+    attackerBase,
+    attackerSupport = 0,
+    attackerDisorder = 0,
+    attackerDie,
+    defenderBase,
+    defenderSupport = 0,
+    defenderDisorder = 0,
+    defenderDie,
+  }) => {
+    const attackerFinal = attackerBase + attackerSupport + attackerDisorder + attackerDie;
+    const defenderFinal = defenderBase + defenderSupport + defenderDisorder + defenderDie;
+    const differential = attackerFinal - defenderFinal;
+    const winnerSide = differential === 0 ? null : (differential > 0 ? 'attacker' : 'defender');
+    const difference = Math.abs(differential);
+
+    return {
+      status: 'resolved',
+      attacker: {
+        base: attackerBase,
+        support: attackerSupport,
+        flankRear: 0,
+        disorder: attackerDisorder,
+        die: attackerDie,
+        final: attackerFinal,
+      },
+      defender: {
+        base: defenderBase,
+        support: defenderSupport,
+        flankRear: 0,
+        disorder: defenderDisorder,
+        die: defenderDie,
+        final: defenderFinal,
+      },
+      winnerSide,
+      difference,
+    };
+  };
+  const createResolvedRow = ({
+    rowId,
+    tags,
+    resolutionInput,
+    expected,
+  }) => ({
+    rowId,
+    tags,
+    expected,
+    resolutionInput,
+  });
+  const createSourceOpenRow = ({
+    rowId,
+    tags,
+    resolutionInput,
+    expectedDiagnosticCodes,
+  }) => ({
+    rowId,
+    tags,
+    expected: {
+      status: 'source-open',
+      diagnosticCodes: expectedDiagnosticCodes,
+    },
+    resolutionInput,
+  });
+
+  const rows = [
+    createResolvedRow({
+      rowId: '12g-front-baseline-01',
+      tags: ['front', 'dice'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a1', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d1', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 3,
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDie: 3,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-front-support-attacker-02',
+      tags: ['front', 'support'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a2', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d2', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 3,
+        attackerModifierEntries: [
+          {
+            code: '12g.support.attacker',
+            label: 'Support attacker',
+            stage: 'support',
+            value: 2,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerSupport: 2,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDie: 3,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-front-support-defender-03',
+      tags: ['front', 'support'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a3', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d3', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        defenderModifierEntries: [
+          {
+            code: '12g.support.defender',
+            label: 'Support defender',
+            stage: 'support',
+            value: 1,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderSupport: 1,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-front-disorder-attacker-04',
+      tags: ['front', 'disorder'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a4', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d4', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierEntries: [
+          {
+            code: '12g.disorder.attacker',
+            label: 'Disorder attacker',
+            stage: 'terrain',
+            value: -1,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDisorder: -1,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-front-disorder-defender-05',
+      tags: ['front', 'disorder'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a5', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d5', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        defenderModifierEntries: [
+          {
+            code: '12g.disorder.defender',
+            label: 'Disorder defender',
+            stage: 'terrain',
+            value: -1,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDisorder: -1,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-flank-to-zero-06',
+      tags: ['flank', 'to-zero'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a6', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d6', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierContext: {
+          sourceStatus: 'verified',
+          flankOrRearAttack: true,
+          flankRearBranch: {
+            applyDefenderCombatFactorToZero: true,
+            sourceStatus: 'verified',
+          },
+        },
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 0,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-rear-to-zero-cancel-bonus-07',
+      tags: ['rear', 'to-zero'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a7', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d7', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierContext: {
+          sourceStatus: 'verified',
+          flankOrRearAttack: true,
+          flankRearBranch: {
+            attackContactType: 'rear',
+            applyDefenderCombatFactorToZero: true,
+            cancelAttackSituationBonus: true,
+            cancellationFamily: 'rear-contact-formed',
+            sourceStatus: 'verified',
+          },
+        },
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 0,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-flank-cancel-bonus-08',
+      tags: ['flank', 'cancellation'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a8', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d8', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierContext: {
+          sourceStatus: 'verified',
+          flankOrRearAttack: true,
+          flankRearBranch: {
+            attackContactType: 'flank',
+            cancelAttackSituationBonus: true,
+            cancellationFamily: 'flank-contact-formed',
+            sourceStatus: 'verified',
+          },
+        },
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-die-advantage-attacker-09',
+      tags: ['front', 'dice'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a9', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d9', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 6,
+        defenderDieRoll: 1,
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 6,
+        defenderBase: 5,
+        defenderDie: 1,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-die-advantage-defender-10',
+      tags: ['front', 'dice'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a10', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d10', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 1,
+        defenderDieRoll: 6,
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 1,
+        defenderBase: 5,
+        defenderDie: 6,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-mixed-support-disorder-11',
+      tags: ['support', 'disorder'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a11', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d11', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierEntries: [
+          {
+            code: '12g.support.attacker.mixed',
+            label: 'Support attacker mixed',
+            stage: 'support',
+            value: 1,
+            sourceStatus: 'verified',
+          },
+        ],
+        defenderModifierEntries: [
+          {
+            code: '12g.disorder.defender.mixed',
+            label: 'Disorder defender mixed',
+            stage: 'terrain',
+            value: -1,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerSupport: 1,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDisorder: -1,
+        defenderDie: 4,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-front-tie-12',
+      tags: ['front', 'dice'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a12', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d12', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 3,
+        defenderDieRoll: 3,
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerDie: 3,
+        defenderBase: 5,
+        defenderDie: 3,
+      }),
+    }),
+    createResolvedRow({
+      rowId: '12g-rear-support-13',
+      tags: ['rear', 'support'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a13', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d13', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 3,
+        attackerModifierContext: {
+          sourceStatus: 'verified',
+          flankOrRearAttack: true,
+          flankRearBranch: {
+            attackContactType: 'rear',
+            sourceStatus: 'verified',
+          },
+        },
+        attackerModifierEntries: [
+          {
+            code: '12g.support.attacker.rear',
+            label: 'Support attacker rear',
+            stage: 'support',
+            value: 1,
+            sourceStatus: 'verified',
+          },
+        ],
+      },
+      expected: createExpectedResolved({
+        attackerBase: 5,
+        attackerSupport: 1,
+        attackerDie: 4,
+        defenderBase: 5,
+        defenderDie: 3,
+      }),
+    }),
+    createSourceOpenRow({
+      rowId: '12g-source-open-profile-deferred-14',
+      tags: ['source-open', 'front'],
+      resolutionInput: {
+        attackerUnit: {
+          id: '12g-a14',
+          owner: COMMAND_PLAYER_IDS.PLAYER_ONE,
+          profileId: UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS,
+        },
+        defenderUnit: {
+          id: '12g-d14',
+          owner: COMMAND_PLAYER_IDS.PLAYER_TWO,
+          profileId: UNIT_PROFILE_IDS.HEAVY_INFANTRY_SPEARMEN,
+        },
+        attackerDieRoll: 4,
+        defenderDieRoll: 3,
+      },
+      expectedDiagnosticCodes: ['combat-factor-profile-deferred'],
+    }),
+    createSourceOpenRow({
+      rowId: '12g-source-open-unverified-modifier-15',
+      tags: ['source-open', 'support'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a15', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d15', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierEntries: [
+          {
+            code: '12g.unverified.support',
+            label: 'Unverified support',
+            stage: 'support',
+            value: 1,
+            sourceStatus: 'source-open',
+          },
+        ],
+      },
+      expectedDiagnosticCodes: ['modifier-source-open'],
+    }),
+    createSourceOpenRow({
+      rowId: '12g-source-open-unresolved-cancellation-16',
+      tags: ['source-open', 'flank', 'cancellation'],
+      resolutionInput: {
+        attackerUnit: createExplicitUnit({ id: '12g-a16', owner: COMMAND_PLAYER_IDS.PLAYER_ONE, combatFactor: 5 }),
+        defenderUnit: createExplicitUnit({ id: '12g-d16', owner: COMMAND_PLAYER_IDS.PLAYER_TWO, combatFactor: 5 }),
+        attackerDieRoll: 4,
+        defenderDieRoll: 4,
+        attackerModifierContext: {
+          sourceStatus: 'verified',
+          flankOrRearAttack: true,
+          flankRearBranch: {
+            attackContactType: 'flank',
+            cancelAttackSituationBonus: true,
+            cancellationFamily: 'unresolved-family',
+            sourceStatus: 'verified',
+          },
+        },
+      },
+      expectedDiagnosticCodes: ['modifier-source-open'],
+    }),
+  ];
+
+  return clone(rows);
+}
+
 export function createMeleeV2DrillScenarioPayload(scenario = createMeleeDrillScenario()) {
   const units = Array.isArray(scenario?.units) ? scenario.units : [];
 

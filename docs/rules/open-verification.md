@@ -749,7 +749,7 @@ Use this compact entry format for new items:
 	Sources: docs/source/Rules_v2.md melee sections p.60-67, Rules_Color_300DPI.pdf p.60-67, melee example crops, Errata_ADG_V4_English.pdf, docs/rules/melee.md (P9-03TF Melee Factor Rules Freeze)
 	 Question: after `P9-03T`, which residual lanes remain unresolved for exact table binding and errata closure (conditional mounted-vs-HI flank/rear lanes, mounted first-contact bonus lanes, LI javelin taxonomy lane, heavy-spearmen terrain-conditioned lane, flank/rear cancellation family, and first-contact ability timing), while keeping the grouped-support interpretation fixed (same-side simple support is displaced when flank/rear melee support occupies that side support slot)?
 	Why it matters: P9-03TF now freezes stage ownership and branch semantics; later cards must only implement that baseline and narrow explicit residuals without reinterpreting melee source rules.
-	Next check: consume the freeze baseline in P9-03T, P9-03O, P9-03U, P9-03V, and P9-03W; close this item only when all listed residual lanes are source-anchored with direct errata provenance.
+	Next check: consume the freeze baseline in P9-03T, P9-03O, P9-03U, P9-03V, and P9-03W; align MINI-12A lane decisions with docs/rules/melee-decision-matrix.md; close this item only when all listed residual lanes are source-anchored with direct errata provenance.
 
 - ID: pursuit.mandatory-optional-matrix-and-contact-branch
 	Status: errata-check

@@ -19,6 +19,7 @@ import {
   summarizeMeleeContactRoles,
 } from '../engine/melee/roles.js';
 import { buildV2FlankRearModifierLane } from '../engine/melee-v2/modifier-pipeline.js';
+import { evaluateV2CoreCombatMatrix } from '../engine/melee-v2/combat-matrix-v2.js';
 import { getFootprintCommandRangeMeasurement } from '../engine/command/range.js';
 
 export const MELEE_BATCH_APPLICATION_STATUSES = {
@@ -55,6 +56,20 @@ export const MELEE_V2_COMMANDER_PRESENCE_STATUSES = {
   SUPPORT_ONLY: 'support-only',
   NONE: 'none',
 };
+
+export const MELEE_V2_FEATURE_FLAG_PATHS = {
+  MATRIX_V2: 'melee.matrixV2',
+};
+
+export const MELEE_V2_MATRIX_PARALLEL_PATHS = {
+  V2_CORE: 'matrix-v2-core',
+  LEDGER_FALLBACK: 'matrix-ledger-fallback',
+};
+
+const MELEE_V2_MATRIX_DIFF_LIMIT = 12;
+const MELEE_V2_MATRIX_FALLBACK_VERSION = 'ledger-fallback-core-lanes';
+const MELEE_V2_MATRIX_FLAG_SUNSET_CONDITION = 'Remove melee.matrixV2 after MINI-12G gold packet approval and MINI-12H default switch acceptance with no rollback findings.';
+const MELEE_V2_MATRIX_DECOMMISSION_PLAN = 'MINI-12H decommission mode: keep melee.matrixV2 as legacy metadata only, force runtime to matrix-v2-core, and remove reducer wiring in the next cleanup slice if no rollback findings appear.';
 
 function deriveV2LifecycleStatus(meleeState) {
   const queueSelectionIds = Array.isArray(meleeState?.queueSelectionIds)
@@ -148,6 +163,271 @@ function normalizeMeleeSourceStatus(value) {
   }
 
   return 'source-open';
+}
+
+function resolveModifierStageSourceStatus(entries = []) {
+  const list = Array.isArray(entries) ? entries : [];
+  return list.every((entry) => String(entry?.sourceStatus ?? '').trim().toLowerCase() === 'verified')
+    ? 'verified'
+    : 'source-open';
+}
+
+function resolveMeleeV2FeatureFlags(gameState) {
+  const stateFlags = gameState?.melee?.v2?.featureFlags ?? {};
+  const requestedMatrixV2 = stateFlags.matrixV2 !== false;
+  return {
+    matrixV2Requested: requestedMatrixV2,
+    matrixV2: true,
+    matrixV2Decommissioned: true,
+  };
+}
+
+function normalizeMatrixComparisonValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Number(value) : null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeMatrixComparisonValue(item));
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value)
+      .sort((left, right) => left.localeCompare(right))
+      .reduce((accumulator, key) => {
+        accumulator[key] = normalizeMatrixComparisonValue(value[key]);
+        return accumulator;
+      }, {});
+  }
+
+  return value;
+}
+
+function buildLedgerFallbackMatrixCore({
+  resolutionInput = null,
+  resolution = null,
+} = {}) {
+  const resolvedInput = resolutionInput ?? {};
+  const resolvedResolution = resolution ?? {};
+  const laneOrder = ['flankRearBranch', 'baseCf', 'support', 'situationDisorder', 'die', 'final'];
+
+  const buildBranchLane = (side) => {
+    const modifierContext = side === 'attacker'
+      ? resolvedInput?.attackerModifierContext
+      : resolvedInput?.defenderModifierContext;
+    const branch = modifierContext?.flankRearBranch;
+    if (!branch || typeof branch !== 'object') {
+      return {
+        laneType: 'flank-rear-branch',
+        value: null,
+        sourceStatus: 'verified',
+        explanation: side === 'attacker'
+          ? 'No attacker flank/rear branch applied in this fallback lane.'
+          : 'No defender flank/rear branch applied in this fallback lane.',
+      };
+    }
+
+    return {
+      laneType: 'flank-rear-branch',
+      value: {
+        attackContactType: branch?.attackContactType ?? null,
+        applyDefenderCombatFactorToZero: branch?.applyDefenderCombatFactorToZero === true,
+        cancellationApplies: branch?.cancellationApplies === true,
+      },
+      sourceStatus: normalizeMeleeSourceStatus(branch?.sourceStatus),
+      explanation: 'Branch lane mirrored from hydrated draft modifier context.',
+    };
+  };
+
+  const buildSide = (side) => {
+    const breakdown = resolvedResolution?.breakdown?.[side] ?? null;
+    const stageLedger = breakdown?.stageLedger ?? {};
+    const supportEntries = Array.isArray(breakdown?.stages?.[MELEE_MODIFIER_STAGES.SUPPORT])
+      ? breakdown.stages[MELEE_MODIFIER_STAGES.SUPPORT]
+      : [];
+    const situationEntries = Array.isArray(breakdown?.stages?.[MELEE_MODIFIER_STAGES.SITUATION])
+      ? breakdown.stages[MELEE_MODIFIER_STAGES.SITUATION]
+      : [];
+    const dieEntries = Array.isArray(breakdown?.stages?.[MELEE_MODIFIER_STAGES.DIE])
+      ? breakdown.stages[MELEE_MODIFIER_STAGES.DIE]
+      : [];
+    const finalEntries = Array.isArray(breakdown?.stages?.[MELEE_MODIFIER_STAGES.FINAL_RESULT])
+      ? breakdown.stages[MELEE_MODIFIER_STAGES.FINAL_RESULT]
+      : [];
+
+    const lanes = {
+      flankRearBranch: buildBranchLane(side),
+      baseCf: {
+        laneType: 'base-cf',
+        value: Number(stageLedger?.base ?? 0),
+        sourceStatus: normalizeMeleeSourceStatus(breakdown?.combatFactorSourceStatus),
+        explanation: 'Base factor mirrored from stage ledger.',
+      },
+      support: {
+        laneType: 'support',
+        value: Number(stageLedger?.support ?? 0),
+        sourceStatus: resolveModifierStageSourceStatus(supportEntries),
+        explanation: `Support entries mirrored from breakdown (${supportEntries.length}).`,
+      },
+      situationDisorder: {
+        laneType: 'situation-disorder',
+        value: {
+          disorder: Number(stageLedger?.disorder ?? 0),
+          situation: Number(stageLedger?.residualModifierBreakdown?.situation ?? 0),
+          combined: Number(stageLedger?.disorder ?? 0) + Number(stageLedger?.residualModifierBreakdown?.situation ?? 0),
+        },
+        sourceStatus: resolveModifierStageSourceStatus(situationEntries),
+        explanation: `Situation/disorder mirrored from ledger and stage (${situationEntries.length}).`,
+      },
+      die: {
+        laneType: 'die',
+        value: Number(stageLedger?.die ?? 0),
+        sourceStatus: resolveModifierStageSourceStatus(dieEntries),
+        explanation: `Die lane mirrored from stage (${dieEntries.length}).`,
+      },
+      final: {
+        laneType: 'final',
+        value: Number(stageLedger?.final ?? breakdown?.finalTotal ?? 0),
+        sourceStatus: resolveModifierStageSourceStatus(finalEntries),
+        explanation: `Final lane mirrored from stage/ledger (${finalEntries.length}).`,
+      },
+    };
+
+    return {
+      lanes,
+      sourceStatus: Object.values(lanes).every((lane) => lane?.sourceStatus === 'verified')
+        ? 'verified'
+        : 'source-open',
+    };
+  };
+
+  const attacker = buildSide('attacker');
+  const defender = buildSide('defender');
+  const resolutionStatus = resolvedResolution?.status ?? MELEE_RESOLUTION_STATUSES.SOURCE_OPEN;
+  const sourceStatus = resolutionStatus === MELEE_RESOLUTION_STATUSES.RESOLVED
+    && attacker.sourceStatus === 'verified'
+    && defender.sourceStatus === 'verified'
+      ? 'verified'
+      : 'source-open';
+
+  return {
+    version: MELEE_V2_MATRIX_FALLBACK_VERSION,
+    sourceStatus,
+    resolutionStatus,
+    laneOrder,
+    attacker,
+    defender,
+    diagnostics: Array.isArray(resolvedResolution?.diagnostics) ? [...resolvedResolution.diagnostics] : [],
+  };
+}
+
+export function compareMatrixCoreLanes(primary, secondary) {
+  const laneOrder = Array.isArray(primary?.laneOrder) ? primary.laneOrder : [];
+  const mismatches = [];
+
+  for (const side of ['attacker', 'defender']) {
+    const primarySide = primary?.[side] ?? {};
+    const secondarySide = secondary?.[side] ?? {};
+    for (const laneKey of laneOrder) {
+      if (mismatches.length >= MELEE_V2_MATRIX_DIFF_LIMIT) {
+        return {
+          mismatches,
+          hasMore: true,
+        };
+      }
+
+      const primaryLane = primarySide?.lanes?.[laneKey] ?? null;
+      const secondaryLane = secondarySide?.lanes?.[laneKey] ?? null;
+      const primaryValue = normalizeMatrixComparisonValue(primaryLane?.value);
+      const secondaryValue = normalizeMatrixComparisonValue(secondaryLane?.value);
+      const primarySourceStatus = normalizeMeleeSourceStatus(primaryLane?.sourceStatus);
+      const secondarySourceStatus = normalizeMeleeSourceStatus(secondaryLane?.sourceStatus);
+
+      if (JSON.stringify(primaryValue) === JSON.stringify(secondaryValue)
+        && primarySourceStatus === secondarySourceStatus) {
+        continue;
+      }
+
+      mismatches.push({
+        side,
+        laneKey,
+        primaryValue,
+        secondaryValue,
+        primarySourceStatus,
+        secondarySourceStatus,
+      });
+    }
+  }
+
+  return {
+    mismatches,
+    hasMore: false,
+  };
+}
+
+function selectMatrixCoreForResolution({
+  gameState,
+  resolutionInput = null,
+  resolution = null,
+} = {}) {
+  const featureFlags = resolveMeleeV2FeatureFlags(gameState);
+  const matrixV2Core = evaluateV2CoreCombatMatrix({
+    resolutionInput,
+    resolution,
+  });
+  const matrixFallback = buildLedgerFallbackMatrixCore({
+    resolutionInput,
+    resolution,
+  });
+  const diff = compareMatrixCoreLanes(matrixV2Core, matrixFallback);
+  const matrixV2Enabled = featureFlags.matrixV2 === true;
+  const requestedMatrixV2Enabled = featureFlags.matrixV2Requested === true;
+  const decommissioned = featureFlags.matrixV2Decommissioned === true;
+  const activeMatrix = matrixV2Core;
+
+  const matrixCore = {
+    ...activeMatrix,
+    selection: {
+      featureFlagPath: MELEE_V2_FEATURE_FLAG_PATHS.MATRIX_V2,
+      matrixV2Enabled,
+      requestedMatrixV2Enabled,
+      decommissioned,
+      activePath: MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE,
+      comparedPath: MELEE_V2_MATRIX_PARALLEL_PATHS.LEDGER_FALLBACK,
+      sunsetCondition: MELEE_V2_MATRIX_FLAG_SUNSET_CONDITION,
+      decommissionPlan: MELEE_V2_MATRIX_DECOMMISSION_PLAN,
+    },
+    comparison: {
+      mismatchCount: diff.mismatches.length,
+      truncated: diff.hasMore,
+      mismatches: diff.mismatches,
+      parityMatch: diff.mismatches.length === 0,
+    },
+  };
+
+  const diagnostics = diff.mismatches.length > 0
+    ? [{
+        code: 'melee.v2.matrix-parallel-path-diff',
+        severity: 'warning',
+        sourceStatus: 'source-open',
+        featureFlagPath: MELEE_V2_FEATURE_FLAG_PATHS.MATRIX_V2,
+        activePath: matrixCore.selection.activePath,
+        comparedPath: matrixCore.selection.comparedPath,
+        mismatchCount: diff.mismatches.length,
+        truncated: diff.hasMore,
+        mismatches: diff.mismatches,
+        decommissioned,
+      }]
+    : [];
+
+  return {
+    matrixCore,
+    diagnostics,
+  };
 }
 
 function resolvePrincipalOpponentId(unit, allUnits = []) {
@@ -704,6 +984,31 @@ function createDraftFactorPresentation(draft) {
     };
   };
 
+  const createFlankToZeroDisplayRow = (branch, targetCombatFactorValue) => {
+    if (!branch || typeof branch !== 'object' || branch.applyDefenderCombatFactorToZero !== true) {
+      return null;
+    }
+
+    const toZeroValue = Number.isFinite(Number(targetCombatFactorValue))
+      ? Number(targetCombatFactorValue)
+      : 0;
+    const sourceStatus = branch.sourceStatus ?? 'needs-source-check';
+    const ownerAttackerText = branch.ownershipAttackerUnitId
+      ? `; source attacker ${branch.ownershipAttackerUnitId}`
+      : '';
+    const inheritedPairText = branch.inheritedDefenderToZeroFromBranch === true
+      ? '; flanker factor resolves in its own pair'
+      : '';
+
+    return {
+      code: 'melee.v2.ui.flank-rear-to-zero-display',
+      label: `Formed Flank Attack (X=${toZeroValue} combat factor der Einheit${ownerAttackerText}${inheritedPairText})`,
+      value: -Math.abs(toZeroValue),
+      sourceStatus,
+      countsTowardModifierSum: false,
+    };
+  };
+
   const attackerSupportAssignments = resolveMeleeSupportAssignments({
     units: allUnits,
     mainUnitId: input.attackerUnit?.id ?? null,
@@ -714,6 +1019,25 @@ function createDraftFactorPresentation(draft) {
     mainUnitId: input.defenderUnit?.id ?? null,
     ownerId: input.defenderUnit?.owner ?? null,
   });
+
+  const attackerDerivedBranch = createBranchPresentation(
+    input.attackerUnit,
+    'attacker',
+    input.attackerModifierContext?.flankRearBranch ?? null,
+  );
+  const defenderDerivedBranch = createBranchPresentation(
+    input.defenderUnit,
+    'defender',
+    input.defenderModifierContext?.flankRearBranch ?? null,
+  );
+  const attackerFlankToZeroDisplayRow = createFlankToZeroDisplayRow(
+    defenderDerivedBranch,
+    factorPreview.attacker.value,
+  );
+  const defenderFlankToZeroDisplayRow = createFlankToZeroDisplayRow(
+    attackerDerivedBranch,
+    factorPreview.defender.value,
+  );
 
   return {
     attackerSupportUnits: Array.isArray(attackerSupportAssignments.selected)
@@ -731,16 +1055,10 @@ function createDraftFactorPresentation(draft) {
     attackerCombatFactorProvenanceLabel: factorPreview.attacker.provenanceLabel,
     defenderCombatFactorProvenanceLabel: factorPreview.defender.provenanceLabel,
     combatFactorDebugOverrideEnabled: input.combatFactorDebugOverrideEnabled === true,
-    attackerDerivedBranch: createBranchPresentation(
-      input.attackerUnit,
-      'attacker',
-      input.attackerModifierContext?.flankRearBranch ?? null,
-    ),
-    defenderDerivedBranch: createBranchPresentation(
-      input.defenderUnit,
-      'defender',
-      input.defenderModifierContext?.flankRearBranch ?? null,
-    ),
+    attackerDerivedBranch,
+    defenderDerivedBranch,
+    attackerDisplayModifierRows: attackerFlankToZeroDisplayRow ? [attackerFlankToZeroDisplayRow] : [],
+    defenderDisplayModifierRows: defenderFlankToZeroDisplayRow ? [defenderFlankToZeroDisplayRow] : [],
     supportDiagnostics: [
       ...(Array.isArray(attackerSupportAssignments.diagnostics) ? attackerSupportAssignments.diagnostics : []),
       ...(Array.isArray(defenderSupportAssignments.diagnostics) ? defenderSupportAssignments.diagnostics : []),
@@ -1091,6 +1409,18 @@ function withV2MeleeState(gameState) {
         committedResolvedEntriesByMeleeId: outcomeBuckets.committedResolvedEntriesByMeleeId,
         pendingMeleeIds: outcomeBuckets.pendingMeleeIds,
         committedMeleeIds: outcomeBuckets.committedMeleeIds,
+        featureFlags: {
+          ...(meleeState?.v2?.featureFlags ?? {}),
+          matrixV2: meleeState?.v2?.featureFlags?.matrixV2 !== false,
+          matrixV2Runtime: true,
+          matrixV2Decommissioned: true,
+        },
+        matrixRollout: {
+          sunsetCondition: MELEE_V2_MATRIX_FLAG_SUNSET_CONDITION,
+          activePath: MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE,
+          decommissioned: true,
+          decommissionPlan: MELEE_V2_MATRIX_DECOMMISSION_PLAN,
+        },
       },
     },
   };
@@ -1124,6 +1454,19 @@ export function createInitialMeleeState(overrides = {}) {
       roleAssignmentVersion: MELEE_V2_ROLE_ASSIGNMENT_VERSION,
       contactModelSourceStatus: 'source-open',
       roleAssignmentSourceStatus: 'source-open',
+      featureFlags: {
+        ...(overrides?.v2?.featureFlags ?? {}),
+        matrixV2: overrides?.v2?.featureFlags?.matrixV2 !== false,
+        matrixV2Runtime: true,
+        matrixV2Decommissioned: true,
+      },
+      matrixRollout: {
+        ...(overrides?.v2?.matrixRollout ?? {}),
+        sunsetCondition: MELEE_V2_MATRIX_FLAG_SUNSET_CONDITION,
+        activePath: MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE,
+        decommissioned: true,
+        decommissionPlan: MELEE_V2_MATRIX_DECOMMISSION_PLAN,
+      },
       lifecycleStatus: MELEE_V2_LIFECYCLE_STATUSES.IDLE,
       pendingResolvedEntriesByMeleeId: {},
       committedResolvedEntriesByMeleeId: {},
@@ -1628,11 +1971,19 @@ function createV2ResolutionDraft(entry, {
   };
 }
 
-function createMeleeResolutionPreview(entry, resolution) {
+function createMeleeResolutionPreview(entry, resolution, gameState = null) {
   const attackerBreakdown = resolution?.breakdown?.attacker ?? null;
   const defenderBreakdown = resolution?.breakdown?.defender ?? null;
   const attackerStageLedger = attackerBreakdown?.stageLedger ?? null;
   const defenderStageLedger = defenderBreakdown?.stageLedger ?? null;
+  const selectedMatrix = resolution?.matrixCore && typeof resolution.matrixCore === 'object'
+    ? { matrixCore: resolution.matrixCore }
+    : selectMatrixCoreForResolution({
+        gameState,
+        resolutionInput: entry?.resolutionInput ?? null,
+        resolution,
+      });
+  const matrixCore = selectedMatrix.matrixCore;
 
   const toNumberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
   const deriveLedgerModifierSum = (ledger) => {
@@ -1645,19 +1996,10 @@ function createMeleeResolutionPreview(entry, resolution) {
     const disorder = Number(ledger.disorder ?? 0);
     const residualSituation = Number(ledger?.residualModifierBreakdown?.situation ?? 0);
     const residualTerrain = Number(ledger?.residualModifierBreakdown?.terrain ?? 0);
+    const residualDie = Number(ledger?.residualModifierBreakdown?.die ?? 0);
+    const residualFinalResult = Number(ledger?.residualModifierBreakdown?.finalResult ?? 0);
 
-    return support + flankRear + disorder + residualSituation + residualTerrain;
-  };
-
-  const deriveLedgerFinalTotal = (ledger, differentialBonus) => {
-    if (!ledger || typeof ledger !== 'object') {
-      return null;
-    }
-
-    const stageFinal = Number(ledger.final ?? 0);
-    const residual = Number(ledger.residualModifierSum ?? 0);
-    const differential = Number(differentialBonus ?? 0);
-    return stageFinal + residual + differential;
+    return support + flankRear + disorder + residualSituation + residualTerrain + residualDie + residualFinalResult;
   };
 
   return {
@@ -1675,17 +2017,18 @@ function createMeleeResolutionPreview(entry, resolution) {
     status: resolution?.status ?? 'source-open',
     result: resolution?.result ?? null,
     diagnostics: Array.isArray(resolution?.diagnostics) ? [...resolution.diagnostics] : [],
+    matrixCore,
     factorRecap: {
       attacker: {
         baseCombatFactor: toNumberOrNull(attackerStageLedger?.base),
         modifierSum: deriveLedgerModifierSum(attackerStageLedger),
-        finalTotal: deriveLedgerFinalTotal(attackerStageLedger, attackerBreakdown?.differentialBonus),
+          finalTotal: toNumberOrNull(attackerBreakdown?.finalTotal),
         stageLedger: attackerStageLedger,
       },
       defender: {
         baseCombatFactor: toNumberOrNull(defenderStageLedger?.base),
         modifierSum: deriveLedgerModifierSum(defenderStageLedger),
-        finalTotal: deriveLedgerFinalTotal(defenderStageLedger, defenderBreakdown?.differentialBonus),
+          finalTotal: toNumberOrNull(defenderBreakdown?.finalTotal),
         stageLedger: defenderStageLedger,
       },
     },
@@ -2094,6 +2437,39 @@ export function setMeleeResolutionDraftCommanderEngaged(gameState, side, isEngag
   return setMeleeResolutionDraftValue(gameState, key, isEngaged === true);
 }
 
+export function setMeleeMatrixV2FeatureFlag(gameState, isEnabled) {
+  const meleeState = gameState?.melee ?? createInitialMeleeState();
+  const nextEnabled = isEnabled !== false;
+  const activePath = MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE;
+
+  return withV2MeleeState({
+    ...gameState,
+    melee: {
+      ...meleeState,
+      v2: {
+        ...(meleeState?.v2 ?? {}),
+        featureFlags: {
+          ...(meleeState?.v2?.featureFlags ?? {}),
+          matrixV2: nextEnabled,
+        },
+      },
+      diagnostics: [
+        ...(Array.isArray(meleeState?.diagnostics) ? meleeState.diagnostics : []),
+        {
+          code: 'melee.v2.matrix-feature-flag-decommissioned',
+          severity: 'info',
+          sourceStatus: 'verified',
+          featureFlagPath: MELEE_V2_FEATURE_FLAG_PATHS.MATRIX_V2,
+          requestedMatrixV2Enabled: nextEnabled,
+          effectiveMatrixV2Enabled: true,
+          activePath,
+          decommissioned: true,
+        },
+      ],
+    },
+  });
+}
+
 export function confirmMeleeResolutionDraft(gameState) {
   const draft = gameState?.melee?.resolutionDraft;
   if (!draft?.meleeId || !draft?.resolutionInput) {
@@ -2101,13 +2477,26 @@ export function confirmMeleeResolutionDraft(gameState) {
   }
 
   const resolution = resolveMeleeOutcome(draft.resolutionInput);
+  const matrixSelection = selectMatrixCoreForResolution({
+    gameState,
+    resolutionInput: draft.resolutionInput,
+    resolution,
+  });
+  const resolutionWithMatrix = {
+    ...resolution,
+    matrixCore: matrixSelection.matrixCore,
+    diagnostics: [
+      ...(Array.isArray(resolution?.diagnostics) ? resolution.diagnostics : []),
+      ...matrixSelection.diagnostics,
+    ],
+  };
   const resolvedEntriesByMeleeId = {
     ...(gameState?.melee?.resolvedEntriesByMeleeId ?? {}),
     [draft.meleeId]: {
       meleeId: draft.meleeId,
       attackerUnitId: draft.attackerUnitId,
       defenderUnitId: draft.defenderUnitId,
-      resolution,
+      resolution: resolutionWithMatrix,
       applicationStatus: MELEE_BATCH_APPLICATION_STATUSES.PENDING_SIMULTANEOUS_BATCH,
     },
   };
@@ -2143,14 +2532,14 @@ export function confirmMeleeResolutionDraft(gameState) {
     melee: {
       ...(gameState?.melee ?? createInitialMeleeState()),
       status: MELEE_PROCEDURE_STATUSES.ACTIVE,
-      resolutionPreview: createMeleeResolutionPreview(draft, resolution),
+      resolutionPreview: createMeleeResolutionPreview(draft, resolutionWithMatrix, gameState),
       resolvedEntriesByMeleeId,
       resolvedMeleeIds,
       roundStateByMeleeId,
       commanderEngagementHistoryByMeleeId,
       resolutionDraft: {
         ...draft,
-        resolutionPreview: createMeleeResolutionPreview(draft, resolution),
+        resolutionPreview: createMeleeResolutionPreview(draft, resolutionWithMatrix, gameState),
       },
       batchPreview: null,
       batchApplicationPlan: null,
@@ -2267,6 +2656,7 @@ export function applyMeleeBatch(gameState) {
         ...(runtime.activeFightSet.diagnostics ?? []),
         ...(runtime.queueBuild.diagnostics ?? []),
         ...(runtime.previewBuild.diagnostics ?? []),
+        ...(Array.isArray(batchApplicationPlan?.diagnostics) ? batchApplicationPlan.diagnostics : []),
       ],
       v2: {
         ...(gameState?.melee?.v2 ?? {}),

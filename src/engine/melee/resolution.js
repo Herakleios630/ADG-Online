@@ -1,5 +1,5 @@
-import { resolveMeleeCombatFactorBinding } from '../../data/melee-combat-factors.js';
-import { getUnitProfileForUnit } from '../../data/unit-profiles.js';
+import { resolveV2BaseCombatFactorLookup } from '../melee-v2/factor-lookup.js';
+import { MELEE_V2_MODIFIER_LANE_OWNERSHIP } from '../melee-v2/modifier-pipeline.js';
 
 export const MELEE_RESOLUTION_STATUSES = {
   RESOLVED: 'resolved',
@@ -72,6 +72,7 @@ function createBreakdownEntry(entry, stage) {
     value: Number.isFinite(entry?.value) ? Number(entry.value) : 0,
     sourceStatus: entry?.sourceStatus ?? 'verified',
     appliesInRoundState,
+    ...(entry?.laneOwnership != null ? { laneOwnership: entry.laneOwnership } : {}),
   };
 }
 
@@ -197,6 +198,18 @@ function buildCombatFactorStageLedgerSide({
   const residualFinalResult = sumStage(finalResultEntries);
   const residualModifierSum = residualSituation + residualTerrain + residualDie + residualFinalResult;
 
+  // Non-ledger residual entries: any entry that contributes to residualModifierSum
+  // must carry an explicit laneOwnership tag; untagged non-zero entries are hidden lanes.
+  const residualCandidates = [
+    ...situationEntries.filter((e) => !isFlankRearToZeroEntry(e) && !isDisorderEntry(e)),
+    ...terrainEntries.filter((e) => !isDisorderEntry(e)),
+    ...dieEntries,
+    ...finalResultEntries,
+  ];
+  const unownedNonZeroResiduals = residualCandidates.filter(
+    (e) => e.laneOwnership == null && Number(e.value ?? 0) !== 0,
+  );
+
   return {
     [MELEE_COMBAT_FACTOR_STAGE_LEDGER_KEYS.BASE]: base,
     [MELEE_COMBAT_FACTOR_STAGE_LEDGER_KEYS.SUPPORT]: support,
@@ -208,6 +221,7 @@ function buildCombatFactorStageLedgerSide({
       flankRearHardZero: flankRear === 0,
       finalMatchesStageSum: final === (base + support + flankRear + disorder + die),
       hiddenPostStageModifierLaneAbsent: residualModifierSum === 0,
+      allNonLedgerEntriesOwned: unownedNonZeroResiduals.length === 0,
     },
     residualModifierSum,
     residualModifierBreakdown: {
@@ -325,46 +339,45 @@ function resolveProfileBoundCombatFactor(unit, opponentUnit, side) {
     };
   }
 
-  let profile = null;
-  let opponentProfile = null;
-  try {
-    profile = getUnitProfileForUnit(unit);
-    opponentProfile = opponentUnit ? getUnitProfileForUnit(opponentUnit) : null;
-  } catch (error) {
+  const lookup = resolveV2BaseCombatFactorLookup({
+    unit,
+    opponentUnit,
+  });
+
+  const hasProfileLookupFailure = Array.isArray(lookup?.diagnostics)
+    && lookup.diagnostics.some((entry) => entry?.code === 'melee.v2.base-cf-profile-lookup-source-open');
+
+  if (hasProfileLookupFailure) {
     return {
       resolved: null,
       diagnostics: [createDiagnostic(
         MELEE_RESOLUTION_REASON_CODES.PROFILE_LOOKUP_SOURCE_OPEN,
-        `Profile lookup for side '${side}' is source-open in the current slice: ${error.message}`,
+        `Profile lookup for side '${side}' is source-open in the current slice: ${lookup.diagnostics[0]?.message ?? 'unknown profile lookup failure'}`,
         {
           side,
           unitId: unit?.id ?? null,
+          profileId: lookup?.profileId ?? null,
+          opponentProfileId: lookup?.opponentProfileId ?? null,
+          sourceRefs: Array.isArray(lookup?.sourceRefs) ? lookup.sourceRefs : [],
         },
       )],
     };
   }
 
-  const binding = resolveMeleeCombatFactorBinding({
-    unit,
-    opponentUnit,
-    unitProfileId: profile?.id ?? null,
-    opponentProfileId: opponentProfile?.id ?? null,
-  });
-
-  if (!binding?.resolved || !Number.isFinite(binding.resolved.value)) {
+  if (lookup?.status !== 'resolved' || !Number.isFinite(lookup?.value)) {
     return {
       resolved: null,
       diagnostics: [createDiagnostic(
         MELEE_RESOLUTION_REASON_CODES.COMBAT_FACTOR_PROFILE_DEFERRED,
-        binding?.deferredReason
-          ?? `Combat profile binding for side '${side}' is still source-open in the current P9-03L subset.`,
+        lookup?.deferredReason
+          ?? `Combat profile binding for side '${side}' is still source-open in the current MINI-12B lookup slice.`,
         {
           side,
           unitId: unit?.id ?? null,
-          profileId: profile?.id ?? null,
-          opponentProfileId: opponentProfile?.id ?? null,
-          provenanceLabel: binding?.provenanceLabel ?? null,
-          sourceRefs: Array.isArray(binding?.sourceRefs) ? binding.sourceRefs : [],
+          profileId: lookup?.profileId ?? null,
+          opponentProfileId: lookup?.opponentProfileId ?? null,
+          provenanceLabel: lookup?.provenanceLabel ?? null,
+          sourceRefs: Array.isArray(lookup?.sourceRefs) ? lookup.sourceRefs : [],
         },
       )],
     };
@@ -372,11 +385,11 @@ function resolveProfileBoundCombatFactor(unit, opponentUnit, side) {
 
   return {
     resolved: {
-      value: Number(binding.resolved.value),
-      sourceStatus: binding.resolved.sourceStatus ?? 'verified',
+      value: Number(lookup.value),
+      sourceStatus: lookup.sourceStatus ?? 'verified',
       source: 'profile-binding',
-      provenanceLabel: binding.resolved.provenanceLabel ?? 'Profile binding',
-      sourceRefs: Array.isArray(binding.resolved.sourceRefs) ? binding.resolved.sourceRefs : [],
+      provenanceLabel: lookup.provenanceLabel ?? 'Profile binding',
+      sourceRefs: Array.isArray(lookup.sourceRefs) ? lookup.sourceRefs : [],
     },
     diagnostics: [],
   };
@@ -480,6 +493,7 @@ function createDerivedModifierEntry({
   stage,
   value,
   sourceStatus = 'verified',
+  laneOwnership = null,
 }) {
   return {
     code,
@@ -487,6 +501,7 @@ function createDerivedModifierEntry({
     stage,
     value,
     sourceStatus,
+    ...(laneOwnership != null ? { laneOwnership } : {}),
   };
 }
 
@@ -512,6 +527,7 @@ function createDerivedModifierEntries({
       stage: MELEE_MODIFIER_STAGES.DIE,
       value: 1,
       sourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.ADDITIVE,
     }));
   }
 
@@ -522,6 +538,7 @@ function createDerivedModifierEntries({
       stage: MELEE_MODIFIER_STAGES.DIE,
       value: -1,
       sourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.ADDITIVE,
     }));
   }
 
@@ -553,6 +570,7 @@ function createDerivedModifierEntries({
       stage: MELEE_MODIFIER_STAGES.SITUATION,
       value: 0,
       sourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.BRANCH,
     }));
   }
 
@@ -565,6 +583,7 @@ function createDerivedModifierEntries({
       sourceStatus: cancellationSourceStatus === 'verified'
         ? 'needs-source-check'
         : cancellationSourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.BRANCH,
     }));
   }
 
@@ -575,6 +594,7 @@ function createDerivedModifierEntries({
       stage: MELEE_MODIFIER_STAGES.SITUATION,
       value: 1,
       sourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.ADDITIVE,
     }));
   }
 
@@ -607,6 +627,7 @@ function createDerivedModifierEntries({
       stage: MELEE_MODIFIER_STAGES.SITUATION,
       value: 1,
       sourceStatus: commanderEntrySourceStatus,
+      laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.ADDITIVE,
     }));
   }
 
@@ -637,6 +658,7 @@ function createFlankRearToZeroEntries({
     stage: MELEE_MODIFIER_STAGES.SITUATION,
     value: Number.isFinite(targetCombatFactor) ? -Number(targetCombatFactor) : 0,
     sourceStatus,
+    laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.BRANCH,
   })];
 }
 
