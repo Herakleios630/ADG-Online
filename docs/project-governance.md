@@ -214,6 +214,13 @@ Missing logging expectations for a complex rule or reducer/UI coordination featu
 
 Fixtures should test real rule behavior, not private shortcuts.
 
+Scenario storage rule (positions first):
+
+- Scenario files should store the final unit poses directly (`xUd`, `yUd`, `rotationRadians`, `facing`) as the load-time source of truth.
+- Do not execute placement command chains while loading a scenario.
+- Do not persist historical placement-intent steps in scenario runtime payloads as if they were active gameplay facts.
+- Contact meaning such as flank/rear/support should be derived by engine/state from the loaded board state, unless a card explicitly marks a temporary diagnostic override.
+
 - Unit instances store current match state and selected ability IDs. Reusable facts belong in unit definitions, unit profiles, rule tables, or army-list data.
 - Charge Drill and other artificial scenarios may place units in artificial positions, but normal unit behavior should come from the same profile/capability path as real units.
 - Direct per-unit fixture overrides are allowed only for labeled scenario controls or fault-injection tests.

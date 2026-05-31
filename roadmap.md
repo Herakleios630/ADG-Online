@@ -23,7 +23,7 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [ ] P7B - Conformation + Shifting Foundation (P7B-00 through P7B-08 are implemented and validated for the supported subset as of 2026-05-28; reviewer/lead closeout and user approval remain required before P8)
 - [x] P7C - Command Menu Hierarchy + Flow Cleanup (accepted on 2026-05-28 after focused UI validation, build, browser smoke, and user closeout approval)
 - [ ] P8 - Shooting System
-- [ ] P9 - Melee Combat System
+- [ ] P9 - Melee Combat System (P9 V1 board is frozen for documentation in `P9_todo.md`; active planning/execution moved to `P9_v2_todo.md` with a clean-file V2 rewrite, direct runtime integration target, explicit gate set, full open-card mapping, and `P9V2-01` as the coding-agent start card)
 - [ ] P10 - Rout, Pursuit, Army Cohesion + Victory
 - [ ] P11 - Army Builder
 - [ ] P12 - Full Match Flow + Local Singleplayer
@@ -31,6 +31,33 @@ Development is phase-gated. Do not work on the next phase until the current phas
 - [ ] P14 - Multiplayer Preparation
 - [ ] P15 - Visual Asset System + Player Colors
 - [ ] P16 - QA, Packaging + Release Candidate
+
+## P9 V2 Migration Track (2026-05-29)
+
+Execution boards:
+
+- Historical/legacy board: `P9_todo.md` (frozen, documentation only)
+- Active board: `P9_v2_todo.md`
+
+Wave mapping (legacy open cards -> V2 execution waves):
+
+- Wave A foundation/direct integration: `P9-03A`, `P9-03B`, `P9-03C`, `P9-03D`, `P9-03H`, `P9-03J`
+- Wave B core semantics: `P9-03`, `P9-03O`, `P9-03Q`, `P9-03S`, `P9-03U`, `P9-03W`
+- Wave C UX/flow completion: `P9-03E`, `P9-03F`, `P9-03G`, `P9-03I`, `P9-03K`
+- Wave D special families: `P9-04A`, `P9-04B` (with `P9-04` kept as umbrella legacy reference)
+- Wave E closeout packet: `P9-05`
+
+Gates:
+
+- no guessed p.22/flank-rear closure; unresolved lanes stay `source-open`
+- no new melee feature expansion in legacy V1 implementation files
+- V2 is the active integration path for reducer/UI runtime
+- UI decision gate must be completed before UI wave implementation
+- Reviewer / Rules Agent review required for rule-sensitive wave closeout
+
+Coding-agent start card:
+
+- `P9V2-01` in `P9_v2_todo.md`: V2 skeleton + direct runtime wiring without legacy expansion
 
 ## Release Target Framing
 
@@ -831,7 +858,7 @@ Current planning state:
 
 ## P8 - Shooting System
 
-Status: [ ] In progress - `P8_todo.md` is Lead-approved for source/scope; `P8-00` through `P8-07` are now implemented and validated as of 2026-05-28, with Reviewer / Rules Agent closeout still required for the latest rule-sensitive slice before advancing deeper into P8.
+Status: [ ] In progress - `P8_todo.md` now records `P8-00` through `P8-09` as implemented and validated for the approved subset as of 2026-05-28, with final Reviewer / Rules Agent acknowledgement and user phase-acceptance still required before P9.
 
 Active task list: see `P8_todo.md` once approved.
 
@@ -863,16 +890,17 @@ Current planning state:
 - `P8-01` through `P8-05` now provide the first profile/model spine, deterministic shooting record model, reducer-owned eligibility seam, front-edge range/normal-rectangle zone geometry, and first target-priority/unit-blocker-LOS subset for the current approved shooting slice.
 - `P8-06` now adds the first pure engine/state combined-shot support aggregation slice: one main shooter plus supporting shooters, light-troop half-support rounding, `+3` cap enforcement, reducer-owned one-target-per-phase declaration tracking, and explicit rejection of source-open support families from the supported state seam.
 - `P8-07` now adds the first pure shooting-resolution slice: support bonus enters the deterministic shooter total, target protection currently resolves only through explicit verified input in the supported narrow subset, simultaneous-resolution metadata stays serializable, and broader circumstance/protection families plus unresolved basic protection remain explicit source-open diagnostics instead of guessed table values.
-- `P8-08` remains in progress after the guided-procedure, UX rework, and shooting-sequence handoff follow-up on 2026-05-28: reducer/UI flow now uses phasing-player-selected unresolved shooters instead of an automatic left-to-right queue, unique priority targets auto-select, same-target support is limited to shooters whose own priority state allows that target, support lines plus `+1` / `+1/2` labels render from reducer projections, the left rail now collapses to a slim `Waehle Schuetzen` / `Schiessen` procedure shell, shot declaration now opens a popup-owned dice/protection flow that returns to choose-shooter mode with finished markers and target lock preserved, and completing the last eligible shooters now opens a reducer-owned shooting handoff chain that routes the current round's active player into the passive player's shooting segment before the melee handoff. The direct `Shooting Drill` fixture now starts in the active guided-procedure state and has been expanded into a mirrored two-sided lane with player-1 and player-2 support shots, alternate-target references, and player-2 return fire toward player 1, so the first selected shooter exposes both `Schiessen` and `Pass` and the passive side can legally shoot back in the same debug fixture. Focused reducer/UI/data tests, `npm run build`, and rebuilt live browser smoke on the direct `Shooting Drill` now pass; reviewer/manual closeout is the remaining gate.
-- `P8-09` has now started with the reviewer-requested `rv2-p58-line-of-sight-a` slice on 2026-05-28: the repo exposes a dedicated `Shooting LoS p.58` scenario bound to the page 58 source example, with focused tests proving `B` blocks `C1` from both bowmen, `A2` still sees `C2`, `B` remains the priority target for both shooters, and either bowman can be the main shooter while the other supports. This validates the currently supported unit-blocker LoS plus priority subset against one exact book case without claiming broader p.58 coverage beyond the supported seam.
+- `P8-08` closeout packet is complete for the approved subset: guided choose-shooter flow, popup-first `Schiessen -> OK` confirmation path, reducer-owned support projection and target locks, sequence handoff into passive-player shooting then melee, and mirrored two-sided direct shooting drill are implemented and validated.
+- `P8-09` closeout packet is complete for the approved subset: full p.56-p.59 mapping is now recorded in `P8_todo.md`, the dedicated `rv2-p58-line-of-sight-a` scenario and focused LoS/priority/support checks are in place, and deferred seams (special shooting zones, full ordered modifier/protection stack, terrain/cover/ambush blockers) remain explicitly source-open rather than implied solved.
 - Lead replanning inside `P8-08` now also tightens the UX target before closeout: the phase should open into a slim `Waehle Schuetzen` rail with counts, selecting a shooter should immediately show the priority target marker and supported shooting-zone overlay on the battlefield, and pressing `Schiessen` should move dice/protection input into a popup instead of the left command stack. Zone overlays remain limited to the current normal front-edge rectangle subset; deferred special-zone families must stay source-open rather than faked.
 - First P8 subset: shared-profile `sp-light-missile-foot` and `sp-mounted-bow`, normal front-edge rectangular zones only, unit-blocker LOS, basic target priority, one-target-per-phase support aggregation, deterministic opposed-roll records, and only source-checked baseline/support/protection resolution.
 - P8-08 now includes the planned direct-to-shooting debug/browser fixture so user and reviewer smoke tests can enter the supported declaration flow without clicking through earlier phases; this fixture remains a validation aid, not a replacement for normal sequence progression.
 - Deferred until later source gates: all special shooting zones, including the future light-cavalry `360 degrees` edge-based coverage family, overhead fire, terrain/cover/ambush LOS, broad missile taxonomy, stable target retention across later turns, and ordered special modifier/protection interactions.
+- Validation packet at phase closeout state: focused P8 suite pass (`310/310`), full repository suite pass (`665/665`), `npm run build` pass, and browser smoke pass on direct `Shooting Drill` plus dedicated `Shooting LoS p.58` entrypoints.
 
 ## P9 - Melee Combat System
 
-Status: [ ] Not started
+Status: [ ] In progress - `P9_todo.md` is now the active execution board; `P9-00`, `P9-01`, and `P9-02` are complete and `P9-03` is in progress.
 
 Goals:
 - Dice system.
@@ -895,6 +923,20 @@ Success criteria:
 - UI presents combat resolution without owning combat logic.
 - `Rules_v2` melee examples are classified in the active P9 board as live scenarios, tutorial entries, golden fixtures, or deferred references before P9 implementation starts.
 - User approves P9 before P10 begins.
+
+Current planning state:
+
+- `P9_todo.md` now exists as the active execution board for the melee phase, with a first source-mapping card plus the initial contact/support, factor/modifier, simultaneous-apply, special-branch, and closeout slices.
+- `P9-00` is now complete: p.61-p.67 examples are routed honestly, with p67 war-wagon support kept in P9 melee rather than P10 rout/pursuit.
+- `P9-01` is complete: contact-role classification now requires contact/conformation evidence, excludes corner-only contact, and keeps rear-or-flank ambiguity explicit as source-open; focused tests are green.
+- `P9-02` is complete: the deterministic melee resolver slice now includes staged modifier ordering, differential application, result-table mapping, combat-factor binding from unit/profile seam, first derived context modifiers (quality, flank/rear, height, engaged commander), and reviewer-approved source-status hardening so missing source-status inputs remain explicit source-open diagnostics.
+- `P9-03` is in progress: first simultaneous batch state seam now supports active-player melee order queueing, pending preview records, and one combined batch-end cohesion/rout application plan without per-fight early commits.
+- `P9-03X` is complete in `P9_todo.md`: melee drill scenario authoring now includes a placement-catalog bridge contract with token-driven deterministic placement and explicit blocked reasons for out-of-scope front-enemy alias selection.
+- `P9-03` currently has a user-facing integration gap: no melee drill start entry, no dedicated melee popup flow, and no command-panel melee queue controls are wired yet; these misses are now explicitly tracked as executable `P9-03A`..`P9-03J` tasks in `P9_todo.md`.
+- `P9-03M` follow-up hardening (2026-05-29): combat-group ownership now filters role-aware attacker candidates (excluding support-role/wrong-opponent geometry contacts), grouped support no longer blanket-converts additional attackers to `+1`, support-cap displacement is fixed (`simple-support` is excluded on a side when `melee-support` occupies that side), and additional-main-attacker contribution remains explicit `source-open` only for non-support residual families.
+- Open verification remains explicit: no guessed p22 combat-factor table bindings are introduced, and flank/rear combat-factor-to-`0` plus cancellation families stay tracked as incomplete for later rule-sensitive cards.
+- The first P9 implementation slice should keep the same active-player control pattern described in the board: the player chooses which melees to resolve, the UI queues them, and the engine applies the batch only after the chosen set is complete.
+- The melee phase should stay strict about source honesty: no claim of tournament-complete melee until the p.60-p.67 worked examples and the special branches are routed honestly.
 
 ## P10 - Rout, Pursuit, Army Cohesion + Victory
 

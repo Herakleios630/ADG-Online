@@ -113,6 +113,10 @@ function createShootingUiTarget(overrides = {}) {
   };
 }
 
+function startMeleeDrillBattle(state = createInitialAppState()) {
+  return reduceAppState(state, { type: ACTION_TYPES.START_MELEE_DRILL_BATTLE });
+}
+
 function createPendingInitialBranchEvadeChoiceState() {
   let state = reduceAppState(createInitialAppState(), { type: ACTION_TYPES.START_CHARGE_DRILL_BATTLE });
 
@@ -977,6 +981,51 @@ test('battlefield renders a secondary target reaction dialog after follow-throug
   assert.match(html, /Sekundaerziel Test 4/);
   assert.match(html, /data-action="resolve-secondary-charge-reaction"/);
   assert.match(html, /Weiter/);
+});
+
+test('melee drill battlefield distinguishes main defenders, support participants, and nonparticipants', () => {
+  const state = startMeleeDrillBattle();
+  const html = renderBattlefieldScreen(state);
+
+  const mainUnitMarkup = getUnitMarkup(html, 'melee-drill-case1-main-a');
+  const supportUnitMarkup = getUnitMarkup(html, 'melee-drill-case2-rear');
+  const nonParticipantMarkup = getUnitMarkup(html, 'melee-drill-p1-frontline-c-gap');
+
+  assert.doesNotMatch(mainUnitMarkup, /disabled/);
+  assert.doesNotMatch(mainUnitMarkup, /is-melee-support-participant|is-melee-nonparticipant/);
+
+  assert.match(supportUnitMarkup, /is-melee-support-participant/);
+  assert.match(supportUnitMarkup, /disabled/);
+  assert.doesNotMatch(supportUnitMarkup, /is-melee-nonparticipant/);
+
+  assert.match(nonParticipantMarkup, /is-melee-nonparticipant/);
+  assert.match(nonParticipantMarkup, /disabled/);
+});
+
+test('melee drill renders debug diagnostics for phase, selected unit, and selectability cause', () => {
+  let state = startMeleeDrillBattle();
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ACKNOWLEDGE_MELEE_PHASE_PROCEDURE,
+  });
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.SELECT_UNIT,
+    unitId: 'melee-drill-case1-main-a',
+  });
+
+  const html = renderBattlefieldScreen(state);
+  const mainUnitMarkup = getUnitMarkup(html, 'melee-drill-case1-main-a');
+  const supportUnitMarkup = getUnitMarkup(html, 'melee-drill-case2-rear');
+
+  assert.match(html, /data-melee-debug-panel/);
+  assert.match(html, /data-melee-debug-phase>phase:melee;active:yes</);
+  assert.match(html, /data-melee-debug-selected>selected:melee-drill-case1-main-a;status:main-defender-pending</);
+  assert.match(html, /data-melee-debug-actionable>actionable:[^<]*melee-drill-case1-main-a/);
+
+  assert.match(mainUnitMarkup, /data-selectability-debug-reason="melee-main"/);
+  assert.doesNotMatch(mainUnitMarkup, /disabled/);
+
+  assert.match(supportUnitMarkup, /data-selectability-debug-reason="melee-support-participant"/);
+  assert.match(supportUnitMarkup, /disabled/);
 });
 
 test('battlefield renders the first pending secondary reaction dialog even when earlier secondary requests are already complete', () => {

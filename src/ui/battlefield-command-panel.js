@@ -18,6 +18,7 @@ import {
 import { getRemainingAdvanceBudgetUd } from '../state/p0-advance.js';
 import { isEvadeMoveReadyForAdjustedCharge } from '../state/p0-evade-move-state-helpers.js';
 import { canUseFreeCommandPointForCurrentOrder, doesMovementPreviewContainCommand, getSlideQualifiedMovementDistanceUd } from '../state/p0-movement.js';
+import { getMeleeProcedurePresentation } from './melee-v2-adapter.js';
 import {
   getShootingDeclarationPresentation,
   getShootingProcedurePresentation,
@@ -911,6 +912,10 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
   );
   const chargeWhyItems = chargePreviewActive ? buildChargeWhyItems({ state, chargePreview }) : [];
   const shootingPhaseActive = state.game.commandContext.currentPhaseId === 'shooting';
+  const meleePhaseActive = state.game.commandContext.currentPhaseId === 'melee';
+  const meleeProcedurePresentation = meleePhaseActive
+    ? getMeleeProcedurePresentation(state.game)
+    : null;
   const shootingPresentation = shootingPhaseActive
     ? getShootingDeclarationPresentation({ gameState: state.game, selectedUnit })
     : null;
@@ -984,6 +989,10 @@ export function getAdvancePreviewPresentation({ state, selectedUnit, isSetupActi
     maximumChargeContinuationDistanceUd: continuationChoice?.maximumDistanceUd ?? 0,
     chargeWhyItems,
     canShowShootingButton: Boolean(selectedUnit) && shootingPhaseActive && !selectedUnit?.isCommander,
+    canShowMeleeButton: Boolean(selectedUnit) && meleePhaseActive && !selectedUnit?.isCommander,
+    meleeProcedureStatus: meleeProcedurePresentation?.status ?? 'idle',
+    meleeProcedureOverview: meleeProcedurePresentation?.overview ?? null,
+    meleeSelectionCount: meleeProcedurePresentation?.queueSelectionIds?.length ?? 0,
     shootingProcedureStatus: shootingProcedurePresentation?.status ?? 'idle',
     activeShootingUnitId: shootingProcedurePresentation?.activeShooterUnitId ?? null,
     shootingProcedureOverview: shootingProcedurePresentation?.overview ?? null,
@@ -1076,6 +1085,10 @@ export function renderAdvanceCommandPanel({
   maximumChargeContinuationDistanceUd = 0,
   chargeWhyItems = [],
   canShowShootingButton = false,
+  canShowMeleeButton = false,
+  meleeProcedureStatus = 'idle',
+  meleeProcedureOverview = null,
+  meleeSelectionCount = 0,
   shootingProcedureStatus = 'idle',
   activeShootingUnitId = null,
   shootingProcedureOverview = null,
@@ -1121,6 +1134,7 @@ export function renderAdvanceCommandPanel({
   const showCommanderBranchGrouping = Boolean(selectedUnit?.isCommander);
   const showUnitBranchGrouping = Boolean(canShowMovementButtons) && !showCommanderBranchGrouping;
   const showShootingBranchGrouping = Boolean(canShowShootingButton) && !showCommanderBranchGrouping;
+  const showMeleeBranchGrouping = Boolean(canShowMeleeButton) && !showCommanderBranchGrouping;
   const showLeanShootingPanel = Boolean(
     shootingProcedureStatus !== 'idle'
       || shootingSequenceHandoffPending
@@ -1131,12 +1145,18 @@ export function renderAdvanceCommandPanel({
       || shootingProcedureOverview,
   );
   const showRootActions = commandMenuLevel === 'root' && (showUnitBranchGrouping || showCommanderBranchGrouping);
+  const showMeleeRootActions = commandMenuLevel === 'root' && showMeleeBranchGrouping;
   const showShootRootActions = commandMenuLevel === 'root' && showShootingBranchGrouping && !showLeanShootingPanel;
   const showUnitRootActions = showUnitBranchGrouping && showRootActions && canIssueMovementCommands;
   const showCommanderRootActions = showCommanderBranchGrouping && showRootActions && (canIssueMovementCommands || canAttachCommander);
   const showMoveBranchActions = commandMenuBranch === 'move';
   const showChargeBranchActions = showUnitBranchGrouping && commandMenuBranch === 'charge';
   const showShootBranchActions = showShootingBranchGrouping && commandMenuBranch === 'shoot';
+  const showMeleeBranchActions = showMeleeBranchGrouping && commandMenuBranch === 'melee';
+  const canApplyMeleeBatch = Boolean(
+    meleeSelectionCount > 0
+      && Number(meleeProcedureOverview?.unresolvedMelees ?? meleeSelectionCount) === 0,
+  );
   const showAttachBranchActions = showCommanderBranchGrouping && commandMenuBranch === 'attach';
   const showChargeTargetHint = showChargeBranchActions && chargePreviewActive && !chargeStartControlsActive;
   const showShootTargetHint = showShootBranchActions && shootingTargetingActive;
@@ -1145,7 +1165,7 @@ export function renderAdvanceCommandPanel({
   const showAdvanceButton = !showCommanderBranchGrouping && canShowMovementButtons && (!showUnitBranchGrouping || showMoveBranchActions);
   const showDirectionButtons = !showCommanderBranchGrouping && canShowMovementButtons && (!showUnitBranchGrouping || showMoveBranchActions || chargeStartControlsActive);
   const showChargeButton = !showCommanderBranchGrouping && canShowMovementButtons && !showUnitBranchGrouping;
-  const showBranchBackButton = (showUnitBranchGrouping || showCommanderBranchGrouping) && commandMenuLevel === 'branch' && !canCancelMovement;
+  const showBranchBackButton = (showUnitBranchGrouping || showCommanderBranchGrouping || showShootingBranchGrouping || showMeleeBranchGrouping) && commandMenuLevel === 'branch' && !canCancelMovement;
   const showStayButton = showLegacyMovementSurface || showUnitRootActions || showCommanderRootActions;
   const showResetButton = showLegacyMovementSurface || showRootActions;
   const showShootingCommandActions = showShootBranchActions || shootingPreviewActive || resolutionDraftActive;
@@ -1153,6 +1173,7 @@ export function renderAdvanceCommandPanel({
     || (showMoveBranchActions && (!showCommanderBranchGrouping || canCancelMovement || canConfirmMovement))
     || showChargeBranchActions
     || showAttachBranchActions
+    || showMeleeBranchActions
     || showShootingCommandActions
     || chargePreviewActive
     || canStartAdjustedChargeDistanceRoll
@@ -1181,6 +1202,12 @@ export function renderAdvanceCommandPanel({
       <span>Shooting phase declaration surface</span>
       <span>${resolutionDraftActive ? 'Roll/Result aktiv' : shootingPreviewActive ? 'Zielvorschau aktiv' : hasDeclaredShotToResolve ? 'Deklariert, noch offen' : resolvedShotRecord ? 'Schuss aufgeloest' : 'Noch keine Schussvorschau'}</span>
       <span>${shootingWhyItems.find((item) => item.label === 'Target')?.value ?? shootingWhyItems.find((item) => item.label === 'Declared target')?.value ?? 'Noch kein Ziel gewaehlt'}</span>
+    </div>
+  ` : canShowMeleeButton ? `
+    <div class="battlefield-command-summary" data-command-menu-level="${commandMenuLevel}" data-command-menu-branch="${commandMenuBranch ?? 'none'}">
+      <span>Melee phase batch surface</span>
+      <span>Status: ${meleeProcedureStatus}</span>
+      <span>Queue: ${meleeSelectionCount} / ${meleeProcedureOverview?.eligibleMelees ?? 0}</span>
     </div>
   ` : `
     <div class="battlefield-command-summary" data-command-menu-level="${commandMenuLevel}" data-command-menu-branch="${commandMenuBranch ?? 'none'}">
@@ -1273,6 +1300,9 @@ export function renderAdvanceCommandPanel({
           ${showShootRootActions ? `
             <button class="shell-button battlefield-command-button ${commandMenuBranch === 'shoot' ? 'is-active' : ''}" type="button" data-action="${hasDeclaredShotToResolve || resolvedShotRecord || shootingProcedureStatus === 'active' ? 'set-command-menu-branch' : 'start-shooting-declaration-preview'}" ${hasDeclaredShotToResolve || resolvedShotRecord || shootingProcedureStatus === 'active' ? 'data-branch="shoot"' : ''} data-testid="command-shoot-branch-button" aria-label="Shoot oeffnen" title="${hasDeclaredShotToResolve || resolvedShotRecord ? 'Shoot branch with declaration and roll/result state' : shootDisabledReason || 'Shoot declaration starten'}" ${(hasDeclaredShotToResolve || resolvedShotRecord || canStartShootingDeclaration || shootingProcedureStatus === 'active') ? '' : 'disabled'}>Shoot</button>
           ` : ''}
+          ${showMeleeRootActions ? `
+            <button class="shell-button battlefield-command-button ${commandMenuBranch === 'melee' ? 'is-active' : ''}" type="button" data-action="set-command-menu-branch" data-branch="melee" data-testid="command-melee-branch-button" aria-label="Melee oeffnen">Melee</button>
+          ` : ''}
           ${showBranchBackButton ? `
             <button class="ghost-button battlefield-command-button" type="button" data-action="set-command-menu-branch" data-branch="" data-testid="command-branch-back-button" aria-label="Zur ersten Befehlsebene zurueck">Zurueck</button>
           ` : ''}
@@ -1284,6 +1314,9 @@ export function renderAdvanceCommandPanel({
           ` : ''}
           ${showShootProcedureHint ? `
             <div class="shell-button battlefield-command-button battlefield-command-branch-hint" data-testid="command-shoot-procedure-hint" aria-live="polite">${isActiveShootingUnit ? 'Ausgewaehlter Shooter: Shoot oder Pass' : activeShootingUnitId ? `Ausgewaehlter Shooter: ${activeShootingUnitId}` : 'Naechsten Shooter waehlen'}</div>
+          ` : ''}
+          ${showMeleeBranchActions ? `
+            <div class="shell-button battlefield-command-button battlefield-command-branch-hint" data-testid="command-melee-procedure-hint" aria-live="polite">Melee Queue: ${meleeSelectionCount} ausgewaehlt</div>
           ` : ''}
           ${showAdvanceButton ? `
             <button class="shell-button battlefield-command-button ${advanceModeActive ? 'is-active' : ''}" type="button" data-action="toggle-advance-mode" data-testid="command-advance-button" data-automation-id="toggle-advance-mode" aria-label="Advance" ${!chargePreviewActive && canIssueMovementCommands && (advanceModeActive || maxAdvanceUd > 0) ? '' : 'disabled'}>Advance</button>
@@ -1385,6 +1418,17 @@ export function renderAdvanceCommandPanel({
                 </ul>
               </div>
             ` : ''}
+          ` : ''}
+          ${showMeleeBranchActions ? `
+            <button class="shell-button battlefield-command-action battlefield-command-action-confirm" type="button" data-action="open-melee-phase-procedure" aria-label="Melee Procedure Popup oeffnen">
+              <span>Melee Popup</span>
+            </button>
+            <button class="ghost-button battlefield-command-action" type="button" data-action="preview-melee-batch" aria-label="Melee Preview erzeugen" ${meleeSelectionCount > 0 ? '' : 'disabled'}>
+              <span>Preview</span>
+            </button>
+            <button class="ghost-button battlefield-command-action" type="button" data-action="apply-melee-batch" aria-label="Melee Batch anwenden" ${canApplyMeleeBatch ? '' : 'disabled'}>
+              <span>Apply</span>
+            </button>
           ` : ''}
           ${canStartAdjustedChargeDistanceRoll ? `
             <button class="shell-button battlefield-command-action battlefield-command-action-confirm" type="button" data-action="start-adjusted-charge-distance-roll" aria-label="Adjusted Charge-Distanz auswuerfeln" title="Deterministischen Folgewurf fuer die angepasste Charge-Distanz starten">

@@ -74,6 +74,38 @@ function createPlanBase({ contactSnapshot, contactClassification, defenderId, id
   };
 }
 
+function createMeleeTriggerBridge({ resolvedContactType, contactClassification } = {}) {
+  const contactType = resolvedContactType?.type;
+  if (
+    contactType !== CHARGE_CONTACT_CLASSIFICATION_TYPES.FLANK
+    && contactType !== CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR
+  ) {
+    return null;
+  }
+
+  const attackContactType = contactType === CHARGE_CONTACT_CLASSIFICATION_TYPES.REAR
+    ? 'rear'
+    : 'flank';
+  const sourceStatus = contactClassification?.sourceStatus ?? CONFORMATION_SOURCE_STATUSES.VERIFIED;
+
+  return {
+    triggerFamily: 'movement-conformation',
+    sourceStatus,
+    attackContactType,
+    defenderFactorToZeroEligible: true,
+    requiresDefenderFrontEngagementForToZero: true,
+    cancellationFamilyHint: attackContactType === 'rear'
+      ? 'rear-contact-formed'
+      : 'flank-contact-formed',
+    immediateMultipleAttackTrigger: {
+      type: 'multiple-attack-immediate',
+      source: 'movement-conformation',
+      sourceStatus: CONFORMATION_SOURCE_STATUSES.NEEDS_SOURCE_CHECK,
+      cohesionLoss: 1,
+    },
+  };
+}
+
 function normalizeString(value) {
   return String(value ?? '').trim().toLowerCase();
 }
@@ -250,7 +282,15 @@ function createUnsupportedSpecialCasePlan({
   });
 }
 
-function createIncompleteCandidate({ resolvedContactType, currentPose, idealPose, defenderUnit, chargerUnit, diagnostic }) {
+function createIncompleteCandidate({
+  resolvedContactType,
+  currentPose,
+  idealPose,
+  defenderUnit,
+  chargerUnit,
+  diagnostic,
+  meleeTriggerBridge,
+}) {
   const sourceStatus = diagnostic?.sourceStatus ?? CONFORMATION_SOURCE_STATUSES.VERIFIED;
 
   return createConformationCandidate({
@@ -261,6 +301,7 @@ function createIncompleteCandidate({ resolvedContactType, currentPose, idealPose
     finalPose: currentPose,
     movementPose: idealPose,
     principalOpponentId: defenderUnit.id ?? null,
+    meleeTriggerBridge,
     sourceStatus,
     diagnostics: [createConformationDiagnostic({
       ...diagnostic,
@@ -271,7 +312,16 @@ function createIncompleteCandidate({ resolvedContactType, currentPose, idealPose
   });
 }
 
-function createIncompletePlan({ planBase, resolvedContactType, currentPose, idealPose, defenderUnit, chargerUnit, diagnostic }) {
+function createIncompletePlan({
+  planBase,
+  resolvedContactType,
+  currentPose,
+  idealPose,
+  defenderUnit,
+  chargerUnit,
+  diagnostic,
+  meleeTriggerBridge,
+}) {
   const sourceStatus = diagnostic?.sourceStatus ?? CONFORMATION_SOURCE_STATUSES.VERIFIED;
   const normalizedDiagnostic = createConformationDiagnostic({
     ...diagnostic,
@@ -291,6 +341,7 @@ function createIncompletePlan({ planBase, resolvedContactType, currentPose, idea
       defenderUnit,
       chargerUnit,
       diagnostic,
+      meleeTriggerBridge,
     })],
     diagnostics: [normalizedDiagnostic],
   });
@@ -334,7 +385,16 @@ function createShiftFailurePlan({
   });
 }
 
-function createOptionalTerrainPlan({ planBase, resolvedContactType, currentPose, idealPose, defenderUnit, chargerUnit, terrainChoice }) {
+function createOptionalTerrainPlan({
+  planBase,
+  resolvedContactType,
+  currentPose,
+  idealPose,
+  defenderUnit,
+  chargerUnit,
+  terrainChoice,
+  meleeTriggerBridge,
+}) {
   const optionalChoice = {
     type: CONFORMATION_OPTIONAL_CHOICE_TYPES.TERRAIN,
     prompt: 'Full conformation would enter terrain that penalizes this unit in melee; choose whether to stay incomplete or enter the terrain.',
@@ -381,6 +441,7 @@ function createOptionalTerrainPlan({ planBase, resolvedContactType, currentPose,
           message: 'The unit may remain in incomplete conformation instead of entering penalizing terrain.',
           details: terrainChoice,
         },
+        meleeTriggerBridge,
       }),
       createConformationCandidate({
         id: `${resolvedContactType.candidateId}-enter-penalizing-terrain`,
@@ -390,6 +451,7 @@ function createOptionalTerrainPlan({ planBase, resolvedContactType, currentPose,
         finalPose: idealPose,
         movementPose: currentPose,
         principalOpponentId: defenderUnit.id ?? null,
+        meleeTriggerBridge,
         sourceStatus: terrainChoice.sourceStatus,
         optionalChoice,
         diagnostics: [optionalDiagnostic],
@@ -406,6 +468,7 @@ function createShiftedConformationPlan({
   idealPose,
   defenderUnit,
   shiftResult,
+  meleeTriggerBridge,
 }) {
   const shiftDiagnostic = shiftResult.shiftingPlan.diagnostics[0] ?? createConformationDiagnostic({
     code: 'conformation.shift.ready',
@@ -427,6 +490,7 @@ function createShiftedConformationPlan({
       finalPose: idealPose,
       movementPose: currentPose,
       principalOpponentId: defenderUnit.id ?? null,
+      meleeTriggerBridge,
       sourceStatus: CONFORMATION_SOURCE_STATUSES.VERIFIED,
       shiftingPlan: shiftResult.shiftingPlan,
       diagnostics: [shiftDiagnostic],
@@ -513,6 +577,10 @@ export function resolveConformationPlan({
   const tableEdgeCode = `conformation.${resolvedContactType.contactSide}.table-edge-incomplete`;
   const overlapCode = `conformation.${resolvedContactType.contactSide}.blocker-incomplete`;
   const penalizingTerrainChoice = getPenalizingTerrainChoice({ terrainConformation, contactSnapshot });
+  const meleeTriggerBridge = createMeleeTriggerBridge({
+    resolvedContactType,
+    contactClassification,
+  });
 
   if (!isPoseInsideBattlefield({ reactingUnit: chargerUnit, pose: idealPose, battlefieldProfile })) {
     return createIncompletePlan({
@@ -527,6 +595,7 @@ export function resolveConformationPlan({
         severity: 'warn',
         message: `Complete ${resolvedContactType.contactSide} conformation would leave the battlefield, so the supported fallback remains incomplete contact.`,
       },
+      meleeTriggerBridge,
     });
   }
 
@@ -539,6 +608,7 @@ export function resolveConformationPlan({
       defenderUnit,
       chargerUnit,
       terrainChoice: penalizingTerrainChoice,
+      meleeTriggerBridge,
     });
   }
 
@@ -569,6 +639,7 @@ export function resolveConformationPlan({
         idealPose,
         defenderUnit,
         shiftResult,
+        meleeTriggerBridge,
       });
     }
 
@@ -603,6 +674,7 @@ export function resolveConformationPlan({
             ? shiftResult.shiftingPlan
             : null,
         },
+        meleeTriggerBridge,
       },
     });
   }
@@ -627,6 +699,7 @@ export function resolveConformationPlan({
       finalPose: idealPose,
       movementPose: currentPose,
       principalOpponentId: defenderUnit.id ?? null,
+      meleeTriggerBridge,
       sourceStatus: CONFORMATION_SOURCE_STATUSES.VERIFIED,
     })],
   });

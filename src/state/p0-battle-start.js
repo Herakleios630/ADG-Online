@@ -14,6 +14,7 @@ import {
 import { createInitialAdvanceState } from './p0-advance.js';
 import { createInitialCommandContextState } from './p0-command-context.js';
 import { createInitialMovementState } from './p0-movement.js';
+import { createInitialMeleeState } from './p9-melee-v2.js';
 import { createInitialRoundState } from './p0-round.js';
 import { createInitialShootingState } from './p0-shooting.js';
 import { createInitialSetupState, SETUP_VIEW_MODES } from './p0-setup.js';
@@ -100,6 +101,7 @@ export function createBattleStartGameState(state, { setupIsActive, currentBattle
       commandMenu: createInitialCommandMenuState(),
       movement: createInitialMovementState(),
       shooting: createInitialShootingState(),
+      melee: createInitialMeleeState(),
       chargePreview: createInitialChargePreview(),
       commanderFreeMovePreview: createInitialCommanderFreeMovePreview(),
       ...createInitialAdvanceState(),
@@ -149,6 +151,7 @@ export function createInitialAppState() {
       commandMenu: createInitialCommandMenuState(),
       movement: createInitialMovementState(),
       shooting: createInitialShootingState(),
+      melee: createInitialMeleeState(),
       chargePreview: createInitialChargePreview(),
       commanderFreeMovePreview: createInitialCommanderFreeMovePreview(),
       ...createInitialAdvanceState(),

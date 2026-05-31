@@ -733,7 +733,7 @@ Closeout 2026-05-28:
 - Reviewer focus: confirm support bonus application, explicit verified-protection override handling, source-open treatment for unresolved basic protection and broader modifier/protection families, and absence of reducer/UI/rout-scope creep.
 - Next exact card after review approval: `P8-08 - Shooting Declaration UI And Why Surface`.
 
-### [ ] P8-08 - Shooting Declaration UI And Why Surface
+### [x] P8-08 - Shooting Declaration UI And Why Surface
 
 Goal: expose shooting through a lean battlefield UI with shooter-first guidance, reducer-owned priority target and shooting-zone overlays, popup-based shot confirmation/resolution input, and a source-honest guided shooting-phase procedure.
 
@@ -887,7 +887,7 @@ Progress 2026-05-28:
 - Lead planning update after user UX feedback: P8-08 should not merely repair the existing command-panel flow. The remaining implementation inside this card now needs a slim choose-shooter rail, visible priority target marking, supported shooting-zone overlays, and a popup-first shot confirmation/resolution flow so the battlefield reads more like `Waehle Schuetzen -> Schiessen -> OK` and less like a dense left-side control stack.
 - Next exact work inside this still-open card: Reviewer / Rules Agent should recheck the rule-sensitive guided-procedure, popup flow, and new end-of-sequence handoff behavior, then the user can perform manual acceptance on the direct `Shooting Drill` fixture.
 
-### [ ] P8-09 - Source Example Validation And Closeout
+### [x] P8-09 - Source Example Validation And Closeout
 
 Goal: close P8 by tying implemented behavior back to Rules-v2 shooting examples, validation results, and remaining source-risk backlog.
 
@@ -1009,6 +1009,26 @@ Stop condition:
 - stop if a source example exposes a rule contradiction or unsupported prerequisite that changes implemented legality
 
 Expected result: P8 closes with implemented behavior, examples, validation, review, and remaining source risks all recorded honestly.
+
+Closeout 2026-05-28:
+
+- Final source-example mapping for the approved P8 subset is now recorded and validated against the implemented seams:
+
+| Example ID | Final 2026-05-28 status in P8 | Evidence in repo | Deferred blocker kept open |
+| --- | --- | --- | --- |
+| `rv2-p56-shooting-ranges-table-a` | implemented as first-subset `golden-fixture` coverage plus tutorial reference | profile/range model and tests in `src/engine/shooting/model.test.js` and `src/engine/shooting/geometry.test.js`; source-status notes in this board | broader weapon rows and non-subset families remain deferred until profile expansion |
+| `rv2-p57-shooting-zone-a` | implemented as partial `golden-fixture` coverage plus tutorial reference | normal front-edge rectangle zone checks in `src/engine/shooting/geometry.test.js` and supported-zone overlays in `src/ui/p0-battlefield.test.js` | special zone families (light cavalry, war wagon, light chariot, artillery, elephant) remain deferred |
+| `rv2-p58-line-of-sight-a` | implemented as dedicated source-backed scenario plus focused LoS/priority/support checks | scenario in `src/data/shooting-drill-scenarios.js`; focused checks in `src/engine/shooting/line-of-sight.test.js`, `src/engine/shooting/target-priority.test.js`, `src/state/p0-state.test.js`, and `src/ui/p0-battlefield.test.js` | terrain/cover/ambush visibility blockers remain source-open |
+| `rv2-p58-shooting-modifiers-a` | remains `deferred-reference` with partial baseline-only support seam | bounded explicit verified-protection flow and source-open diagnostics in `src/engine/shooting/resolution.js` and `src/state/p0-shooting.js` | ordered full modifier/protection stack remains open |
+| `rv2-p59-shooting-example-a` | remains partial tutorial/deferred full fixture | priority/support/simultaneous reducer seams are present and drill-validated, but full book reproduction is not claimed | full reproduction blocked by deferred special-zone and complete modifier prerequisites |
+
+- P8 validation packet for closeout is recorded as green for the currently supported subset:
+	- focused P8 suite pass: `npm test -- --test src/state/p0-shooting.test.js src/state/p0-state.test.js src/ui/p0-app.test.js src/ui/battlefield-command-panel.test.js src/ui/p0-battlefield.test.js src/data/shooting-drill-scenarios.test.js src/engine/shooting/line-of-sight.test.js src/engine/shooting/target-priority.test.js` (`310/310` pass)
+	- full repository test gate pass: `npm run test` (`665/665` pass)
+	- build gate pass: `npm run build` (existing large-chunk warning only)
+	- browser smoke packet pass on direct `Shooting Drill` and dedicated `Shooting LoS p.58` menu entries for chooser flow, popup confirmation flow, support projection, handoff flow, and p.58 LoS/priority assertions.
+- P8 implementation cards are now complete through `P8-09` for the approved subset; deferred/source-open seams remain explicit and unchanged.
+- Remaining phase gate before starting P9: Reviewer / Rules Agent closeout acknowledgement and user acceptance of P8 phase closure.
 
 
 

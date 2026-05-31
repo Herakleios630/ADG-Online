@@ -56,6 +56,7 @@ function createAppliedConformationMetadata({ preview, candidate }) {
     controllingEnemyId: conformationPlan?.controllingEnemyId ?? null,
     sourceStatus: candidate?.sourceStatus ?? conformationPlan?.sourceStatus ?? null,
     finalPose: cloneSerializable(candidate?.finalPose ?? null),
+    meleeTriggerBridge: cloneSerializable(candidate?.meleeTriggerBridge ?? null),
     contactSnapshot: cloneSerializable(conformationPlan?.contactSnapshot ?? null),
     contactClassification: cloneSerializable(conformationPlan?.contactClassification ?? null),
     shiftingPlan: cloneSerializable(conformationPlan?.shiftingPlan ?? null),

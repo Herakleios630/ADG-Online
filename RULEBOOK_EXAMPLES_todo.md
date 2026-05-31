@@ -58,8 +58,9 @@ High-priority post-P16 catch-up areas:
 These examples should be planned with their matching phase instead of waiting for the post-P16 catch-up pass:
 
 - P8 shooting: `rv2-p56-shooting-ranges-table-a`, `rv2-p57-shooting-zone-a`, `rv2-p58-line-of-sight-a`, `rv2-p58-shooting-modifiers-a`, and `rv2-p59-shooting-example-a`.
-- P9 melee and camp: `rv2-p61-support-example-1-a`, `rv2-p61-support-example-2-a`, `rv2-p62-melee-resolution-table-a`, `rv2-p63-flank-rear-attack-a`, `rv2-p64-situation-modifier-example-a`, `rv2-p64-height-advantage-a`, `rv2-p65-melee-examples-a`, and `rv2-p66-attacking-camp-example-a`.
-- P10 rout, pursuit, and victory: `rv2-p67-war-wagons-support-a`, `rv2-p68-elephant-rampage-table-a`, `rv2-p68-routing-example-a`, `rv2-p69-army-cohesion-losses-a`, and `rv2-p69-army-rout-example-a`.
+	- 2026-05-28 delta: phase-board mapping for these five examples is now recorded in `P8_todo.md` closeout notes with implemented-vs-deferred status per example.
+- P9 melee and camp: `rv2-p61-support-example-1-a`, `rv2-p61-support-example-2-a`, `rv2-p62-melee-resolution-table-a`, `rv2-p63-flank-rear-attack-a`, `rv2-p64-situation-modifier-example-a`, `rv2-p64-height-advantage-a`, `rv2-p65-melee-examples-a`, `rv2-p66-attacking-camp-example-a`, and `rv2-p67-war-wagons-support-a`.
+- P10 rout, pursuit, and victory: `rv2-p68-elephant-rampage-table-a`, `rv2-p68-routing-example-a`, `rv2-p69-army-cohesion-losses-a`, and `rv2-p69-army-rout-example-a`.
 - P11/setup or later terrain/setup work: `rv2-p71-river-difficulty-table-a`, `rv2-p71-hills-visibility-a`, `rv2-p72-terrain-table-a`, `rv2-p73-compulsory-terrain-table-a`, `rv2-p74-terrain-selection-table-a`, `rv2-p75-terrain-sectors-a`, `rv2-p75-terrain-position-table-a`, `rv2-p76-terrain-adjustment-table-a`, `rv2-p77-ambush-zones-a`, `rv2-p78-deployment-zones-a`, and `rv2-p81` budget tables.
 - Optional/variant work: `rv2-p85` event-card tables stay out of the standard-200 core unless the user explicitly prioritizes optional rules.
 
