@@ -5,6 +5,7 @@ import {
   createMeleeCommanderPresenceScenario,
   createMeleeDrillScenario,
   createP9V2Mini11BPair11vs12FixtureRows,
+  createP9V2Mini12GCoreLaneGoldRows,
   createMeleeV2DrillScenarioPayload,
   MELEE_DRILL_SCENARIO_ID,
   MELEE_PLACEMENT_RESULT_STATUSES,
@@ -317,6 +318,40 @@ test('p9v2-mini-11B pair 11/12 fixture rows stay deterministic with parity-safe 
   assert.equal(rows[0]?.immediateMultipleAttackEvent?.precondition?.newQualifyingFlankRearContact, true);
   assert.equal(rows[0]?.immediateMultipleAttackEvent?.precondition?.triggerContactType, 'flank');
   assert.deepEqual(rows[0]?.immediateMultipleAttackEvent, rows[1]?.immediateMultipleAttackEvent);
+});
+
+test('p9v2-mini-12G core-lane gold packet provides deterministic 16-row coverage with source-closed and source-open lanes', () => {
+  const rows = createP9V2Mini12GCoreLaneGoldRows();
+  const repeatedRows = createP9V2Mini12GCoreLaneGoldRows();
+
+  assert.equal(rows.length, 16);
+  assert.equal(repeatedRows.length, 16);
+  assert.deepEqual(rows, repeatedRows);
+
+  const rowIds = rows.map((row) => row?.rowId);
+  assert.equal(new Set(rowIds).size, rows.length);
+
+  const sourceClosedRows = rows.filter((row) => row?.expected?.status === 'resolved');
+  const sourceOpenRows = rows.filter((row) => row?.expected?.status === 'source-open');
+  assert.equal(sourceClosedRows.length, 13);
+  assert.equal(sourceOpenRows.length, 3);
+
+  const tags = new Set(rows.flatMap((row) => Array.isArray(row?.tags) ? row.tags : []));
+  assert.equal(tags.has('front'), true);
+  assert.equal(tags.has('flank'), true);
+  assert.equal(tags.has('rear'), true);
+  assert.equal(tags.has('support'), true);
+  assert.equal(tags.has('disorder'), true);
+  assert.equal(tags.has('dice'), true);
+  assert.equal(tags.has('source-open'), true);
+
+  const rearToZeroRow = rows.find((row) => row?.rowId === '12g-rear-to-zero-cancel-bonus-07');
+  assert.equal(rearToZeroRow?.expected?.attacker?.support, 0);
+  assert.equal(rearToZeroRow?.expected?.defender?.base, 0);
+  assert.equal(rearToZeroRow?.expected?.winnerSide, 'attacker');
+
+  const sourceOpenCancellationRow = rows.find((row) => row?.rowId === '12g-source-open-unresolved-cancellation-16');
+  assert.deepEqual(sourceOpenCancellationRow?.expected?.diagnosticCodes, ['modifier-source-open']);
 });
 
 test('melee drill static coordinates keep expected side and corner contact checks for support and attack lanes', () => {

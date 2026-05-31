@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UNIT_PROFILE_IDS, getResolvedAbilityIdsForUnit } from '../../data/unit-profiles.js';
 import { createP9V2Mini11BPair11vs12FixtureRows } from '../../data/melee-drill-scenarios.js';
+import { createP9V2Mini12GCoreLaneGoldRows } from '../../data/melee-drill-scenarios.js';
 
 import {
   MELEE_COMBAT_FACTOR_STAGE_LEDGER_KEYS,
@@ -642,6 +643,63 @@ test('P9V2-MINI-11B pair 11/12 keeps strict stage parity under identical partici
   assert.equal(row12Defender?.flankRear, 0);
 });
 
+test('P9V2-MINI-12G source-closed gold rows match exact stage-ledger and result values', () => {
+  const rows = createP9V2Mini12GCoreLaneGoldRows().filter((row) => row?.expected?.status === 'resolved');
+
+  assert.equal(rows.length, 13);
+
+  for (const row of rows) {
+    const resolution = resolveMeleeOutcome(row?.resolutionInput ?? {});
+    const expected = row?.expected ?? {};
+
+    assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED, `expected resolved status for ${row?.rowId}`);
+
+    const attackerLedger = resolution.breakdown?.attacker?.stageLedger;
+    const defenderLedger = resolution.breakdown?.defender?.stageLedger;
+    assert.ok(attackerLedger, `missing attacker stage ledger for ${row?.rowId}`);
+    assert.ok(defenderLedger, `missing defender stage ledger for ${row?.rowId}`);
+
+    assert.equal(attackerLedger?.base, expected?.attacker?.base, `attacker base mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.support, expected?.attacker?.support, `attacker support mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.flankRear, expected?.attacker?.flankRear, `attacker flankRear mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.disorder, expected?.attacker?.disorder, `attacker disorder mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.die, expected?.attacker?.die, `attacker die mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.final, expected?.attacker?.final, `attacker final mismatch for ${row?.rowId}`);
+
+    assert.equal(defenderLedger?.base, expected?.defender?.base, `defender base mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.support, expected?.defender?.support, `defender support mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.flankRear, expected?.defender?.flankRear, `defender flankRear mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.disorder, expected?.defender?.disorder, `defender disorder mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.die, expected?.defender?.die, `defender die mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.final, expected?.defender?.final, `defender final mismatch for ${row?.rowId}`);
+
+    assert.equal(attackerLedger?.invariants?.flankRearHardZero, true, `attacker flankRearHardZero invariant mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.invariants?.flankRearHardZero, true, `defender flankRearHardZero invariant mismatch for ${row?.rowId}`);
+    assert.equal(resolution.result?.winnerSide ?? null, expected?.winnerSide ?? null, `winner mismatch for ${row?.rowId}`);
+    assert.equal(resolution.result?.difference ?? 0, expected?.difference ?? 0, `difference mismatch for ${row?.rowId}`);
+  }
+});
+
+test('P9V2-MINI-12G source-open gold rows keep required diagnostic codes explicit', () => {
+  const rows = createP9V2Mini12GCoreLaneGoldRows().filter((row) => row?.expected?.status === 'source-open');
+
+  assert.equal(rows.length, 3);
+
+  for (const row of rows) {
+    const resolution = resolveMeleeOutcome(row?.resolutionInput ?? {});
+    const expectedCodes = Array.isArray(row?.expected?.diagnosticCodes) ? row.expected.diagnosticCodes : [];
+    const actualCodes = Array.isArray(resolution?.diagnostics)
+      ? resolution.diagnostics.map((diagnostic) => diagnostic?.code).filter(Boolean)
+      : [];
+
+    assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.SOURCE_OPEN, `expected source-open status for ${row?.rowId}`);
+    for (const code of expectedCodes) {
+      assert.equal(actualCodes.includes(code), true, `missing diagnostic ${code} for ${row?.rowId}`);
+    }
+    assert.equal(resolution.result, null, `source-open row should not produce result for ${row?.rowId}`);
+  }
+});
+
 test('P9-03O keeps unresolved flank/rear to-zero branch source-open instead of silently applying it', () => {
   const resolution = resolveMeleeOutcome({
     attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
@@ -753,4 +811,104 @@ test('P9-03O keeps cancellation source-open when family does not match attack co
     true,
   );
   assert.equal(resolution.result, null);
+});
+
+test('P9V2-MINI-12D derived branch entries carry laneOwnership=branch in situation stage', () => {
+  const resolution = resolveMeleeOutcome({
+    attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    attackerDieRoll: 4,
+    defenderDieRoll: 4,
+    attackerModifierContext: {
+      sourceStatus: 'verified',
+      flankOrRearAttack: true,
+    },
+  });
+
+  assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  const situationEntries = resolution.breakdown.attacker.stages[MELEE_MODIFIER_STAGES.SITUATION];
+  const branchEntries = situationEntries.filter((e) => e.laneOwnership === 'branch');
+  assert.ok(branchEntries.length > 0, 'Expected at least one branch-tagged situation entry from flankOrRearAttack context');
+  assert.ok(
+    branchEntries.every((e) => e.laneOwnership === 'branch'),
+    'All flank/rear derived situation entries must carry laneOwnership=branch',
+  );
+});
+
+test('P9V2-MINI-12D derived additive entries carry laneOwnership=additive in die and situation stages', () => {
+  const resolution = resolveMeleeOutcome({
+    attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    attackerDieRoll: 2,
+    defenderDieRoll: 4,
+    attackerModifierContext: {
+      sourceStatus: 'verified',
+      quality: 'elite',
+      heightAdvantage: true,
+      engagedCommander: {
+        status: 'engaged-main-unit',
+        participation: 'attached',
+        supportOnly: false,
+        sourceStatus: 'verified',
+      },
+    },
+  });
+
+  assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  const situationEntries = resolution.breakdown.attacker.stages[MELEE_MODIFIER_STAGES.SITUATION];
+  const dieEntries = resolution.breakdown.attacker.stages[MELEE_MODIFIER_STAGES.DIE];
+  const additiveInSituation = situationEntries.filter((e) => e.laneOwnership === 'additive');
+  const additiveInDie = dieEntries.filter((e) => e.laneOwnership === 'additive');
+  assert.ok(additiveInSituation.length >= 2, 'Expected height advantage and commander as additive situation entries');
+  assert.ok(additiveInDie.length >= 1, 'Expected elite quality die modifier as additive die entry');
+});
+
+test('P9V2-MINI-12D residual guard allNonLedgerEntriesOwned is false for untagged non-zero situation entry', () => {
+  const resolution = resolveMeleeOutcome({
+    attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    attackerDieRoll: 4,
+    defenderDieRoll: 4,
+    attackerModifierEntries: [
+      { code: 'unowned-bonus', label: 'Unknown bonus', stage: MELEE_MODIFIER_STAGES.SITUATION, value: 1, sourceStatus: 'verified' },
+    ],
+  });
+
+  assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  const attackerLedger = resolution.breakdown?.attacker?.stageLedger;
+  assert.equal(
+    attackerLedger?.invariants?.allNonLedgerEntriesOwned,
+    false,
+    'Invariant must be false when an untagged non-zero situation entry is present',
+  );
+  assert.ok(
+    attackerLedger?.residualModifierSum !== 0,
+    'residualModifierSum must be non-zero for the untagged entry',
+  );
+});
+
+test('P9V2-MINI-12D residual guard allNonLedgerEntriesOwned is true when all non-ledger entries are explicitly owned', () => {
+  const resolution = resolveMeleeOutcome({
+    attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    attackerDieRoll: 2,
+    defenderDieRoll: 4,
+    attackerModifierContext: {
+      sourceStatus: 'verified',
+      quality: 'elite',
+      heightAdvantage: true,
+    },
+  });
+
+  assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  const attackerLedger = resolution.breakdown?.attacker?.stageLedger;
+  assert.equal(
+    attackerLedger?.invariants?.allNonLedgerEntriesOwned,
+    true,
+    'Invariant must be true when all non-ledger entries carry explicit laneOwnership',
+  );
+  assert.ok(
+    attackerLedger?.residualModifierSum !== 0,
+    'residualModifierSum is non-zero but all entries are owned (additive)',
+  );
 });

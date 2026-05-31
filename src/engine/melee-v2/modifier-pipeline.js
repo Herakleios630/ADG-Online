@@ -1,9 +1,36 @@
 export const MELEE_V2_MODIFIER_PIPELINE_VERSION = 'v2';
 
+export const MELEE_V2_MODIFIER_LANE_OWNERSHIP = {
+  BRANCH: 'branch',
+  ADDITIVE: 'additive',
+  LEDGER_STAGE: 'ledger-stage',
+};
+
 export const MELEE_V2_CANCELLATION_FAMILIES = {
   REAR_CONTACT_FORMED: 'rear-contact-formed',
   FLANK_CONTACT_FORMED: 'flank-contact-formed',
 };
+
+export function resolveV2ModifierStageSourceStatus(entries = []) {
+  const stageEntries = Array.isArray(entries) ? entries : [];
+  return stageEntries.every((entry) => entry?.sourceStatus === 'verified')
+    ? 'verified'
+    : 'source-open';
+}
+
+export function summarizeV2ModifierStage(entries = []) {
+  const stageEntries = Array.isArray(entries) ? entries : [];
+  const total = stageEntries.reduce(
+    (sum, entry) => sum + Number(entry?.value ?? 0),
+    0,
+  );
+
+  return {
+    count: stageEntries.length,
+    total,
+    sourceStatus: resolveV2ModifierStageSourceStatus(stageEntries),
+  };
+}
 
 function toNormalizedText(value) {
   return String(value ?? '').trim().toLowerCase();

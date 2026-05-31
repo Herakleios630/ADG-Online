@@ -7,6 +7,7 @@ import {
   acknowledgeMeleeResolutionResult,
   beginMeleePhaseState,
   cancelMeleeResolutionDraft,
+  compareMatrixCoreLanes,
   createInitialMeleeState,
   canApplyResolvedMeleeBatch,
   applyMeleeBatch,
@@ -16,8 +17,11 @@ import {
   getMeleeProcedurePresentation,
   getMeleeUnitStatus,
   confirmMeleeResolutionDraft,
+  previewMeleeBatch,
   MELEE_V2_ENGINE_VERSION,
+  MELEE_V2_FEATURE_FLAG_PATHS,
   MELEE_V2_LIFECYCLE_STATUSES,
+  MELEE_V2_MATRIX_PARALLEL_PATHS,
   setMeleeResolutionDraftValue,
   setMeleeResolutionDraftCommanderEngaged,
   startMeleeResolutionDraft,
@@ -26,6 +30,7 @@ import {
   createMeleeCommanderPresenceScenario,
   createMeleeDrillScenario,
   createP9V2Mini11BPair11vs12FixtureRows,
+  createP9V2Mini12GCoreLaneGoldRows,
 } from '../data/melee-drill-scenarios.js';
 import {
   resolveMeleeOutcome,
@@ -50,6 +55,165 @@ test('p9 melee v2 initial state marks engine version and source-open status', ()
   assert.equal(meleeState.sourceStatus, 'source-open');
   assert.equal(meleeState.v2.contactModelVersion, 'v2');
   assert.equal(meleeState.v2.roleAssignmentVersion, 'v2');
+});
+
+test('p9v2-mini-12F matrix feature flag defaults to v2-core path', () => {
+  const baseState = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+
+  const drafted = startMeleeResolutionDraft(baseState, {
+    meleeId: 'melee-drill-case1-main-a__melee-drill-case1-main-d',
+  });
+  const withDice = setMeleeResolutionDraftValue(
+    setMeleeResolutionDraftValue(drafted, 'attackerDieRoll', 3),
+    'defenderDieRoll',
+    2,
+  );
+  const confirmed = confirmMeleeResolutionDraft(withDice);
+  const matrixCore = getMeleeProcedurePresentation(confirmed)?.resolutionDraft?.resolutionPreview?.matrixCore;
+
+  assert.ok(matrixCore);
+  assert.equal(matrixCore?.selection?.featureFlagPath, MELEE_V2_FEATURE_FLAG_PATHS.MATRIX_V2);
+  assert.equal(matrixCore?.selection?.activePath, MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE);
+  assert.equal(matrixCore?.selection?.matrixV2Enabled, true);
+  assert.equal(matrixCore?.selection?.decommissioned, true);
+  assert.equal(matrixCore?.selection?.requestedMatrixV2Enabled, true);
+  assert.ok(matrixCore?.selection?.decommissionPlan);
+  assert.ok(Number.isInteger(matrixCore?.comparison?.mismatchCount));
+  assert.ok(matrixCore?.comparison?.mismatchCount <= 12);
+});
+
+test('p9v2-mini-12H reducer matrix flag is decommissioned and runtime stays on v2-core path', () => {
+  const baseGame = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+  const appState = {
+    ...createInitialAppState(),
+    game: baseGame,
+  };
+
+  const withFallbackFlag = reduceAppState(appState, {
+    type: ACTION_TYPES.SET_MELEE_MATRIX_V2_FEATURE_FLAG,
+    isEnabled: false,
+  });
+  const drafted = startMeleeResolutionDraft(withFallbackFlag.game, {
+    meleeId: 'melee-drill-case1-main-a__melee-drill-case1-main-d',
+  });
+  const withDice = setMeleeResolutionDraftValue(
+    setMeleeResolutionDraftValue(drafted, 'attackerDieRoll', 3),
+    'defenderDieRoll',
+    2,
+  );
+  const confirmed = confirmMeleeResolutionDraft(withDice);
+  const matrixCore = getMeleeProcedurePresentation(confirmed)?.resolutionDraft?.resolutionPreview?.matrixCore;
+
+  assert.equal(withFallbackFlag.game?.melee?.v2?.featureFlags?.matrixV2, false);
+  assert.equal(matrixCore?.selection?.featureFlagPath, MELEE_V2_FEATURE_FLAG_PATHS.MATRIX_V2);
+  assert.equal(matrixCore?.selection?.activePath, MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE);
+  assert.equal(matrixCore?.selection?.matrixV2Enabled, true);
+  assert.equal(matrixCore?.selection?.requestedMatrixV2Enabled, false);
+  assert.equal(matrixCore?.selection?.decommissioned, true);
+  assert.ok(matrixCore?.selection?.sunsetCondition);
+  assert.ok(matrixCore?.selection?.decommissionPlan);
+  assert.ok(Array.isArray(matrixCore?.comparison?.mismatches));
+  assert.ok(matrixCore?.comparison?.mismatches.length <= 12);
+  assert.equal(typeof matrixCore?.comparison?.truncated, 'boolean');
+});
+
+test('p9v2-mini-12H initial melee state marks matrix rollout as decommissioned runtime-v2-core', () => {
+  const meleeState = createInitialMeleeState();
+
+  assert.equal(meleeState?.v2?.featureFlags?.matrixV2Runtime, true);
+  assert.equal(meleeState?.v2?.featureFlags?.matrixV2Decommissioned, true);
+  assert.equal(meleeState?.v2?.matrixRollout?.activePath, MELEE_V2_MATRIX_PARALLEL_PATHS.V2_CORE);
+  assert.equal(meleeState?.v2?.matrixRollout?.decommissioned, true);
+  assert.ok(meleeState?.v2?.matrixRollout?.decommissionPlan);
+});
+
+test('p9v2-mini-12F comparison marks truncated only when mismatches overflow cap', () => {
+  const createMatrixFixture = (laneCount, baseValue) => {
+    const laneOrder = Array.from({ length: laneCount }, (_, index) => `lane-${index + 1}`);
+    const createLanes = (value) => laneOrder.reduce((accumulator, laneKey) => {
+      accumulator[laneKey] = {
+        value,
+        sourceStatus: 'verified',
+      };
+      return accumulator;
+    }, {});
+
+    return {
+      laneOrder,
+      attacker: {
+        lanes: createLanes(baseValue),
+      },
+      defender: {
+        lanes: createLanes(baseValue),
+      },
+    };
+  };
+
+  const nonOverflowPrimary = createMatrixFixture(6, 1);
+  const nonOverflowSecondary = createMatrixFixture(6, 2);
+  const nonOverflow = compareMatrixCoreLanes(nonOverflowPrimary, nonOverflowSecondary);
+  assert.equal(nonOverflow.mismatches.length, 12);
+  assert.equal(nonOverflow.hasMore, false);
+
+  const overflowPrimary = createMatrixFixture(7, 1);
+  const overflowSecondary = createMatrixFixture(7, 2);
+  const overflow = compareMatrixCoreLanes(overflowPrimary, overflowSecondary);
+  assert.equal(overflow.mismatches.length, 12);
+  assert.equal(overflow.hasMore, true);
+});
+
+test('p9v2-mini-12G shared gold packet rows keep ledger invariants and source-open separation stable', () => {
+  const rows = createP9V2Mini12GCoreLaneGoldRows();
+  const sourceClosedRows = rows.filter((row) => row?.expected?.status === 'resolved');
+  const sourceOpenRows = rows.filter((row) => row?.expected?.status === 'source-open');
+
+  assert.equal(rows.length, 16);
+  assert.equal(sourceClosedRows.length, 13);
+  assert.equal(sourceOpenRows.length, 3);
+
+  for (const row of sourceClosedRows) {
+    const resolution = resolveMeleeOutcome(row?.resolutionInput ?? {});
+    const attackerLedger = resolution?.breakdown?.attacker?.stageLedger;
+    const defenderLedger = resolution?.breakdown?.defender?.stageLedger;
+
+    assert.equal(resolution.status, 'resolved', `expected resolved row for ${row?.rowId}`);
+    assert.equal(attackerLedger?.invariants?.finalMatchesStageSum, true, `attacker final invariant mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.invariants?.finalMatchesStageSum, true, `defender final invariant mismatch for ${row?.rowId}`);
+    assert.equal(attackerLedger?.invariants?.flankRearHardZero, true, `attacker flankRear invariant mismatch for ${row?.rowId}`);
+    assert.equal(defenderLedger?.invariants?.flankRearHardZero, true, `defender flankRear invariant mismatch for ${row?.rowId}`);
+  }
+
+  for (const row of sourceOpenRows) {
+    const resolution = resolveMeleeOutcome(row?.resolutionInput ?? {});
+    const expectedCodes = Array.isArray(row?.expected?.diagnosticCodes) ? row.expected.diagnosticCodes : [];
+    const diagnosticCodes = Array.isArray(resolution?.diagnostics)
+      ? resolution.diagnostics.map((diagnostic) => diagnostic?.code).filter(Boolean)
+      : [];
+
+    assert.equal(resolution.status, 'source-open', `expected source-open row for ${row?.rowId}`);
+    assert.equal(resolution.result, null, `source-open row should not produce result for ${row?.rowId}`);
+    for (const expectedCode of expectedCodes) {
+      assert.equal(
+        diagnosticCodes.includes(expectedCode),
+        true,
+        `missing diagnostic ${expectedCode} for ${row?.rowId}`,
+      );
+    }
+  }
 });
 
 test('p9v2-06A has no V1 state-flow delegation calls in active runtime file', () => {
@@ -569,11 +733,92 @@ test('p9v2-14 melee confirm keeps a result preview open until it is acknowledged
   assert.equal(confirmedState.melee?.resolutionDraft?.resolutionPreview?.attackerDieRoll, 6);
   assert.equal(confirmedState.melee?.resolutionDraft?.resolutionPreview?.defenderDieRoll, 1);
   assert.equal(confirmedState.melee?.resolutionDraft?.resolutionPreview?.sourceStatus, 'verified');
+  assert.deepEqual(
+    confirmedState.melee?.resolutionDraft?.resolutionPreview?.matrixCore?.laneOrder,
+    ['flankRearBranch', 'baseCf', 'support', 'situationDisorder', 'die', 'final'],
+  );
+  assert.equal(
+    confirmedState.melee?.resolutionDraft?.resolutionPreview?.matrixCore?.resolutionStatus,
+    'resolved',
+  );
 
   const acknowledgedState = acknowledgeMeleeResolutionResult(confirmedState);
 
   assert.equal(acknowledgedState.melee?.resolutionDraft, null);
   assert.equal(acknowledgedState.melee?.resolutionPreview, null);
+});
+
+test('p9v2-mini-12C matrix-core base lane stays parity-aligned with stage ledger in preview', () => {
+  const baseState = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+
+  const opened = startMeleeResolutionDraft(baseState, {
+    meleeId: 'melee-drill-case1-main-a__melee-drill-case1-main-d',
+  });
+  const confirmed = confirmMeleeResolutionDraft(setMeleeResolutionDraftValue(
+    setMeleeResolutionDraftValue(opened, 'attackerDieRoll', 5),
+    'defenderDieRoll', 3,
+  ));
+
+  const preview = confirmed?.melee?.resolutionDraft?.resolutionPreview;
+  assert.ok(preview?.matrixCore);
+
+  const attackerLedgerBase = preview?.factorRecap?.attacker?.stageLedger?.base;
+  const defenderLedgerBase = preview?.factorRecap?.defender?.stageLedger?.base;
+  assert.equal(preview?.matrixCore?.attacker?.lanes?.baseCf?.value, attackerLedgerBase);
+  assert.equal(preview?.matrixCore?.defender?.lanes?.baseCf?.value, defenderLedgerBase);
+});
+
+test('p9v2-mini-12C source-open matrix core keeps batch preview source-open explicitly', () => {
+  const baseState = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+
+  const presentation = getMeleeProcedurePresentation(baseState);
+  const entry = presentation.eligibleEntries.find((candidate) => candidate?.id === 'melee-drill-case1-main-a__melee-drill-case1-main-d');
+  assert.ok(entry);
+
+  const confirmed = confirmMeleeResolutionDraft({
+    ...baseState,
+    melee: {
+      ...baseState.melee,
+      resolutionDraft: {
+        meleeId: entry.id,
+        attackerUnitId: entry.attackerUnitId,
+        defenderUnitId: entry.defenderUnitId,
+        attackerLabel: entry.resolutionInput?.attackerUnit?.scenarioLabel ?? 'Attacker',
+        defenderLabel: entry.resolutionInput?.defenderUnit?.scenarioLabel ?? 'Defender',
+        allUnits: Array.isArray(entry.allUnits) ? [...entry.allUnits] : [],
+        resolutionInput: {
+          ...entry.resolutionInput,
+          attackerUnit: {
+            ...(entry.resolutionInput?.attackerUnit ?? {}),
+            profileId: 'unknown-profile-for-mini-12c',
+          },
+        },
+        diagnostics: [],
+      },
+    },
+  });
+
+  const preview = confirmed?.melee?.resolutionDraft?.resolutionPreview;
+  assert.equal(preview?.matrixCore?.sourceStatus, 'source-open');
+
+  const previewState = previewMeleeBatch(confirmed);
+  const previewPresentation = getMeleeProcedurePresentation(previewState);
+  assert.equal(previewPresentation?.batchPreview?.sourceStatus, 'source-open');
+  assert.equal(previewPresentation?.batchPreview?.hasSourceOpenMatrixCore, true);
 });
 
 test('p9v2-14A opening or canceling a new draft clears stale root resolution preview', () => {
@@ -700,6 +945,16 @@ test('p9v2-14C1 case1 draft modifier sums match resolved factor recap', () => {
 
   const draftAttackerModifierSum = sumStages(factorPresentation?.attackerModifierStages ?? {});
   const draftDefenderModifierSum = sumStages(factorPresentation?.defenderModifierStages ?? {});
+  const attackerDisplayModifierRows = Array.isArray(factorPresentation?.attackerDisplayModifierRows)
+    ? factorPresentation.attackerDisplayModifierRows
+    : [];
+  const defenderDisplayModifierRows = Array.isArray(factorPresentation?.defenderDisplayModifierRows)
+    ? factorPresentation.defenderDisplayModifierRows
+    : [];
+
+  assert.equal(attackerDisplayModifierRows.length, 0);
+  assert.equal(defenderDisplayModifierRows.length, 1);
+  assert.equal(defenderDisplayModifierRows[0]?.countsTowardModifierSum, false);
 
   const withDice = setMeleeResolutionDraftValue(
     setMeleeResolutionDraftValue(drafted, 'attackerDieRoll', 3),
@@ -878,6 +1133,11 @@ test('p9v2-mini-11A batch application plan separates multiple-attack and combat-
         status: 'resolved',
         defenderUnitId: 'u-defender',
         cohesionLoss: 1,
+        precondition: {
+          defenderAlreadyInMeleeOrSupport: true,
+          newQualifyingFlankRearContact: true,
+        },
+        capPerDefenderPerSequencePhase: 1,
       },
     ],
     resolvedEntries: [
@@ -1046,6 +1306,97 @@ test('p9v2-mini-11C pair 15/16 keeps pending-versus-committed stage parity for o
     typeof state?.melee?.batchApplicationPlan?.effects?.combatResultCohesionByUnitId,
     'object',
   );
+});
+
+test('p9v2-mini-11D batch plan enforces immediate-event precondition and keeps arithmetic decoupled', () => {
+  const batchPreview = {
+    immediateEffects: [
+      {
+        type: 'multiple-attack-immediate',
+        status: 'resolved',
+        defenderUnitId: 'u-defender',
+        cohesionLoss: 1,
+        precondition: {
+          defenderAlreadyInMeleeOrSupport: false,
+          newQualifyingFlankRearContact: true,
+        },
+        capPerDefenderPerSequencePhase: 1,
+      },
+    ],
+    resolvedEntries: [
+      {
+        meleeId: 'm1',
+        attackerUnitId: 'u-attacker',
+        defenderUnitId: 'u-defender',
+        resolution: {
+          status: 'resolved',
+          result: {
+            winnerSide: 'attacker',
+            cohesionLoss: 2,
+            rout: false,
+          },
+          breakdown: {
+            attacker: {
+              stageLedger: {
+                base: 5,
+                support: 0,
+                flankRear: 0,
+                disorder: 0,
+                die: 4,
+                final: 9,
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
+
+  const plan = buildV2MeleeBatchApplicationPlan({ batchPreview });
+
+  assert.equal(plan.effects?.multipleAttackImmediateByUnitId?.['u-defender'], undefined);
+  assert.equal(plan.effects?.combatResultCohesionByUnitId?.['u-defender'], 2);
+  assert.equal(plan.diagnostics?.[0]?.code, 'melee.v2.multiple-attack-immediate-precondition-not-met');
+  assert.equal(batchPreview.resolvedEntries[0]?.resolution?.breakdown?.attacker?.stageLedger?.final, 9);
+});
+
+test('p9v2-mini-11D batch plan enforces one-per-defender cap for immediate events', () => {
+  const batchPreview = {
+    immediateEffects: [
+      {
+        type: 'multiple-attack-immediate',
+        status: 'resolved',
+        defenderUnitId: 'u-defender',
+        cohesionLoss: 1,
+        precondition: {
+          defenderAlreadyInMeleeOrSupport: true,
+          newQualifyingFlankRearContact: true,
+        },
+        capPerDefenderPerSequencePhase: 1,
+      },
+      {
+        type: 'multiple-attack-immediate',
+        status: 'resolved',
+        defenderUnitId: 'u-defender',
+        cohesionLoss: 1,
+        precondition: {
+          defenderAlreadyInMeleeOrSupport: true,
+          newQualifyingFlankRearContact: true,
+        },
+        capPerDefenderPerSequencePhase: 1,
+      },
+    ],
+    resolvedEntries: [],
+  };
+
+  const plan = buildV2MeleeBatchApplicationPlan({ batchPreview });
+
+  assert.equal(plan.effects?.multipleAttackImmediateByUnitId?.['u-defender'], 1);
+  assert.equal(
+    plan.diagnostics?.some((entry) => entry?.code === 'melee.v2.multiple-attack-immediate-cap-enforced'),
+    true,
+  );
+  assert.equal(typeof plan.effects?.cohesionLossByUnitId, 'undefined');
 });
 
 test('p9v2-14C resolved totals differ when verified support/flank/commander modifier lanes are present versus absent', () => {

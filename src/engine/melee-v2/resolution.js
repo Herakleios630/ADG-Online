@@ -9,6 +9,14 @@ function isVerifiedSourceStatus(value) {
   return value === 'verified';
 }
 
+function normalizeImmediateEffectPrecondition(precondition) {
+  const normalized = precondition && typeof precondition === 'object' ? precondition : {};
+  return {
+    defenderAlreadyInMeleeOrSupport: normalized.defenderAlreadyInMeleeOrSupport === true,
+    newQualifyingFlankRearContact: normalized.newQualifyingFlankRearContact === true,
+  };
+}
+
 function dedupeDiagnosticsByCodeAndMeleeId(entries = []) {
   const diagnostics = Array.isArray(entries) ? entries : [];
   const seenKeys = new Set();
@@ -242,6 +250,9 @@ export function buildV2MeleeBatchPreview({
   const hasSourceOpenResolution = resolvedEntries.some(
     (entry) => entry?.resolution?.status === 'source-open',
   );
+  const hasSourceOpenMatrixCore = resolvedEntries.some(
+    (entry) => entry?.resolution?.matrixCore?.sourceStatus === 'source-open',
+  );
   const hasSourceOpenQueueEntries = queuedEntries.some(
     (entry) => !isVerifiedSourceStatus(entry?.v2ContactSourceStatus),
   );
@@ -270,6 +281,7 @@ export function buildV2MeleeBatchPreview({
   }
   const previewSourceStatus = unresolvedMeleeIds.length === 0
     && !hasSourceOpenResolution
+    && !hasSourceOpenMatrixCore
     && !hasSourceOpenQueueEntries
     && !hasSourceOpenQueueOrigins
     && !hasSourceOpenQueueFlankRearBranches
@@ -282,6 +294,7 @@ export function buildV2MeleeBatchPreview({
       resolvedEntries,
       unresolvedMeleeIds,
       hasSourceOpenResolution,
+      hasSourceOpenMatrixCore,
       hasSourceOpenQueueOrigins,
       hasSourceOpenQueueFlankRearBranches,
       isReadyForApply: queuedEntries.length > 0 && unresolvedMeleeIds.length === 0,
@@ -315,6 +328,7 @@ export function buildV2MeleeBatchApplicationPlan({
   const multipleAttackImmediateByUnitId = new Map();
   const combatResultCohesionByUnitId = new Map();
   const routedUnitIds = new Set();
+  const diagnostics = [];
 
   for (const effect of immediateEffects) {
     if (effect?.type !== 'multiple-attack-immediate' || effect?.status !== 'resolved') {
@@ -327,9 +341,38 @@ export function buildV2MeleeBatchApplicationPlan({
       continue;
     }
 
+    const precondition = normalizeImmediateEffectPrecondition(effect?.precondition);
+    if (!precondition.defenderAlreadyInMeleeOrSupport || !precondition.newQualifyingFlankRearContact) {
+      diagnostics.push({
+        code: 'melee.v2.multiple-attack-immediate-precondition-not-met',
+        severity: 'warning',
+        sourceStatus: 'source-open',
+        defenderUnitId,
+        precondition,
+      });
+      continue;
+    }
+
+    const capPerDefenderPerSequencePhase = Number(effect?.capPerDefenderPerSequencePhase ?? 1);
+    const cap = Number.isFinite(capPerDefenderPerSequencePhase) && capPerDefenderPerSequencePhase > 0
+      ? capPerDefenderPerSequencePhase
+      : 1;
+    const current = Number(multipleAttackImmediateByUnitId.get(defenderUnitId) ?? 0);
+    const next = current + cohesionLoss;
+    if (next > cap) {
+      diagnostics.push({
+        code: 'melee.v2.multiple-attack-immediate-cap-enforced',
+        severity: 'info',
+        sourceStatus: 'verified',
+        defenderUnitId,
+        cap,
+        attempted: next,
+      });
+    }
+
     multipleAttackImmediateByUnitId.set(
       defenderUnitId,
-      Number(multipleAttackImmediateByUnitId.get(defenderUnitId) ?? 0) + cohesionLoss,
+      Math.min(next, cap),
     );
   }
 
@@ -369,6 +412,7 @@ export function buildV2MeleeBatchApplicationPlan({
       combatResultCohesionByUnitId: Object.fromEntries(combatResultCohesionByUnitId.entries()),
       routedUnitIds: [...routedUnitIds],
     },
+    diagnostics,
     appliedImmediateEffects: immediateEffects.map((effect) => ({
       ...effect,
       applicationStatus: MELEE_BATCH_APPLICATION_STATUSES.APPLIED_AT_BATCH_END,

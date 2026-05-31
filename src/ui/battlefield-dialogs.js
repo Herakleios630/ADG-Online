@@ -501,45 +501,26 @@ export function renderMeleeResolutionDialog(state) {
     };
     const renderCombatFactorValue = (value) => (Number.isFinite(value) ? String(Number(value)) : 'pending');
     const debugOverrideEnabled = factorPresentation.combatFactorDebugOverrideEnabled === true;
-    const createToZeroRow = (branch, targetCombatFactorValue) => {
-      if (!branch || typeof branch !== 'object' || branch.applyDefenderCombatFactorToZero !== true) {
-        return null;
-      }
-
-      const toZeroValue = Number.isFinite(Number(targetCombatFactorValue))
-        ? Number(targetCombatFactorValue)
-        : 0;
-      const sourceStatus = branch.sourceStatus ?? 'needs-source-check';
-      const ownerAttackerText = branch.ownershipAttackerUnitId
-        ? `; source attacker ${branch.ownershipAttackerUnitId}`
-        : '';
-      const inheritedPairText = branch.inheritedDefenderToZeroFromBranch === true
-        ? '; flanker factor resolves in its own pair'
-        : '';
-      return {
-        label: `Formed Flank Attack (X=${toZeroValue} combat factor der Einheit${ownerAttackerText}${inheritedPairText})`,
-        value: -Math.abs(toZeroValue),
-        sourceStatus,
-      };
-    };
-    const attackerToZeroRow = createToZeroRow(
-      factorPresentation.defenderDerivedBranch,
-      factorPresentation.attackerCombatFactorValue,
-    );
-    const defenderToZeroRow = createToZeroRow(
-      factorPresentation.attackerDerivedBranch,
-      factorPresentation.defenderCombatFactorValue,
-    );
+    const attackerDisplayModifierRows = Array.isArray(factorPresentation.attackerDisplayModifierRows)
+      ? factorPresentation.attackerDisplayModifierRows
+      : [];
+    const defenderDisplayModifierRows = Array.isArray(factorPresentation.defenderDisplayModifierRows)
+      ? factorPresentation.defenderDisplayModifierRows
+      : [];
     const attackerModifierRows = collectModifierRows(
       factorPresentation.attackerModifierStages,
-      attackerToZeroRow ? [attackerToZeroRow] : [],
+      attackerDisplayModifierRows,
     );
     const defenderModifierRows = collectModifierRows(
       factorPresentation.defenderModifierStages,
-      defenderToZeroRow ? [defenderToZeroRow] : [],
+      defenderDisplayModifierRows,
     );
-    const attackerModifierTotal = attackerModifierRows.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
-    const defenderModifierTotal = defenderModifierRows.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
+    const attackerModifierTotal = attackerModifierRows
+      .filter((row) => row?.countsTowardModifierSum !== false)
+      .reduce((sum, row) => sum + (Number(row.value) || 0), 0);
+    const defenderModifierTotal = defenderModifierRows
+      .filter((row) => row?.countsTowardModifierSum !== false)
+      .reduce((sum, row) => sum + (Number(row.value) || 0), 0);
     const v2ContactSourceStatus = state.game.melee?.v2?.contactModelSourceStatus ?? 'source-open';
     const v2RoleSourceStatus = state.game.melee?.v2?.roleAssignmentSourceStatus ?? 'source-open';
     const normalizedV2ContactSourceStatus = normalizeMeleeSourceStatus(v2ContactSourceStatus);

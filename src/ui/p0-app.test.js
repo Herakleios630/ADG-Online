@@ -259,8 +259,8 @@ test('melee case1 pre-roll modifier sum matches post-roll factor recap modifier 
   const { renderApp } = await import('./p0-app.js');
   renderApp(container, state, () => {});
 
-  assert.match(container.innerHTML, /Attacker bonuses\/maluses[\s\S]*?Modifier sum:\s*\+2/);
-  assert.match(container.innerHTML, /Defender bonuses\/maluses[\s\S]*?Modifier sum:\s*-1/);
+  assert.match(container.innerHTML, /Attacker bonuses\/maluses[\s\S]*?Modifier sum:\s*\+1/);
+  assert.match(container.innerHTML, /Defender bonuses\/maluses[\s\S]*?Modifier sum:\s*0/);
 
   state = reduceAppState(state, {
     type: ACTION_TYPES.SET_MELEE_RESOLUTION_DRAFT_VALUE,
@@ -277,8 +277,8 @@ test('melee case1 pre-roll modifier sum matches post-roll factor recap modifier 
   });
   renderApp(container, state, () => {});
 
-  assert.match(container.innerHTML, /Attacker factors:<\/strong>\s*base\s*1,\s*modifiers\s*2,/);
-  assert.match(container.innerHTML, /Defender factors:<\/strong>\s*base\s*1,\s*modifiers\s*-1,/);
+  assert.match(container.innerHTML, /Attacker factors:<\/strong>\s*base\s*1,\s*modifiers\s*1,\s*final\s*6/);
+  assert.match(container.innerHTML, /Defender factors:<\/strong>\s*base\s*0,\s*modifiers\s*0,\s*final\s*4/);
 });
 
 test('melee case1 dialog shows explicit mixed-status wording for verified lanes with source-open seam status', async () => {

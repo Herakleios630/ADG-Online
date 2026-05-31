@@ -58,6 +58,7 @@ Gates:
 Coding-agent start card:
 
 - `P9V2-01` in `P9_v2_todo.md`: V2 skeleton + direct runtime wiring without legacy expansion
+- MINI-12H adoption update (2026-05-31): reviewer gate passed, runtime default is hard-switched to matrix-v2 core, and `melee.matrixV2` is in bounded decommission mode (comparison metadata retained, runtime switching disabled pending cleanup removal card).
 
 ## Release Target Framing
 
