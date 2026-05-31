@@ -56,6 +56,10 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function rollD6() {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
 function toCorpsSlotId(corpsId) {
   const raw = String(corpsId ?? '').toLowerCase();
   if (!raw) {
@@ -150,6 +154,9 @@ function handleDelegatedActionClick(container, event) {
     case 'start-shooting-drill-battle':
       dispatch({ type: ACTION_TYPES.START_SHOOTING_DRILL_BATTLE });
       return;
+    case 'start-melee-drill-battle':
+      dispatch({ type: ACTION_TYPES.START_MELEE_DRILL_BATTLE });
+      return;
     case 'start-shooting-los-example-battle':
       dispatch({ type: ACTION_TYPES.START_SHOOTING_LOS_EXAMPLE_BATTLE });
       return;
@@ -185,6 +192,66 @@ function handleDelegatedActionClick(container, event) {
       return;
     case 'acknowledge-shooting-phase-procedure':
       dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE });
+      return;
+    case 'open-melee-phase-procedure':
+      dispatch({ type: ACTION_TYPES.OPEN_MELEE_PHASE_PROCEDURE });
+      return;
+    case 'close-melee-phase-procedure':
+      dispatch({ type: ACTION_TYPES.CLOSE_MELEE_PHASE_PROCEDURE });
+      return;
+    case 'acknowledge-melee-phase-procedure':
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_MELEE_PHASE_PROCEDURE });
+      return;
+    case 'toggle-melee-queue-selection':
+      dispatch({ type: ACTION_TYPES.TOGGLE_MELEE_QUEUE_SELECTION, meleeId: actionTarget.dataset.meleeId });
+      return;
+    case 'move-melee-queue-entry-up':
+      dispatch({ type: ACTION_TYPES.MOVE_MELEE_QUEUE_ENTRY_UP, meleeId: actionTarget.dataset.meleeId });
+      return;
+    case 'move-melee-queue-entry-down':
+      dispatch({ type: ACTION_TYPES.MOVE_MELEE_QUEUE_ENTRY_DOWN, meleeId: actionTarget.dataset.meleeId });
+      return;
+    case 'start-melee-resolution-draft':
+      dispatch({
+        type: ACTION_TYPES.START_MELEE_RESOLUTION_DRAFT,
+        unitId: actionTarget.dataset.unitId || null,
+        meleeId: actionTarget.dataset.meleeId || null,
+      });
+      return;
+    case 'cancel-melee-resolution-draft':
+      dispatch({ type: ACTION_TYPES.CANCEL_MELEE_RESOLUTION_DRAFT });
+      return;
+    case 'toggle-melee-resolution-debug-factor-override':
+      dispatch({ type: ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_DEBUG_FACTOR_OVERRIDE });
+      return;
+    case 'confirm-melee-resolution-draft':
+      if (state.game.melee?.resolutionPreview) {
+        dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_MELEE_RESOLUTION_RESULT });
+        return;
+      }
+
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_ATTACKER_DIE,
+        dieRoll: rollD6(),
+      });
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_DEFENDER_DIE,
+        dieRoll: rollD6(),
+      });
+      dispatch({ type: ACTION_TYPES.CONFIRM_MELEE_RESOLUTION_DRAFT });
+      return;
+
+    case 'acknowledge-melee-resolution-result':
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_MELEE_RESOLUTION_RESULT });
+      return;
+    case 'preview-melee-batch':
+      dispatch({ type: ACTION_TYPES.PREVIEW_MELEE_BATCH });
+      return;
+    case 'apply-melee-batch':
+      dispatch({ type: ACTION_TYPES.APPLY_MELEE_BATCH });
+      return;
+    case 'acknowledge-melee-batch-summary':
+      dispatch({ type: ACTION_TYPES.ACKNOWLEDGE_MELEE_BATCH_SUMMARY });
       return;
     case 'open-shooting-sequence-handoff':
       dispatch({ type: ACTION_TYPES.OPEN_SHOOTING_SEQUENCE_HANDOFF });
@@ -462,6 +529,42 @@ function handleDelegatedActionChange(container, event) {
       dispatch({
         type: ACTION_TYPES.SET_SHOOTING_RESOLUTION_TARGET_DIE,
         dieRoll: Number(actionTarget.value),
+      });
+      return;
+    case 'set-melee-resolution-attacker-factor':
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_ATTACKER_FACTOR,
+        value: Number(actionTarget.value),
+      });
+      return;
+    case 'set-melee-resolution-defender-factor':
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_DEFENDER_FACTOR,
+        value: Number(actionTarget.value),
+      });
+      return;
+    case 'set-melee-resolution-attacker-die':
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_ATTACKER_DIE,
+        dieRoll: Number(actionTarget.value),
+      });
+      return;
+    case 'set-melee-resolution-defender-die':
+      dispatch({
+        type: ACTION_TYPES.SET_MELEE_RESOLUTION_DEFENDER_DIE,
+        dieRoll: Number(actionTarget.value),
+      });
+      return;
+    case 'toggle-melee-resolution-attacker-commander-engaged':
+      dispatch({
+        type: ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_ATTACKER_COMMANDER_ENGAGED,
+        isEngaged: event.target.checked,
+      });
+      return;
+    case 'toggle-melee-resolution-defender-commander-engaged':
+      dispatch({
+        type: ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_DEFENDER_COMMANDER_ENGAGED,
+        isEngaged: event.target.checked,
       });
       return;
     case 'toggle-use-free-command-point':
@@ -864,6 +967,7 @@ function renderNewGame(state) {
         <button class="shell-button" type="button" data-action="start-charge-drill-battle" data-testid="start-charge-drill-battle-button" data-automation-id="start-charge-drill-battle" aria-label="Charge Drill starten">Charge Drill</button>
         <button class="shell-button" type="button" data-action="start-conform-drill-battle" data-testid="start-conform-drill-battle-button" data-automation-id="start-conform-drill-battle" aria-label="Conform Drill starten">Conform Drill</button>
         <button class="shell-button" type="button" data-action="start-shooting-drill-battle" data-testid="start-shooting-drill-battle-button" data-automation-id="start-shooting-drill-battle" aria-label="Shooting Drill starten">Shooting Drill</button>
+        <button class="shell-button" type="button" data-action="start-melee-drill-battle" data-testid="start-melee-drill-battle-button" data-automation-id="start-melee-drill-battle" aria-label="Melee Drill starten">Melee Drill</button>
         <button class="shell-button" type="button" data-action="start-shooting-los-example-battle" data-testid="start-shooting-los-example-battle-button" data-automation-id="start-shooting-los-example-battle" aria-label="Shooting LoS Beispiel p.58 starten">Shooting LoS p.58</button>
         <button class="ghost-button" type="button" data-action="navigate" data-screen="${SCREEN_IDS.MAIN_MENU}" data-testid="new-game-back-button" data-automation-id="navigate-main-menu" aria-label="Zurueck zum Hauptmenue">Zurueck</button>
       </div>

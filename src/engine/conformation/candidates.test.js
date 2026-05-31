@@ -197,6 +197,10 @@ test('flank conformation plan produces a complete left-flank candidate', () => {
   assert.equal(plan.candidates[0]?.finalPose?.xUd, 8.5);
   assert.equal(plan.candidates[0]?.finalPose?.yUd, 10);
   assert.equal(plan.candidates[0]?.finalPose?.rotationRadians, Math.PI / 2);
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.triggerFamily, 'movement-conformation');
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.attackContactType, 'flank');
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.defenderFactorToZeroEligible, true);
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.requiresDefenderFrontEngagementForToZero, true);
 });
 
 test('rear conformation plan produces a complete rear candidate', () => {
@@ -222,6 +226,8 @@ test('rear conformation plan produces a complete rear candidate', () => {
   assert.equal(plan.candidates[0]?.finalPose?.xUd, 10);
   assert.equal(plan.candidates[0]?.finalPose?.yUd, 11);
   assert.equal(plan.candidates[0]?.finalPose?.rotationRadians, 0);
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.attackContactType, 'rear');
+  assert.equal(plan.candidates[0]?.meleeTriggerBridge?.cancellationFamilyHint, 'rear-contact-formed');
 });
 
 test('rear-or-flank conformation plan consumes the selected flank side', () => {

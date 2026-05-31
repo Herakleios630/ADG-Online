@@ -89,6 +89,7 @@ export function createConformationCandidate(overrides = {}) {
     lateralMisalignmentUd: Number.isFinite(overrides.lateralMisalignmentUd) ? overrides.lateralMisalignmentUd : null,
     deterministicPriority: Number.isFinite(overrides.deterministicPriority) ? overrides.deterministicPriority : null,
     sourceStatus: overrides.sourceStatus ?? null,
+    meleeTriggerBridge: cloneSerializable(overrides.meleeTriggerBridge ?? null),
     optionalChoice: overrides.optionalChoice ? createConformationOptionalChoice(overrides.optionalChoice) : null,
     shiftingPlan: overrides.shiftingPlan ? createConformationShiftPlan(overrides.shiftingPlan) : null,
     diagnostics: Array.isArray(overrides.diagnostics)

@@ -71,6 +71,8 @@ Use these labels consistently in rule docs and extraction notes:
 - Spreadsheet: readable and useful for army index, points formats, and calculator cross-checks.
 - Initial planning extracts now exist for standard-200, sequence of play, terrain/setup, hidden information, errata, and a focused P4 movement source-status note. They are not complete implementation sources until verified.
 - A focused planning blueprint now exists for units, bases, roster boundaries, and shared rule-table separation in `units-and-bases.md`.
+- Agent-facing deterministic scenario placement contract now lives in `docs/placement-catalog-v1.md`.
+- P9 fixture authoring now routes melee drill token intents through the placement-catalog bridge in `src/data/melee-drill-scenarios.js`, with deterministic blocked diagnostics for out-of-scope reference selection.
 
 ## Rule Extraction Format
 

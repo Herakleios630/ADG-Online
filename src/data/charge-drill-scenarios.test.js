@@ -185,6 +185,7 @@ test('charge drill scenario exposes stable ids, facings, and case coverage ancho
   assert.equal(zocCharger?.profileId, UNIT_PROFILE_IDS.CAVALRY);
   assert.equal(zocSentry?.chargeReactionCapability?.family, 'medium-infantry');
   assert.equal(zocSentry?.profileId, UNIT_PROFILE_IDS.MEDIUM_INFANTRY);
+  assert.equal(commander?.profileId, UNIT_PROFILE_IDS.COMMANDER);
   assert.equal(commander?.visualProfileId, 'vp-commander');
   assert.equal(scenario.units.every((unit) => unit.troopType === 'general' || unit.profileId != null), true);
   assert.equal(scenario.units.every((unit) => unit.visualProfileId != null), true);

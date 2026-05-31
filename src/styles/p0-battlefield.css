@@ -135,6 +135,19 @@
   min-height: 42px;
 }
 
+.battlefield-melee-resolution-dialog {
+  max-height: min(88vh, 820px);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.battlefield-melee-resolution-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .battlefield-side-panel {
   display: flex;
   flex-direction: column;
@@ -148,6 +161,21 @@
 
 .battlefield-side-panel > * {
   flex: 0 0 auto;
+}
+
+.battlefield-melee-debug-card {
+  gap: 6px;
+  border-color: rgba(151, 112, 26, 0.45);
+  background: rgba(255, 245, 209, 0.88);
+}
+
+.battlefield-melee-debug-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  font-family: 'Fira Code', Consolas, 'Courier New', monospace;
+  color: var(--text-main);
+  word-break: break-word;
 }
 
 .battlefield-placeholder-card {
@@ -1354,6 +1382,22 @@
   filter: saturate(0) brightness(0.82);
 }
 
+.battlefield-unit-token.is-melee-support-participant {
+  filter: grayscale(0.58) brightness(0.9);
+}
+
+.battlefield-unit-token.is-melee-nonparticipant {
+  filter: grayscale(0.92) brightness(0.82);
+}
+
+.battlefield-unit-token.is-melee-pending {
+  --unit-base-shadow: 0 0 0 2px rgba(245, 210, 32, 0.92), 0 6px 12px rgba(30, 28, 16, 0.22);
+}
+
+.battlefield-unit-token.is-melee-resolved {
+  --unit-base-shadow: 0 0 0 2px rgba(44, 193, 94, 0.92), 0 6px 12px rgba(30, 28, 16, 0.22);
+}
+
 .battlefield-shooting-support-line {
   position: absolute;
   display: block;
@@ -1521,6 +1565,16 @@
   cursor: not-allowed;
   box-shadow: none;
   filter: none;
+}
+
+.battlefield-unit-token.is-melee-nonparticipant:disabled,
+.battlefield-unit-token.is-melee-nonparticipant.is-selection-locked {
+  filter: grayscale(0.92) brightness(0.82);
+}
+
+.battlefield-unit-token.is-melee-support-participant:disabled,
+.battlefield-unit-token.is-melee-support-participant.is-selection-locked {
+  filter: grayscale(0.58) brightness(0.9);
 }
 
 .battlefield-unit-token.is-spent-corps-unit:disabled,

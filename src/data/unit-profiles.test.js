@@ -21,10 +21,16 @@ import {
 } from './unit-profiles.js';
 
 const REQUIRED_PROFILE_IDS = [
+  UNIT_PROFILE_IDS.COMMANDER,
   UNIT_PROFILE_IDS.LIGHT_INFANTRY,
+  UNIT_PROFILE_IDS.LIGHT_INFANTRY_JAVELIN,
   UNIT_PROFILE_IDS.MEDIUM_INFANTRY,
+  UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN,
   UNIT_PROFILE_IDS.HEAVY_INFANTRY,
+  UNIT_PROFILE_IDS.HEAVY_INFANTRY_SPEARMEN,
   UNIT_PROFILE_IDS.CAVALRY,
+  UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS,
+  UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT,
   UNIT_PROFILE_IDS.CAVALRY_BOW,
   UNIT_PROFILE_IDS.PIKE,
   UNIT_PROFILE_IDS.ELEPHANT,
@@ -96,6 +102,18 @@ test('profile-backed charge reaction capability derives from profile defaults an
   assert.equal(cavalryBowCapability.family, 'cavalry');
   assert.equal(cavalryBowCapability.hasBow, true);
 
+  const impetuousCavalryCapability = getChargeReactionCapabilityForUnit({
+    id: 'impetuous-cavalry-unit',
+    profileId: UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS,
+  });
+  assert.equal(impetuousCavalryCapability.hasImpetuous, true);
+
+  const impactCavalryCapability = getChargeReactionCapabilityForUnit({
+    id: 'impact-cavalry-unit',
+    profileId: UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT,
+  });
+  assert.equal(impactCavalryCapability.hasImpact, true);
+
   const selectedAbilityCapability = getChargeReactionCapabilityForUnit({
     id: 'selected-ability-unit',
     profileId: UNIT_PROFILE_IDS.CAVALRY,
@@ -133,6 +151,12 @@ test('resolved ability ids combine profile defaults with selected ability ids', 
     selectedAbilityIds: ['impact'],
   });
   assert.deepEqual(cavalryAbilities, ['bow', 'impact']);
+
+  const taxonomyAbilities = getResolvedAbilityIdsForUnit({
+    id: 'taxonomy-impetuous',
+    profileId: UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS,
+  });
+  assert.deepEqual(taxonomyAbilities, ['impetuous']);
 });
 
 test('shooting profile lookup is profile-backed for the P8-01 first subset', () => {
@@ -203,10 +227,16 @@ test('unknown unit profile ids fail loudly instead of silently defaulting', () =
 });
 
 test('profile verification states preserve the UCD-00 caveats', () => {
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.COMMANDER].verificationStatus, 'needs-source-check');
   assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.LIGHT_INFANTRY].verificationStatus, 'needs-source-check');
   assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.MEDIUM_INFANTRY].verificationStatus, 'provisional-anchor');
   assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.HEAVY_INFANTRY].verificationStatus, 'provisional-anchor');
   assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.CAVALRY].verificationStatus, 'needs-source-check');
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS].verificationStatus, 'needs-source-check');
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT].verificationStatus, 'needs-source-check');
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN].verificationStatus, 'needs-source-check');
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.HEAVY_INFANTRY_SPEARMEN].verificationStatus, 'needs-source-check');
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.LIGHT_INFANTRY_JAVELIN].verificationStatus, 'needs-source-check');
   assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.CAVALRY_BOW].verificationStatus, 'provisional-anchor');
 });
 

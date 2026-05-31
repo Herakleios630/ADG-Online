@@ -13,6 +13,7 @@ import {
   getCommanderAttachRemainingUd,
   SETUP_STEP_DEFINITIONS,
 } from '../state/p0-state.js';
+import { getMeleeParticipationByUnitId } from './melee-v2-adapter.js';
 import {
   CHARGE_CONTACT_CLASSIFICATION_TYPES,
   CHARGE_PREVIEW_STATUSES,
@@ -35,6 +36,7 @@ import {
   renderChargeReactionDialog,
   renderEvadeInitialBranchChoiceDialog,
   renderEvadeChoiceHandoffDialog,
+  renderMeleeResolutionDialog,
   renderRoundDialog,
   renderShootingResolutionDialog,
   renderSetupGuideDialog,
@@ -256,6 +258,27 @@ function getShootingProcedureFrontStatus(procedureStatus) {
   return '';
 }
 
+function getMeleeProcedureFrontStatus(meleeStatus) {
+  if (meleeStatus === 'main-defender-resolved' || meleeStatus === 'resolved') {
+    return 'done';
+  }
+
+  if (meleeStatus === 'main-defender-pending' || meleeStatus === 'pending') {
+    return 'pending';
+  }
+
+  return '';
+}
+
+function formatMeleeDebugCountLine(meleeDebugCounts) {
+  return [
+    `pending:${meleeDebugCounts.pending}`,
+    `resolved:${meleeDebugCounts.resolved}`,
+    `support:${meleeDebugCounts.support}`,
+    `non:${meleeDebugCounts.nonMelee}`,
+  ].join(' | ');
+}
+
 export function renderBattlefieldScreen(state) {
   const visibleSetup = projectSetupForViewer(state.game.setup, state.game.setupViewMode);
   const renderState = {
@@ -440,6 +463,51 @@ export function renderBattlefieldScreen(state) {
       });
     }
   }
+  const meleePhaseActive = !isSetupActive && state.game.commandContext.currentPhaseId === 'melee';
+  const meleeParticipationByUnitId = meleePhaseActive
+    ? getMeleeParticipationByUnitId(state.game)
+    : new Map();
+  const meleeProcedureStatusesByUnitId = meleePhaseActive
+    ? new Map(state.game.units.map((unit) => [unit.id, meleeParticipationByUnitId.get(unit.id)?.status ?? 'non-melee']))
+    : new Map();
+  const meleeDebugCounts = {
+    pending: 0,
+    resolved: 0,
+    support: 0,
+    nonMelee: 0,
+  };
+  if (meleePhaseActive) {
+    state.game.units.forEach((unit) => {
+      const status = meleeProcedureStatusesByUnitId.get(unit.id) ?? 'non-melee';
+      if (status === 'main-defender-pending' || status === 'pending') {
+        meleeDebugCounts.pending += 1;
+        return;
+      }
+
+      if (status === 'main-defender-resolved' || status === 'resolved') {
+        meleeDebugCounts.resolved += 1;
+        return;
+      }
+
+      if (status === 'support-participant') {
+        meleeDebugCounts.support += 1;
+        return;
+      }
+
+      meleeDebugCounts.nonMelee += 1;
+    });
+  }
+  const actionableMeleeUnitIds = meleePhaseActive
+    ? state.game.units
+      .filter((unit) => {
+        const participation = meleeParticipationByUnitId.get(unit.id);
+        return participation?.isSelectableInBattlefield === true;
+      })
+      .map((unit) => unit.id)
+    : [];
+  const selectedMeleeStatus = selectedUnit
+    ? (meleeProcedureStatusesByUnitId.get(selectedUnit.id) ?? 'non-melee')
+    : 'none';
   const shootingSupportTargetUnit = shootingSupportTargetUnitId
     ? state.game.units.find((unit) => unit.id === shootingSupportTargetUnitId) ?? null
     : null;
@@ -712,6 +780,15 @@ export function renderBattlefieldScreen(state) {
       <div class="battlefield-stage">
         <aside class="battlefield-side-panel battlefield-side-panel-left" data-panel-id="left">
           <button class="ghost-button battlefield-back-button" type="button" data-action="navigate" data-screen="main-menu">Zurueck zum Menue</button>
+          ${meleePhaseActive ? `
+            <section class="battlefield-melee-debug-card battlefield-placeholder-card" data-melee-debug-panel>
+              <strong>Melee Debug</strong>
+              <p data-melee-debug-phase>phase:${state.game.commandContext.currentPhaseId};active:${meleePhaseActive ? 'yes' : 'no'}</p>
+              <p data-melee-debug-selected>selected:${state.game.selectedUnitId ?? 'none'};status:${selectedMeleeStatus}</p>
+              <p data-melee-debug-counts>${formatMeleeDebugCountLine(meleeDebugCounts)}</p>
+              <p data-melee-debug-actionable>actionable:${actionableMeleeUnitIds.length > 0 ? actionableMeleeUnitIds.join(',') : 'none'}</p>
+            </section>
+          ` : ''}
           ${isSetupActive ? renderAdvanceCommandPanel({
             selectedUnit,
             isSetupActive,
@@ -1174,6 +1251,12 @@ export function renderBattlefieldScreen(state) {
                   );
                   const shootingTargetCandidate = shootingTargetCandidatesByUnitId.get(unit.id) ?? null;
                   const shootingProcedureStatus = shootingProcedureStatusesByUnitId.get(unit.id) ?? null;
+                  const meleeProcedureStatus = meleePhaseActive
+                    ? (meleeProcedureStatusesByUnitId.get(unit.id) ?? 'non-melee')
+                    : 'non-melee';
+                  const meleeParticipation = meleePhaseActive
+                    ? (meleeParticipationByUnitId.get(unit.id) ?? null)
+                    : null;
                   const isShootingTargetSelected = Boolean(
                     shootingPreviewActive
                       && state.game.shooting?.preview?.targetUnitId === unit.id,
@@ -1229,11 +1312,30 @@ export function renderBattlefieldScreen(state) {
                       ? true
                       : chargeTargetingActive
                       ? unit.id === selectedUnit?.id || chargeTargetCandidatesByUnitId.has(unit.id)
+                      : meleePhaseActive
+                        ? meleeParticipation?.isSelectableInBattlefield === true
                       : chargePreviewActiveForSelectedUnit && isChargeTargetSelected
                         ? true
                         : unit.owner === state.game.commandContext.activePlayerId
                           && (!activeCorpsSlotId || unitCorpsSlotId === activeCorpsSlotId),
                   );
+                  const selectabilityDebugReason = shootingPreviewActive
+                    ? 'shooting-preview-open'
+                    : chargeTargetingActive
+                      ? unit.id === selectedUnit?.id || chargeTargetCandidatesByUnitId.has(unit.id)
+                        ? 'charge-targeting-eligible'
+                        : 'charge-targeting-ineligible'
+                      : meleePhaseActive
+                        ? isSelectableUnit
+                          ? 'melee-main'
+                          : `melee-${meleeProcedureStatus}`
+                        : chargePreviewActiveForSelectedUnit && isChargeTargetSelected
+                          ? 'charge-preview-selected-target'
+                          : unit.owner === state.game.commandContext.activePlayerId
+                            ? !activeCorpsSlotId || unitCorpsSlotId === activeCorpsSlotId
+                              ? 'active-corps-eligible'
+                              : 'inactive-corps'
+                            : 'enemy-unit-outside-targeting';
                   const activeCorpsStatusClass = !isActiveCorpsUnit
                     ? ''
                     : hasMandatoryMovementPending && !hasMandatoryMovementResolved && !hasMovedThisPhase && !hasStayedThisPhase
@@ -1243,6 +1345,13 @@ export function renderBattlefieldScreen(state) {
                         : 'is-corps-unit-pending';
                   const shootingProcedureStatusClass = shootingProcedureStatus?.status
                     ? `is-shooting-procedure-${shootingProcedureStatus.status}`
+                    : '';
+                  const meleeProcedureStatusClass = meleePhaseActive
+                    ? meleeProcedureStatus === 'support-participant'
+                      ? 'is-melee-support-participant'
+                      : meleeProcedureStatus === 'non-melee'
+                      ? 'is-melee-nonparticipant'
+                      : ''
                     : '';
                   const unitScenarioLabel = unit.scenarioLabel || unit.id;
                   const unitAutomationLabel = [
@@ -1263,9 +1372,11 @@ export function renderBattlefieldScreen(state) {
                   ].filter(Boolean).join('; ');
                   const unitVisualProfile = resolveRenderableVisualProfile(unit);
                   const unitVisualLayer = renderUnitVisualLayer(unitVisualProfile, {
-                    frontStatus: state.game.commandContext.currentPhaseId === 'shooting'
-                      ? getShootingProcedureFrontStatus(shootingProcedureStatus?.status) || getActiveCorpsFrontStatus(activeCorpsStatusClass)
-                      : getActiveCorpsFrontStatus(activeCorpsStatusClass),
+                    frontStatus: meleePhaseActive
+                      ? getMeleeProcedureFrontStatus(meleeProcedureStatus)
+                      : state.game.commandContext.currentPhaseId === 'shooting'
+                        ? getShootingProcedureFrontStatus(shootingProcedureStatus?.status) || getActiveCorpsFrontStatus(activeCorpsStatusClass)
+                        : getActiveCorpsFrontStatus(activeCorpsStatusClass),
                   });
                   const commandRangeRing = unit.commandRangeUd != null
                     ? (() => {
@@ -1284,7 +1395,7 @@ export function renderBattlefieldScreen(state) {
 
                   return `
                 <button
-                  class="battlefield-unit-token for-${unitCssToken} ${unit.baseShape === 'circle' ? 'is-circle-base' : ''} ${unit.isCommander ? 'is-commander' : ''} ${unit.hasIncludedCommander ? 'has-included-commander' : ''} ${isActiveCorpsUnit ? 'is-active-corps-unit' : ''} ${isSpentCorpsUnit ? 'is-spent-corps-unit' : ''} ${!isSelectableUnit ? 'is-selection-locked' : ''} ${activeCorpsStatusClass} ${shootingProcedureStatusClass} ${isAttachTarget ? 'is-attach-target' : ''} ${isAttachTargetSelected ? 'is-attach-target-selected' : ''} ${isChargeTargetEligible ? 'is-charge-target-eligible' : ''} ${isChargeTargetBlocked ? 'is-charge-target-blocked' : ''} ${isChargeTargetSelected ? 'is-charge-target-selected' : ''} ${isShootingTargetEligible ? 'is-shoot-target-eligible' : ''} ${isShootingTargetBlocked ? 'is-shoot-target-blocked' : ''} ${isShootingTargetSourceOpen ? 'is-shoot-target-source-open' : ''} ${isShootingTargetSelected ? 'is-shoot-target-selected' : ''} ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${(canDragUnitsInSetup || isCommanderFreeMoveReady) && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
+                  class="battlefield-unit-token for-${unitCssToken} ${unit.baseShape === 'circle' ? 'is-circle-base' : ''} ${unit.isCommander ? 'is-commander' : ''} ${unit.hasIncludedCommander ? 'has-included-commander' : ''} ${isActiveCorpsUnit ? 'is-active-corps-unit' : ''} ${isSpentCorpsUnit ? 'is-spent-corps-unit' : ''} ${!isSelectableUnit ? 'is-selection-locked' : ''} ${activeCorpsStatusClass} ${shootingProcedureStatusClass} ${meleeProcedureStatusClass} ${isAttachTarget ? 'is-attach-target' : ''} ${isAttachTargetSelected ? 'is-attach-target-selected' : ''} ${isChargeTargetEligible ? 'is-charge-target-eligible' : ''} ${isChargeTargetBlocked ? 'is-charge-target-blocked' : ''} ${isChargeTargetSelected ? 'is-charge-target-selected' : ''} ${isShootingTargetEligible ? 'is-shoot-target-eligible' : ''} ${isShootingTargetBlocked ? 'is-shoot-target-blocked' : ''} ${isShootingTargetSourceOpen ? 'is-shoot-target-source-open' : ''} ${isShootingTargetSelected ? 'is-shoot-target-selected' : ''} ${state.game.selectedUnitId === unit.id ? 'is-selected' : ''} ${advanceModeActive && state.game.selectedUnitId === unit.id ? 'is-advance-ready' : ''} ${wheelModeActive && state.game.selectedUnitId === unit.id ? 'is-wheel-ready' : ''} ${(canDragUnitsInSetup || isCommanderFreeMoveReady) && state.game.selectedUnitId === unit.id ? 'is-setup-placeable' : ''}"
                   type="button"
                   ${isSelectableUnit ? '' : 'disabled'}
                   aria-pressed="${state.game.selectedUnitId === unit.id}"
@@ -1316,6 +1427,8 @@ export function renderBattlefieldScreen(state) {
                   data-shoot-target-status="${shootingPreviewActive ? shootingTargetCandidate?.status ?? (isShootingTargetSelected ? 'selected' : 'none') : isShootingTargetSelected ? 'selected' : 'none'}"
                   data-selected-shoot-target-current-status="${isShootingTargetSelected ? shootingTargetCandidate?.status ?? 'unknown' : 'none'}"
                   data-shooting-procedure-status="${shootingProcedureStatus?.status ?? 'none'}"
+                  data-melee-procedure-status="${meleeProcedureStatus}"
+                  data-selectability-debug-reason="${escapeHtml(selectabilityDebugReason)}"
                   data-charge-contact-classification="${chargeContactClassification?.type ?? 'none'}"
                   data-selected-charge-contact-side="${selectedChargeContactSide ?? 'none'}"
                   title="${escapeHtml(unitTitle)}"
@@ -1342,6 +1455,7 @@ export function renderBattlefieldScreen(state) {
         })}
         ${renderSetupGuideDialog(state)}
         ${renderRoundDialog(state)}
+        ${renderMeleeResolutionDialog(state)}
         ${renderShootingResolutionDialog(state)}
         ${renderChargeReactionDialog(state)}
         ${renderChargeBranchDistanceDialog(state)}

@@ -41,6 +41,12 @@ test('conformation candidate preserves deterministic ranking and nested serializ
     contactSpanUd: 0.75,
     lateralMisalignmentUd: 0.125,
     deterministicPriority: 1,
+    meleeTriggerBridge: {
+      triggerFamily: 'movement-conformation',
+      sourceStatus: 'verified',
+      attackContactType: 'flank',
+      defenderFactorToZeroEligible: true,
+    },
     diagnostics: [{ code: 'conformation.complete', message: 'Complete conformation candidate.' }],
   });
 
@@ -49,6 +55,8 @@ test('conformation candidate preserves deterministic ranking and nested serializ
   assert.equal(candidate.contactSpanUd, 0.75);
   assert.equal(candidate.lateralMisalignmentUd, 0.125);
   assert.equal(candidate.deterministicPriority, 1);
+  assert.equal(candidate.meleeTriggerBridge?.triggerFamily, 'movement-conformation');
+  assert.equal(candidate.meleeTriggerBridge?.attackContactType, 'flank');
   assert.equal(candidate.diagnostics[0]?.code, 'conformation.complete');
   assert.doesNotThrow(() => JSON.stringify(candidate));
 });
