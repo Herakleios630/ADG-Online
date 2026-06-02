@@ -21,6 +21,23 @@ export const UNIT_PROFILE_IDS = {
   ELEPHANT: 'elephant',
 };
 
+const P22_UNIT_CHARACTERISTICS_SOURCE_REF = 'docs/source/rules-v2-examples/rv2-p22-unit-characteristics-tables-a.png';
+
+const DEFAULT_COHESION_BY_PROFILE_ID = deepFreeze({
+  [UNIT_PROFILE_IDS.LIGHT_INFANTRY]: 2,
+  [UNIT_PROFILE_IDS.LIGHT_INFANTRY_JAVELIN]: 3,
+  [UNIT_PROFILE_IDS.MEDIUM_INFANTRY]: 3,
+  [UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN]: 3,
+  [UNIT_PROFILE_IDS.HEAVY_INFANTRY]: 4,
+  [UNIT_PROFILE_IDS.HEAVY_INFANTRY_SPEARMEN]: 4,
+  [UNIT_PROFILE_IDS.CAVALRY]: 3,
+  [UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS]: 3,
+  [UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT]: 3,
+  [UNIT_PROFILE_IDS.CAVALRY_BOW]: 2,
+  [UNIT_PROFILE_IDS.PIKE]: 4,
+  [UNIT_PROFILE_IDS.ELEPHANT]: 3,
+});
+
 export const BASE_PROFILE_IDS = {
   FOOT_LIGHT: 'bp-foot-light',
   FOOT_FORMED: 'bp-foot-formed',
@@ -286,6 +303,7 @@ function createUnitProfile(profile) {
     defaultAbilities: [...(profile.defaultAbilities ?? [])],
     keywords: [...(profile.keywords ?? [])],
     sourceRefs: [...(profile.sourceRefs ?? [])],
+    defaultCohesion: Number.isFinite(profile.defaultCohesion) ? Number(profile.defaultCohesion) : null,
     defaultChargeReactionCapability: profile.defaultChargeReactionCapability
       ? { ...profile.defaultChargeReactionCapability }
       : null,
@@ -305,6 +323,7 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.MEDIUM_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.COMMANDER,
     defaultAbilities: [],
+    defaultCohesion: null,
     keywords: ['general', 'commander', 'command-stand'],
     sourceRefs: ['docs/rules/command.md', 'docs/rules/open-verification.md'],
     defaultChargeReactionCapability: {
@@ -326,8 +345,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.LIGHT_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.LIGHT_FOOT,
     defaultAbilities: ['light-troops'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.LIGHT_INFANTRY],
     keywords: ['foot', 'light-infantry', 'evade-capable'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/shooting.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/shooting.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'light-infantry',
       inOpenTerrain: true,
@@ -346,8 +366,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.LIGHT_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.LIGHT_FOOT,
     defaultAbilities: ['light-troops', 'javelin'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.LIGHT_INFANTRY_JAVELIN],
     keywords: ['foot', 'light-infantry', 'javelin', 'missile', 'evade-capable'],
-    sourceRefs: ['docs/rules/melee.md', 'docs/rules/shooting.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md'],
+    sourceRefs: ['docs/rules/melee.md', 'docs/rules/shooting.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'light-infantry',
       inOpenTerrain: true,
@@ -366,8 +387,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.MEDIUM_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.MEDIUM_FOOT,
     defaultAbilities: [],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.MEDIUM_INFANTRY],
     keywords: ['foot', 'formed-foot', 'control-anchor'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/units-and-bases.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/units-and-bases.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'medium-infantry',
       inOpenTerrain: true,
@@ -386,8 +408,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.MEDIUM_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.MEDIUM_FOOT,
     defaultAbilities: ['swordsmen'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN],
     keywords: ['foot', 'formed-foot', 'medium-infantry', 'swordsmen'],
-    sourceRefs: ['docs/rules/melee.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md'],
+    sourceRefs: ['docs/rules/melee.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'medium-infantry',
       inOpenTerrain: true,
@@ -406,8 +429,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.HEAVY_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.HEAVY_FOOT,
     defaultAbilities: ['heavy-charge-anchor'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.HEAVY_INFANTRY],
     keywords: ['foot', 'heavy-infantry', 'control-anchor'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/units-and-bases.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', 'docs/rules/units-and-bases.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'heavy-infantry',
       inOpenTerrain: true,
@@ -427,8 +451,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.HEAVY_INFANTRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.HEAVY_FOOT,
     defaultAbilities: ['spearmen'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.HEAVY_INFANTRY_SPEARMEN],
     keywords: ['foot', 'formed-foot', 'heavy-infantry', 'spearmen'],
-    sourceRefs: ['docs/rules/melee.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md'],
+    sourceRefs: ['docs/rules/melee.md', 'docs/rules/units-and-bases.md', 'docs/rules/open-verification.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'heavy-infantry',
       inOpenTerrain: true,
@@ -448,8 +473,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.CAVALRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.CAVALRY,
     defaultAbilities: [],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.CAVALRY],
     keywords: ['mounted', 'cavalry', 'evade-capable'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/movement.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'cavalry',
       hasImpact: false,
@@ -470,8 +496,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.CAVALRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.CAVALRY,
     defaultAbilities: ['impetuous'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.MEDIUM_CAVALRY_IMPETUOUS],
     keywords: ['mounted', 'cavalry', 'medium-cavalry', 'impetuous', 'evade-capable'],
-    sourceRefs: ['docs/rules/melee.md', 'docs/rules/charge.md', 'docs/rules/open-verification.md'],
+    sourceRefs: ['docs/rules/melee.md', 'docs/rules/charge.md', 'docs/rules/open-verification.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'cavalry',
       hasImpact: false,
@@ -492,8 +519,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.CAVALRY_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.CAVALRY,
     defaultAbilities: ['impact'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT],
     keywords: ['mounted', 'cavalry', 'heavy-cavalry', 'impact', 'evade-capable'],
-    sourceRefs: ['docs/rules/melee.md', 'docs/rules/charge.md', 'docs/rules/open-verification.md'],
+    sourceRefs: ['docs/rules/melee.md', 'docs/rules/charge.md', 'docs/rules/open-verification.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'cavalry',
       hasImpact: true,
@@ -515,8 +543,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.CAVALRY_BOW_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.CAVALRY_BOW,
     defaultAbilities: ['bow'],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.CAVALRY_BOW],
     keywords: ['mounted', 'cavalry-bow', 'evade-capable', 'missile'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/shooting.md', 'docs/source/Ancient_Period.md', 'docs/source/Classic_Period.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/shooting.md', 'docs/source/Ancient_Period.md', 'docs/source/Classic_Period.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'cavalry',
       hasImpact: false,
@@ -538,8 +567,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.PIKE_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.PIKE,
     defaultAbilities: [],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.PIKE],
     keywords: ['foot', 'pike', 'conformation-anchor'],
-    sourceRefs: ['docs/rules/movement.md', 'docs/rules/units-and-bases.md'],
+    sourceRefs: ['docs/rules/movement.md', 'docs/rules/units-and-bases.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'pike',
       inOpenTerrain: true,
@@ -558,8 +588,9 @@ export const UNIT_PROFILES = deepFreeze({
     combatProfileId: COMBAT_PROFILE_IDS.ELEPHANT_DEFAULT,
     visualProfileId: VISUAL_PROFILE_IDS.ELEPHANT,
     defaultAbilities: [],
+    defaultCohesion: DEFAULT_COHESION_BY_PROFILE_ID[UNIT_PROFILE_IDS.ELEPHANT],
     keywords: ['elephant', 'special-target-anchor'],
-    sourceRefs: ['docs/rules/charge.md', 'docs/rules/units-and-bases.md'],
+    sourceRefs: ['docs/rules/charge.md', 'docs/rules/units-and-bases.md', P22_UNIT_CHARACTERISTICS_SOURCE_REF],
     defaultChargeReactionCapability: {
       family: 'elephant',
       inOpenTerrain: true,
@@ -713,6 +744,12 @@ export function getUnitProfile(profileId) {
   return profile;
 }
 
+export function getMaxCohesionForProfile(profileId) {
+  return Number.isFinite(DEFAULT_COHESION_BY_PROFILE_ID[profileId])
+    ? DEFAULT_COHESION_BY_PROFILE_ID[profileId]
+    : null;
+}
+
 export function getUnitProfileForUnit(unit) {
   if (!unit || typeof unit !== 'object') {
     throw new Error('Unit data is required to resolve a unit profile.');
@@ -724,6 +761,17 @@ export function getUnitProfileForUnit(unit) {
   }
 
   return getUnitProfile(unit.profileId);
+}
+
+export function getMaxCohesionForUnit(unit) {
+  if (Number.isFinite(unit?.maxCohesion)) {
+    return Number(unit.maxCohesion);
+  }
+
+  const profile = getUnitProfileForUnit(unit);
+  return Number.isFinite(profile?.defaultCohesion)
+    ? Number(profile.defaultCohesion)
+    : null;
 }
 
 export function getShootingProfileForUnit(unit) {

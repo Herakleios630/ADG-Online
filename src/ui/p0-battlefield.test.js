@@ -14,6 +14,7 @@ import {
 } from '../engine/charge/index.js';
 import { ACTION_TYPES, BATTLE_PHASE_IDS, SETUP_VIEW_MODES, createInitialAppState, reduceAppState } from '../state/p0-state.js';
 import { createInitialShootingState } from '../state/p0-shooting.js';
+import { getMeleeCohesionMarkerStateByUnitId } from './melee-v2-adapter.js';
 import { renderBattlefieldScreen } from './p0-battlefield.js';
 
 function advanceToBattlefield(state = createInitialAppState()) {
@@ -1026,6 +1027,46 @@ test('melee drill renders debug diagnostics for phase, selected unit, and select
 
   assert.match(supportUnitMarkup, /data-selectability-debug-reason="melee-support-participant"/);
   assert.match(supportUnitMarkup, /disabled/);
+});
+
+test('battlefield renders pending outline markers before apply and committed filled markers after apply from the shared cohesion account', () => {
+  let state = startMeleeDrillBattle();
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ACKNOWLEDGE_MELEE_PHASE_PROCEDURE,
+  });
+
+  for (const meleeId of state.game.melee.queueSelectionIds) {
+    state = reduceAppState(state, {
+      type: ACTION_TYPES.START_MELEE_RESOLUTION_DRAFT,
+      meleeId,
+    });
+    state = reduceAppState(state, {
+      type: ACTION_TYPES.CONFIRM_MELEE_RESOLUTION_DRAFT,
+    });
+  }
+
+  const pendingMarkerEntry = Array.from(getMeleeCohesionMarkerStateByUnitId(state.game).entries())
+    .find(([, markerState]) => Number(markerState?.pendingLossCount ?? 0) > 0);
+  assert.ok(pendingMarkerEntry);
+
+  const [unitId, pendingMarkerState] = pendingMarkerEntry;
+  const pendingMarkup = getUnitMarkup(renderBattlefieldScreen(state), unitId);
+
+  assert.match(pendingMarkup, new RegExp(`data-cohesion-pending-losses="${pendingMarkerState.pendingLossCount}"`));
+  assert.equal([...pendingMarkup.matchAll(/battlefield-cohesion-marker is-pending/g)].length, pendingMarkerState.pendingLossCount);
+  assert.equal([...pendingMarkup.matchAll(/battlefield-cohesion-marker is-committed/g)].length, 0);
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.APPLY_MELEE_BATCH,
+  });
+
+  const committedMarkerState = getMeleeCohesionMarkerStateByUnitId(state.game).get(unitId);
+  const committedMarkup = getUnitMarkup(renderBattlefieldScreen(state), unitId);
+
+  assert.ok(committedMarkerState);
+  assert.match(committedMarkup, new RegExp(`data-cohesion-committed-losses="${committedMarkerState.committedLossCount}"`));
+  assert.equal([...committedMarkup.matchAll(/battlefield-cohesion-marker is-pending/g)].length, 0);
+  assert.equal([...committedMarkup.matchAll(/battlefield-cohesion-marker is-committed/g)].length, committedMarkerState.committedLossCount);
 });
 
 test('battlefield renders the first pending secondary reaction dialog even when earlier secondary requests are already complete', () => {

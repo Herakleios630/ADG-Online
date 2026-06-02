@@ -26,6 +26,7 @@ function createUnit(overrides = {}) {
 function createContactEvidence(overrides = {}) {
   return {
     principalOpponentId: overrides.principalOpponentId ?? 'enemy-1',
+    supportTargetUnitId: overrides.supportTargetUnitId ?? null,
     contactSide: overrides.contactSide ?? 'front',
     contactRelationship: overrides.contactRelationship ?? 'front-edge-to-front-edge',
     contactClassification: overrides.contactClassification ?? { type: 'front' },
@@ -74,8 +75,29 @@ test('classifyMeleeContactUnit keeps simple and melee support distinct using exp
 
   assert.equal(simpleSupport.role, MELEE_CONTACT_ROLE_STATUSES.SIMPLE_SUPPORT);
   assert.equal(simpleSupport.supportKind, 'simple');
+  assert.equal(simpleSupport.supportTargetUnitId, 'enemy-1');
   assert.equal(meleeSupport.role, MELEE_CONTACT_ROLE_STATUSES.MELEE_SUPPORT);
   assert.equal(meleeSupport.supportKind, 'melee');
+  assert.equal(meleeSupport.supportTargetUnitId, 'enemy-1');
+});
+
+test('classifyMeleeContactUnit prefers explicit friendly support target for melee support lanes', () => {
+  const meleeSupport = classifyMeleeContactUnit(createUnit({
+    id: 'melee',
+    inMeleeSupport: true,
+    meleeContactEvidence: createContactEvidence({
+      principalOpponentId: 'enemy-main',
+      supportTargetUnitId: 'friendly-main',
+      contactSide: 'rear',
+      contactRelationship: 'rear-edge-to-front-edge',
+      contactClassification: { type: 'rear' },
+      contactRole: 'melee-support',
+    }),
+  }));
+
+  assert.equal(meleeSupport.role, MELEE_CONTACT_ROLE_STATUSES.MELEE_SUPPORT);
+  assert.equal(meleeSupport.opponentUnitId, 'enemy-main');
+  assert.equal(meleeSupport.supportTargetUnitId, 'friendly-main');
 });
 
 test('classifyMeleeContactUnit marks flank contact as main unit when conformation evidence is clear', () => {
@@ -306,7 +328,8 @@ test('resolveMeleeSupportAssignments keeps visible simple and melee support assi
         id: 'flank-left',
         owner: 'player-1',
         meleeContactEvidence: createContactEvidence({
-          principalOpponentId: 'main',
+          principalOpponentId: 'enemy-main',
+          supportTargetUnitId: 'main',
           contactSide: 'left',
           contactRole: 'melee-support',
         }),
@@ -315,7 +338,8 @@ test('resolveMeleeSupportAssignments keeps visible simple and melee support assi
         id: 'flank-right',
         owner: 'player-1',
         meleeContactEvidence: createContactEvidence({
-          principalOpponentId: 'main',
+          principalOpponentId: 'enemy-main',
+          supportTargetUnitId: 'main',
           contactSide: 'right',
           contactRole: 'melee-support',
         }),
@@ -324,7 +348,8 @@ test('resolveMeleeSupportAssignments keeps visible simple and melee support assi
         id: 'rear',
         owner: 'player-1',
         meleeContactEvidence: createContactEvidence({
-          principalOpponentId: 'main',
+          principalOpponentId: 'enemy-main',
+          supportTargetUnitId: 'main',
           contactSide: 'rear',
           contactRole: 'melee-support',
         }),
@@ -336,6 +361,10 @@ test('resolveMeleeSupportAssignments keeps visible simple and melee support assi
 
   assert.deepEqual(assignments.simpleSupportUnitIds, ['simple-left', 'simple-right']);
   assert.deepEqual(assignments.meleeSupportUnitIds, ['flank-left', 'flank-right', 'rear']);
+  assert.equal(assignments.selected.find((entry) => entry.unit.id === 'simple-left')?.classification?.supportSlotSide, 'left');
+  assert.equal(assignments.selected.find((entry) => entry.unit.id === 'simple-right')?.classification?.supportSlotSide, 'right');
+  assert.equal(assignments.selected.find((entry) => entry.unit.id === 'flank-left')?.classification?.supportSlotSide, 'right');
+  assert.equal(assignments.selected.find((entry) => entry.unit.id === 'flank-right')?.classification?.supportSlotSide, 'left');
   assert.deepEqual(assignments.selected.map((entry) => entry.unit.id), [
     'simple-left',
     'simple-right',

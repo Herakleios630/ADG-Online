@@ -509,6 +509,7 @@ function createDerivedModifierEntries({
   side,
   dieRoll,
   modifierContext,
+  unit = null,
 } = {}) {
   if (!modifierContext || typeof modifierContext !== 'object') {
     return [];
@@ -562,13 +563,26 @@ function createDerivedModifierEntries({
     && cancellationSourceStatus === 'verified'
     && cancellationFamilyIsSupported
     && cancellationFamilyMatchesContact;
+  const branchSourceVerified = cancellationSourceStatus === 'verified';
+  const branchAttackerSituationBonus = Number(flankRearBranch?.attackerSituationBonus ?? 0);
+  const branchOwnershipAttackerUnitId = String(flankRearBranch?.ownershipAttackerUnitId ?? '').trim();
+  const resolvedUnitId = String(unit?.id ?? '').trim();
+  const branchOwnerMatchesResolvedAttacker = branchOwnershipAttackerUnitId.length === 0
+    || (resolvedUnitId.length > 0 && branchOwnershipAttackerUnitId === resolvedUnitId);
+  const shouldApplyAttackerSituationBonus = side === 'attacker'
+    && modifierContext.flankOrRearAttack === true
+    && !flankRearCancellationEnabled
+    && branchSourceVerified
+    && branchOwnerMatchesResolvedAttacker
+    && Number.isFinite(branchAttackerSituationBonus)
+    && branchAttackerSituationBonus > 0;
 
-  if (modifierContext.flankOrRearAttack === true && !flankRearCancellationEnabled) {
+  if (shouldApplyAttackerSituationBonus) {
     entries.push(createDerivedModifierEntry({
       code: `melee.situation.flank-or-rear.${side}`,
-      label: 'Flank or rear situation marker (non-additive in MINI-11A)',
+      label: 'Flank or rear situation bonus',
       stage: MELEE_MODIFIER_STAGES.SITUATION,
-      value: 0,
+      value: branchAttackerSituationBonus,
       sourceStatus,
       laneOwnership: MELEE_V2_MODIFIER_LANE_OWNERSHIP.BRANCH,
     }));
@@ -798,11 +812,13 @@ export function resolveMeleeOutcome({
     side: 'attacker',
     dieRoll: attackerDieRoll,
     modifierContext: attackerModifierContext,
+    unit: attackerUnit,
   });
   const derivedDefenderEntries = createDerivedModifierEntries({
     side: 'defender',
     dieRoll: defenderDieRoll,
     modifierContext: defenderModifierContext,
+    unit: defenderUnit,
   });
   const attackerToZeroEntries = createFlankRearToZeroEntries({
     branchSide: 'attacker',

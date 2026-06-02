@@ -290,3 +290,38 @@ test('p9v2-mini-11C reducer flow keeps pair 15/16 arithmetic identical across pe
   assert.equal(typeof state.game.melee?.batchApplicationPlan?.effects?.multipleAttackImmediateByUnitId, 'object');
   assert.equal(typeof state.game.melee?.batchApplicationPlan?.effects?.combatResultCohesionByUnitId, 'object');
 });
+
+test('apply melee batch writes shared cohesion accounts onto affected units', () => {
+  let state = reduceAppState(createInitialAppState(), {
+    type: ACTION_TYPES.START_MELEE_DRILL_BATTLE,
+  });
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.ACKNOWLEDGE_MELEE_PHASE_PROCEDURE,
+  });
+
+  for (const meleeId of state.game.melee.queueSelectionIds) {
+    state = reduceAppState(state, {
+      type: ACTION_TYPES.START_MELEE_RESOLUTION_DRAFT,
+      meleeId,
+    });
+    state = reduceAppState(state, {
+      type: ACTION_TYPES.CONFIRM_MELEE_RESOLUTION_DRAFT,
+    });
+  }
+
+  state = reduceAppState(state, {
+    type: ACTION_TYPES.APPLY_MELEE_BATCH,
+  });
+
+  const affectedUnit = state.game.units.find((unit) => {
+    const account = unit?.cohesionAccount;
+    return account && Number(account.remainingCohesion ?? account.maxCohesion) < Number(account.maxCohesion ?? 0);
+  });
+
+  assert.ok(affectedUnit);
+  assert.equal(typeof affectedUnit.cohesionAccount.status, 'string');
+  assert.equal(affectedUnit.cohesionAccount.pendingBySource.meleeCombatResult, 0);
+  assert.equal(affectedUnit.cohesionAccount.pendingBySource.meleeMultipleAttackImmediate, 0);
+  assert.equal(Array.isArray(affectedUnit.cohesionAccount.committedHistory), true);
+});

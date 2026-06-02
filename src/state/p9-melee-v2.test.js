@@ -12,6 +12,7 @@ import {
   canApplyResolvedMeleeBatch,
   applyMeleeBatch,
   getMeleeCommanderPresence,
+  getMeleeCohesionMarkerStateByUnitId,
   getMeleeUnitParticipation,
   getMeleeParticipationByUnitId,
   getMeleeProcedurePresentation,
@@ -951,10 +952,15 @@ test('p9v2-14C1 case1 draft modifier sums match resolved factor recap', () => {
   const defenderDisplayModifierRows = Array.isArray(factorPresentation?.defenderDisplayModifierRows)
     ? factorPresentation.defenderDisplayModifierRows
     : [];
+  const attackerSupportEntries = Array.isArray(factorPresentation?.attackerModifierStages?.[MELEE_MODIFIER_STAGES.SUPPORT])
+    ? factorPresentation.attackerModifierStages[MELEE_MODIFIER_STAGES.SUPPORT]
+    : [];
 
   assert.equal(attackerDisplayModifierRows.length, 0);
   assert.equal(defenderDisplayModifierRows.length, 1);
   assert.equal(defenderDisplayModifierRows[0]?.countsTowardModifierSum, false);
+  assert.equal(attackerSupportEntries.some((entry) => String(entry?.code ?? '').includes('simple-support')), true);
+  assert.equal(attackerSupportEntries.some((entry) => String(entry?.code ?? '').includes('melee-support') && Number(entry?.value ?? 0) === 2), true);
 
   const withDice = setMeleeResolutionDraftValue(
     setMeleeResolutionDraftValue(drafted, 'attackerDieRoll', 3),
@@ -996,6 +1002,45 @@ test('p9v2-14C3 case2 draft exposes flank/rear branch candidates while keeping s
   ]);
   assert.equal(ownerCandidates.length, 1);
   assert.equal(ownerCandidates[0]?.attackerUnitId, branch?.ownershipAttackerUnitId);
+});
+
+test('p9v2-mini-12I case2 applies a single additive flank bonus despite multiple branch candidates', () => {
+  const baseState = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+
+  const drafted = startMeleeResolutionDraft(baseState, {
+    meleeId: 'melee-drill-case2-main-a__melee-drill-case2-main-d',
+  });
+  const factorPresentation = getMeleeProcedurePresentation(drafted)?.resolutionDraft?.factorPresentation;
+  const attackerSituationEntries = Array.isArray(factorPresentation?.attackerModifierStages?.[MELEE_MODIFIER_STAGES.SITUATION])
+    ? factorPresentation.attackerModifierStages[MELEE_MODIFIER_STAGES.SITUATION]
+    : [];
+  const attackerSupportEntries = Array.isArray(factorPresentation?.attackerModifierStages?.[MELEE_MODIFIER_STAGES.SUPPORT])
+    ? factorPresentation.attackerModifierStages[MELEE_MODIFIER_STAGES.SUPPORT]
+    : [];
+  const flankBonusEntries = attackerSituationEntries.filter(
+    (entry) => String(entry?.code ?? '').includes('flank-or-rear') && Number(entry?.value ?? 0) > 0,
+  );
+  const supportEntries = attackerSupportEntries.filter(
+    (entry) => String(entry?.code ?? '').includes('melee-support') && Number(entry?.value ?? 0) > 1,
+  );
+  const modifierSum = [...attackerSupportEntries, ...attackerSituationEntries].reduce(
+    (sum, entry) => sum + (Number(entry?.value) || 0),
+    0,
+  );
+
+  assert.equal(flankBonusEntries.length, 0);
+  assert.equal(supportEntries.length, 3);
+  assert.equal(supportEntries.every((entry) => Number(entry?.value ?? 0) === 2), true);
+  assert.equal(modifierSum, 6);
+  assert.equal(factorPresentation?.attackerDerivedBranch?.attackerSituationBonus, 1);
+  assert.equal(factorPresentation?.attackerDerivedBranch?.ownershipAttackerUnitId, 'melee-drill-case2-flank-left');
 });
 
 test('p9v2-14C4 case2 draft modifier sums match resolved factor recap', () => {
@@ -1399,6 +1444,48 @@ test('p9v2-mini-11D batch plan enforces one-per-defender cap for immediate event
   assert.equal(typeof plan.effects?.cohesionLossByUnitId, 'undefined');
 });
 
+test('p9v2-15 shared cohesion marker state tracks pending losses before apply and committed losses after apply', () => {
+  let state = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
+    commandContext: {
+      activePlayerId: 'player-1',
+      currentPhaseId: 'melee',
+    },
+    melee: createInitialMeleeState(),
+    units: createMeleeDrillScenario().units,
+  }));
+
+  for (const meleeId of state.melee.queueSelectionIds) {
+    state = startMeleeResolutionDraft(state, { meleeId });
+    state = confirmMeleeResolutionDraft(state);
+  }
+
+  const pendingMarkerEntry = Array.from(getMeleeCohesionMarkerStateByUnitId(state).entries())
+    .find(([, markerState]) => Number(markerState?.pendingLossCount ?? 0) > 0);
+
+  assert.ok(pendingMarkerEntry);
+
+  const [pendingUnitId, pendingMarkerState] = pendingMarkerEntry;
+  assert.equal(pendingMarkerState.committedLossCount, 0);
+  assert.equal(pendingMarkerState.pendingLossCount > 0, true);
+
+  state = applyMeleeBatch(state);
+
+  const committedMarkerState = getMeleeCohesionMarkerStateByUnitId(state).get(pendingUnitId);
+  const affectedUnit = state.units.find((unit) => unit.id === pendingUnitId);
+
+  assert.ok(committedMarkerState);
+  assert.ok(affectedUnit?.cohesionAccount);
+  assert.equal(committedMarkerState.pendingLossCount, 0);
+  assert.equal(committedMarkerState.committedLossCount >= pendingMarkerState.pendingLossCount, true);
+  assert.equal(affectedUnit.cohesionAccount.pendingBySource.meleeCombatResult, 0);
+  assert.equal(affectedUnit.cohesionAccount.pendingBySource.meleeMultipleAttackImmediate, 0);
+  assert.equal(Array.isArray(affectedUnit.cohesionAccount.committedHistory), true);
+  assert.equal(
+    affectedUnit.cohesionAccount.remainingCohesion,
+    affectedUnit.cohesionAccount.maxCohesion - committedMarkerState.committedLossCount,
+  );
+});
+
 test('p9v2-14C resolved totals differ when verified support/flank/commander modifier lanes are present versus absent', () => {
   const baseState = acknowledgeMeleePhaseProcedure(beginMeleePhaseState({
     commandContext: {
@@ -1605,6 +1692,7 @@ test('p9v2 keeps simple support active when melee support is not from the same f
         inMeleeSupport: true,
         meleeContactEvidence: {
           principalOpponentId: 'other-d',
+          supportTargetUnitId: 'other-a',
           contactRole: 'melee-support',
           contactSide: 'left',
           contactClassification: { type: 'flank' },
@@ -1694,6 +1782,7 @@ test('p9v2 displaces only within same fight cluster and canonical side', () => {
         inMeleeSupport: true,
         meleeContactEvidence: {
           principalOpponentId: 'main-d',
+          supportTargetUnitId: 'main-a',
           contactRole: 'melee-support',
           contactSide: 'right',
           contactClassification: { type: 'flank' },
@@ -1724,6 +1813,7 @@ test('p9v2 displaces only within same fight cluster and canonical side', () => {
         inMeleeSupport: true,
         meleeContactEvidence: {
           principalOpponentId: 'other-d',
+          supportTargetUnitId: 'other-a',
           contactRole: 'melee-support',
           contactSide: 'left',
           contactClassification: { type: 'flank' },
@@ -2482,3 +2572,4 @@ test('p9v2-11 cancellation request without family hint stays source-open', () =>
     true,
   );
 });
+

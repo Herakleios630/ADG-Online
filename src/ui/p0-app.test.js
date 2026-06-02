@@ -259,7 +259,10 @@ test('melee case1 pre-roll modifier sum matches post-roll factor recap modifier 
   const { renderApp } = await import('./p0-app.js');
   renderApp(container, state, () => {});
 
-  assert.match(container.innerHTML, /Attacker bonuses\/maluses[\s\S]*?Modifier sum:\s*\+1/);
+  assert.doesNotMatch(container.innerHTML, /Flank or rear situation bonus[\s\S]*?\+1/);
+  assert.match(container.innerHTML, /Simple support bonus/);
+  assert.match(container.innerHTML, /Melee support bonus \(combat factor \+1\)/);
+  assert.match(container.innerHTML, /Attacker bonuses\/maluses[\s\S]*?Modifier sum:\s*\+3/);
   assert.match(container.innerHTML, /Defender bonuses\/maluses[\s\S]*?Modifier sum:\s*0/);
 
   state = reduceAppState(state, {
@@ -277,7 +280,7 @@ test('melee case1 pre-roll modifier sum matches post-roll factor recap modifier 
   });
   renderApp(container, state, () => {});
 
-  assert.match(container.innerHTML, /Attacker factors:<\/strong>\s*base\s*1,\s*modifiers\s*1,\s*final\s*6/);
+  assert.match(container.innerHTML, /Attacker factors:<\/strong>\s*base\s*1,\s*modifiers\s*3,\s*final\s*8/);
   assert.match(container.innerHTML, /Defender factors:<\/strong>\s*base\s*0,\s*modifiers\s*0,\s*final\s*4/);
 });
 
@@ -328,6 +331,9 @@ test('melee case2 dialog shows branch candidates while keeping one deterministic
   const { renderApp } = await import('./p0-app.js');
   renderApp(container, state, () => {});
 
+  assert.doesNotMatch(container.innerHTML, /Flank or rear situation bonus[\s\S]*?\+1/);
+  assert.match(container.innerHTML, /Melee support bonus \(combat factor \+1\)/);
+  assert.match(container.innerHTML, /Attacker bonuses\/maluses[\s\S]*?Modifier sum:\s*\+6/);
   assert.match(container.innerHTML, /Branch candidates:<\/strong>/);
   assert.match(container.innerHTML, /Support Case 2 Flank Attack Right/);
   assert.match(container.innerHTML, /Support Case 2 Flank Attack Left/);
@@ -818,3 +824,4 @@ test('clicking another unresolved shooter during shooting preview dispatches uni
     globalThis.Element = previousElement;
   }
 });
+

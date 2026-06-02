@@ -1,4 +1,5 @@
 import {
+  getMeleeCohesionMarkerStateByUnitId,
   getMeleeParticipationByUnitId,
   getMeleeProcedurePresentation,
   getMeleeUnitParticipation,
@@ -16,6 +17,7 @@ export function normalizeMeleeSourceStatus(value) {
 }
 
 export {
+  getMeleeCohesionMarkerStateByUnitId,
   getMeleeParticipationByUnitId,
   getMeleeProcedurePresentation,
   getMeleeUnitParticipation,
