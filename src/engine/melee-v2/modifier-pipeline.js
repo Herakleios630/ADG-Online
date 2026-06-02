@@ -138,6 +138,15 @@ export function buildV2FlankRearModifierLane({ attackerUnit, defenderUnitId } = 
   const sourceStatus = diagnostics.length === 0 && evidenceSourceStatus === 'verified'
     ? 'verified'
     : 'source-open';
+  const cancellationApplies = cancellationRequested === true
+    && cancellationFamily != null
+    && cancellationFamily === expectedFamily
+    && cancellationFamilySourceStatus === 'verified';
+  const attackerSituationBonus = sourceStatus === 'verified'
+    && (attackContactType === 'flank' || attackContactType === 'rear')
+    && !cancellationApplies
+      ? 1
+      : 0;
 
   return {
     branch: {
@@ -147,10 +156,8 @@ export function buildV2FlankRearModifierLane({ attackerUnit, defenderUnitId } = 
       cancelAttackSituationBonus: cancellationRequested,
       cancellationFamily,
       cancellationFamilySourceStatus,
-      cancellationApplies: cancellationRequested === true
-        && cancellationFamily != null
-        && cancellationFamily === expectedFamily
-        && cancellationFamilySourceStatus === 'verified',
+      cancellationApplies,
+      attackerSituationBonus,
       defenderFactorToZeroEligible: triggerBridge?.defenderFactorToZeroEligible === true,
       applyDefenderCombatFactorToZero: triggerBridge?.defenderFactorToZeroEligible === true,
       requiresDefenderFrontEngagementForToZero: triggerBridge?.requiresDefenderFrontEngagementForToZero === true,

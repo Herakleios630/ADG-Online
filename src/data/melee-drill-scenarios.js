@@ -1029,9 +1029,11 @@ export function createMeleeDrillScenario() {
         meleeContactEvidence: {
           contactOrigin: 'charge-contact',
           principalOpponentId: 'melee-drill-case1-main-d',
+          supportTargetUnitId: 'melee-drill-case1-main-a',
           contactSide: 'left',
           contactRelationship: 'flank-edge-to-front-edge',
           contactClassification: { type: 'flank' },
+          contactRole: 'melee-support',
           meleeTriggerBridge: createMovementConformationTriggerBridge({ attackContactType: 'flank' }),
         },
       }),
@@ -1132,9 +1134,11 @@ export function createMeleeDrillScenario() {
         meleeContactEvidence: {
           contactOrigin: 'charge-contact',
           principalOpponentId: 'melee-drill-case2-main-d',
+          supportTargetUnitId: 'melee-drill-case2-main-a',
           contactSide: 'right',
           contactRelationship: 'flank-edge-to-front-edge',
           contactClassification: { type: 'flank' },
+          contactRole: 'melee-support',
           meleeTriggerBridge: createMovementConformationTriggerBridge({ attackContactType: 'flank' }),
         },
       }),
@@ -1156,9 +1160,11 @@ export function createMeleeDrillScenario() {
         meleeContactEvidence: {
           contactOrigin: 'charge-contact',
           principalOpponentId: 'melee-drill-case2-main-d',
+          supportTargetUnitId: 'melee-drill-case2-main-a',
           contactSide: 'left',
           contactRelationship: 'flank-edge-to-front-edge',
           contactClassification: { type: 'flank' },
+          contactRole: 'melee-support',
           meleeTriggerBridge: createMovementConformationTriggerBridge({ attackContactType: 'flank' }),
         },
       }),
@@ -1180,9 +1186,11 @@ export function createMeleeDrillScenario() {
         meleeContactEvidence: {
           contactOrigin: 'charge-contact',
           principalOpponentId: 'melee-drill-case2-main-d',
+          supportTargetUnitId: 'melee-drill-case2-main-a',
           contactSide: 'rear',
           contactRelationship: 'rear-edge-to-front-edge',
           contactClassification: { type: 'rear' },
+          contactRole: 'melee-support',
           meleeTriggerBridge: createMovementConformationTriggerBridge({ attackContactType: 'rear' }),
         },
       }),
@@ -1469,16 +1477,20 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
   const createExpectedResolved = ({
     attackerBase,
     attackerSupport = 0,
+    attackerSituation = 0,
     attackerDisorder = 0,
     attackerDie,
     defenderBase,
     defenderSupport = 0,
+    defenderSituation = 0,
     defenderDisorder = 0,
     defenderDie,
   }) => {
-    const attackerFinal = attackerBase + attackerSupport + attackerDisorder + attackerDie;
-    const defenderFinal = defenderBase + defenderSupport + defenderDisorder + defenderDie;
-    const differential = attackerFinal - defenderFinal;
+    const attackerStageFinal = attackerBase + attackerSupport + attackerDisorder + attackerDie;
+    const defenderStageFinal = defenderBase + defenderSupport + defenderDisorder + defenderDie;
+    const attackerCombatTotal = attackerStageFinal + attackerSituation;
+    const defenderCombatTotal = defenderStageFinal + defenderSituation;
+    const differential = attackerCombatTotal - defenderCombatTotal;
     const winnerSide = differential === 0 ? null : (differential > 0 ? 'attacker' : 'defender');
     const difference = Math.abs(differential);
 
@@ -1487,18 +1499,20 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
       attacker: {
         base: attackerBase,
         support: attackerSupport,
+        situation: attackerSituation,
         flankRear: 0,
         disorder: attackerDisorder,
         die: attackerDie,
-        final: attackerFinal,
+        final: attackerStageFinal,
       },
       defender: {
         base: defenderBase,
         support: defenderSupport,
+        situation: defenderSituation,
         flankRear: 0,
         disorder: defenderDisorder,
         die: defenderDie,
-        final: defenderFinal,
+        final: defenderStageFinal,
       },
       winnerSide,
       difference,
@@ -1663,6 +1677,8 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
           sourceStatus: 'verified',
           flankOrRearAttack: true,
           flankRearBranch: {
+            attackContactType: 'flank',
+            attackerSituationBonus: 1,
             applyDefenderCombatFactorToZero: true,
             sourceStatus: 'verified',
           },
@@ -1670,6 +1686,7 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
       },
       expected: createExpectedResolved({
         attackerBase: 5,
+        attackerSituation: 1,
         attackerDie: 4,
         defenderBase: 0,
         defenderDie: 4,
@@ -1688,6 +1705,7 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
           flankOrRearAttack: true,
           flankRearBranch: {
             attackContactType: 'rear',
+            attackerSituationBonus: 0,
             applyDefenderCombatFactorToZero: true,
             cancelAttackSituationBonus: true,
             cancellationFamily: 'rear-contact-formed',
@@ -1715,6 +1733,7 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
           flankOrRearAttack: true,
           flankRearBranch: {
             attackContactType: 'flank',
+            attackerSituationBonus: 0,
             cancelAttackSituationBonus: true,
             cancellationFamily: 'flank-contact-formed',
             sourceStatus: 'verified',
@@ -1825,6 +1844,7 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
           flankOrRearAttack: true,
           flankRearBranch: {
             attackContactType: 'rear',
+            attackerSituationBonus: 1,
             sourceStatus: 'verified',
           },
         },
@@ -1841,6 +1861,7 @@ export function createP9V2Mini12GCoreLaneGoldRows() {
       expected: createExpectedResolved({
         attackerBase: 5,
         attackerSupport: 1,
+        attackerSituation: 1,
         attackerDie: 4,
         defenderBase: 5,
         defenderDie: 3,

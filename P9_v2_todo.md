@@ -30,7 +30,9 @@ Goal: replace the current melee implementation with a clean V2 pipeline that is 
 - [x] UI-QA-04 Breakdown view: single unified table with both sides and short reason text per factor.
 - [x] UI-QA-05 Pair dialog CTAs: before roll show `Wuerfeln` and `Abbruch`; after roll show short result and `OK` to close.
 - [x] UI-QA-06 Diagnostics visibility: `source-open` status is always visible and clearly labeled in the dialog/result.
-- [x] UI-QA-07 Cohesion markers: option A (pip style with count text).
+- [x] UI-QA-07 Cohesion markers: option A (pip style with count text), with explicit visual semantics:
+  - committed cohesion losses: small filled red circles;
+  - pending, not yet committed losses (for example during shooting or melee resolution flow): small outline circles (no fill).
 - [x] UI-QA-08 Mobile layout priority: desktop-first only for this phase (no mobile target in this slice).
 
 Stop rule:
@@ -81,7 +83,7 @@ Wave B - Core rule semantics:
 - `P9-03Q` -> `P9V2-12` participation gating unification
 - `P9-03S` -> `P9V2-13` commander presence scenario coverage
 - `P9-03U` -> `P9V2-14` automatic roll result panel (no manual fixed-dice entry in default V2 flow)
-- `P9-03W` -> `P9V2-15` cohesion marker UX pending/committed path
+- `P9-03W` -> `P9V2-15` unit cohesion account spine + pending/committed marker UX
 
 Wave C - UX and flow completion:
 
@@ -1974,24 +1976,202 @@ Closeout 2026-05-31:
 - Residual risk:
   - reducer/action wiring for `SET_MELEE_MATRIX_V2_FEATURE_FLAG` remains as compatibility surface and should be removed in the next cleanup card if no rollback evidence appears.
 
-### [ ] P9V2-15 - Cohesion Marker UX Pending/Committed
+### [x] P9V2-MINI-12I - Flank/Rear Additive Bonus Re-open (Case 1 + Multi-Flank)
 
 Goal:
-- preserve pending vs committed cohesion feedback with pip+count marker style.
+- resolve the current flank/rear arithmetic mismatch by introducing an explicit additive attacker situation bonus on source-closed flank/rear lanes while keeping branch/to-zero and cancellation handling source-honest.
 
 Planned files:
 
-- src/ui/p0-battlefield.js
-- src/ui/styles/*
+- src/engine/melee-v2/modifier-pipeline.js
+- src/engine/melee-v2/combat-matrix-v2.js
+- src/engine/melee/resolution.js
 - src/state/p9-melee-v2.js
+- src/ui/battlefield-dialogs.js
+- src/data/melee-drill-scenarios.js
+- src/state/p9-melee-v2.test.js
+- src/engine/melee/resolution.test.js
+- src/ui/p0-app.test.js
+
+Implementation steps:
+1. Add an explicit additive flank/rear attacker-bonus lane for source-closed formed flank/rear branches (`+1` baseline), independent from defender-to-zero application.
+2. Keep branch/to-zero semantics explicit and non-cumulative for defender-side zeroing; do not double-apply branch effects.
+3. Ensure matrix-core lane payload and resolver stage-ledger payload both carry the same additive flank/rear attacker-bonus value for source-closed lanes.
+4. Remove or gate the MINI-11A non-additive flank marker path where it conflicts with the source-closed additive branch contract.
+5. Add deterministic Case 1 and multi-flank regressions proving:
+   - attacker modifier sum includes support plus flank bonus on source-closed lanes,
+   - defender zeroing/cancellation remains deterministic,
+   - source-open lanes remain diagnostic and non-guessing.
+
+Non-goals:
+
+- no special-family expansion (camp/fortification/obstacle/war-wagon)
+- no Wave C UI flow redesign
+- no broad modifier-system rewrite beyond flank/rear additive integration
 
 Validation:
 
-- focused tests for grey pending and red committed marker transitions.
+- node --test src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js src/ui/p0-app.test.js src/data/melee-drill-scenarios.test.js
+- browser smoke on melee drill Case 1 and one multi-flank lane with checkpoint screenshots for pre-roll summary and post-roll recap parity
+
+Logging expectations:
+
+- emit bounded `melee` debug diagnostics for branch evaluation and additive-lane application:
+  - branch source status,
+  - additive flank bonus value,
+  - to-zero application flag,
+  - cancellation resolution path,
+  - final stage-ledger composition.
+- diagnostics stay observational only and must not decide legality.
+
+Role routing:
+
+- Expected implementing role: Coding Agent / GPT-5.4
+- Reviewer / Rules Agent re-check required before closeout (rule-sensitive arithmetic change)
+- Lead / Phase Steward follow-up required only if reviewer marks source interpretation as `Needs Changes` or `Blocked`.
 
 Manual acceptance:
 
-- user confirms markers update only after batch apply.
+- user runs melee drill Case 1 and confirms visible attacker modifier sum includes flank additive bonus on source-closed lane (expected representative target: support `+1` plus flank `+1`), with post-roll recap parity.
+- user runs one multi-flank case and confirms deterministic single-application branch ownership plus additive attacker lane visibility.
+
+Stop condition:
+
+- stop if source references cannot close additive flank/rear bonus semantics for the selected lanes without guessing;
+- stop if implementation would require changing special-family branches in this card.
+
+Expected result:
+
+- flank/rear source-closed lanes are no longer display-only branches: additive attacker-bonus arithmetic is visible, test-locked, and consistent between matrix-core output, resolver stage ledger, and UI recap.
+
+Closeout 2026-05-31:
+
+- Implemented additive attacker situation bonus plumbing for source-closed flank/rear branch lanes across matrix lane construction, resolver branch handling, and state payload normalization.
+- Maintained deterministic branch ownership and non-cumulative defender-to-zero behavior; cancellation still suppresses attacker flank/rear additive bonus when resolved as formed flank-contact cancellation.
+- Updated deterministic fixture/gold-row helper semantics to keep stage-ledger `final` contract stable while still asserting additive flank/rear impact through resolved outcome differential.
+- Added/updated regressions for this reopen scope:
+  - resolver: source-closed additive flank/rear application and cancellation behavior,
+  - state: deterministic single-application flank/rear additive bonus in multi-candidate Case 2,
+  - UI: Case 1 attacker modifier sum and recap parity reflect support + flank additive path.
+- Validation passed:
+  - `node --test src/state/p9-melee-v2.test.js src/engine/melee/resolution.test.js src/ui/p0-app.test.js src/data/melee-drill-scenarios.test.js`
+- Runtime-aligned checkpoint expectation after alignment fix:
+  - Case 1 main-pair dialog should show `Attacker bonuses/maluses` with `Simple support bonus: +1` and `Melee support bonus (combat factor +1): +2`, with no visible attacker-side `Flank or rear situation bonus` row; `Modifier sum: +3`.
+  - Case 2 main-pair dialog should show `Branch candidates` with four candidates and three attacker `Melee support bonus (combat factor +1): +2` rows, with no visible attacker-side `Flank or rear situation bonus` row; `Modifier sum: +6`.
+- Fresh browser checkpoint recapture is still pending after this alignment fix slice.
+- Reviewer / Rules Agent re-check packet prepared in `docs/agents/p9v2-mini-12i-review-handoff.md`.
+- Residual risk:
+  - stage-ledger `final` intentionally excludes residual situation lane values; additive flank/rear effect is represented in residual breakdown and resolved differential, not by mutating ledger-stage sum semantics.
+
+### [ ] P9V2-15 - Unit Cohesion Account Spine + Marker UX
+
+Goal:
+- establish one shared per-unit cohesion account model that supports pending and committed updates across phases (movement side effects, shooting, melee, rout/pursuit), then render the same account with pip+count marker UX.
+
+Scope boundary (phase-gated, strict P9-only):
+- this card may implement only P9-owned runtime behavior (melee state/reducer/UI marker presentation and shared cohesion account spine interfaces used by melee).
+- no direct P8 shooting runtime behavior changes in this card.
+- no direct P10 rout/pursuit runtime behavior changes in this card.
+- P8/P10 integration remains deferred to explicit later cards and may only be prepared here as compatibility hooks/contracts.
+
+Source anchors and open-risk posture:
+- unit cohesion/disorder/rout state model: `docs/source/Rules_v2.md` `rv2.unit-status-and-orientation` and `rv2.troop-attributes`.
+- shooting cap and simultaneity baseline: `docs/rules/shooting.md`.
+- melee immediate-event versus arithmetic split: `docs/rules/melee.md` and `docs/rules/melee-decision-matrix.md` L4.
+- sequence-end rout/pursuit and army-cohesion accounting: `docs/rules/rout-and-pursuit.md`.
+- keep rally and army-cohesion edge accounting source-open under:
+  - `rally.test-thresholds-and-post-rally-locks`
+  - `army-cohesion.loss-accounting-and-simultaneous-rout`
+
+Planned files:
+
+- src/state/p9-melee-v2.js
+- src/state/p9-melee-v2.test.js
+- src/state/p0-state.js
+- src/state/p0-state-*.js
+- src/ui/p0-battlefield.js
+- src/ui/styles/*
+- docs/rules/rout-and-pursuit.md (if wording needs source-lock clarification for account fields)
+
+Implementation steps:
+1. Define reducer-owned per-unit cohesion account shape (shared, not melee-local):
+  - `maxCohesion` (from profile/rule data), `remainingCohesion`, `status` (`good-order`, `disordered`, `routed-pending-removal`, `removed`),
+  - pending event lanes split by source (for example `shooting`, `melee-combat-result`, `melee-multiple-attack-immediate`, `rout-cascade`),
+  - committed history for replay/debug visibility.
+2. Add phase-safe account operations:
+  - queue pending cohesion deltas,
+  - enforce source-backed caps per mechanism (for example shooting max one loss per phase),
+  - commit at the official timing boundary (simultaneous application points and sequence-end chains).
+3. Keep event-channel split invariant:
+  - immediate multiple-attack cohesion remains event-channel only (never arithmetic modifier lane).
+4. Bind P9 marker UX to shared account state:
+  - pending markers use pending account lane,
+  - committed markers use committed account lane,
+  - committed losses render as small filled red circles,
+  - pending uncommitted losses render as small outline circles (no fill),
+  - no melee-specific marker shortcut state.
+5. Prepare P8/P10 compatibility contract:
+  - define deferred hooks only: shooting and rout/pursuit can later write to the same account API without duplicating cohesion bookkeeping logic.
+  - do not wire live P8/P10 phase logic in this card.
+
+Non-goals (this card):
+- no P8 shooting runtime flow changes (selection, resolution, or commit behavior).
+- no P10 rout/pursuit runtime flow changes (sequence-end chain behavior).
+- no full rally test implementation or threshold closure while `rally.test-thresholds-and-post-rally-locks` is open.
+- no full army-rout winner resolution while `army-cohesion.loss-accounting-and-simultaneous-rout` remains open.
+- no special-family closeout (war wagon/camp/fortification) beyond account API compatibility.
+
+Implementation update (2026-06-01):
+
+- Added source-backed profile `defaultCohesion` bindings from `docs/source/rules-v2-examples/rv2-p22-unit-characteristics-tables-a.png` for the current representative P9 troop profiles, with commanders intentionally left unbound.
+- Replaced melee-only commit bookkeeping with a shared `cohesionAccount` on affected units: `maxCohesion`, `remainingCohesion`, `status`, split pending/committed lane totals, and committed history.
+- Kept multiple-attack immediate cohesion in a distinct event lane from melee combat-result cohesion.
+- Added shared marker projection for pending versus committed melee losses and rendered battlefield token markers as outline circles for pending and filled red circles for committed.
+- Left P8 shooting runtime and P10 rout/pursuit runtime integration deferred; this slice only prepares compatibility hooks and P9-owned behavior.
+- Focused validation passed: `node --test src/data/unit-profiles.test.js src/state/p9-melee-v2.test.js src/state/p0-state-melee.test.js src/ui/p0-app.test.js src/ui/p0-battlefield.test.js` (`174/174`).
+- Card closeout remains pending Reviewer / Rules Agent review and the existing Lead gate because the listed open-verification IDs are still unresolved.
+
+Validation:
+
+- node --test src/state/p9-melee-v2.test.js src/ui/p0-app.test.js
+- node --test src/state/p0-state-melee.test.js src/ui/p0-battlefield.test.js
+- add focused cohesion-account tests:
+  - profile-driven `maxCohesion` and route-to-routed threshold behavior,
+  - pending versus committed transitions at batch/sequence boundaries,
+  - shooting one-loss cap lane,
+  - melee multiple-attack event lane separation from arithmetic totals,
+  - marker visual contract: committed = filled red circle, pending = outline circle,
+  - battlefield marker render checks for pending/committed circles on unit tokens,
+  - marker rendering parity with pending/committed account state.
+
+Logging/instrumentation expectations:
+
+- rule areas: `melee`, `shooting`, `rout`, `state`.
+- minimum level: `debug` for account commits and per-unit delta aggregation.
+- key events: queued delta, capped delta, committed delta, routed-pending-removal transition, sequence-end finalize.
+
+Role routing:
+
+- expected implementing role: Coding Agent / GPT-5.4
+- required review role: Reviewer / Rules Agent / GPT-5.4
+- Lead gate required before closing card if open-verification IDs above are still unresolved.
+
+Manual acceptance:
+
+- user runs one melee sequence with unresolved then committed draft states and confirms:
+  - pending markers reflect queued losses before commit,
+  - committed markers update only at commit boundary,
+  - pending markers are outline circles and committed markers are filled red circles,
+  - unit rout threshold follows unit-type cohesion value (profile-derived, not hardcoded by scenario id).
+
+Stop condition:
+
+- stop if profile/cohesion table binding cannot provide deterministic `maxCohesion` without guessing.
+- stop if commit timing conflicts with simultaneous-resolution invariants.
+
+Expected result:
+
+- one reusable cohesion-account spine is active for P9 and ready for P8/P10 integration, replacing melee-local marker-only handling.
 
 ### [ ] P9V2-20 - Melee Start/End Popups
 
@@ -2117,7 +2297,7 @@ Manual acceptance:
 
 ## Immediate Next Two Cards
 
-- `P9V2-15` Cohesion Marker UX Pending/Committed.
+- `P9V2-15` Unit Cohesion Account Spine + Marker UX.
 - `P9V2-20` Melee Start/End Popups.
 
 ## Notes

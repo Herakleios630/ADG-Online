@@ -13,7 +13,10 @@ import {
   getCommanderAttachRemainingUd,
   SETUP_STEP_DEFINITIONS,
 } from '../state/p0-state.js';
-import { getMeleeParticipationByUnitId } from './melee-v2-adapter.js';
+import {
+  getMeleeCohesionMarkerStateByUnitId,
+  getMeleeParticipationByUnitId,
+} from './melee-v2-adapter.js';
 import {
   CHARGE_CONTACT_CLASSIFICATION_TYPES,
   CHARGE_PREVIEW_STATUSES,
@@ -111,6 +114,29 @@ function getRenderableUnitDebugLabel(unit, unitIndex) {
   }
 
   return String(unitIndex + 1);
+}
+
+function renderCohesionMarkerLayer(markerState) {
+  if (!markerState) {
+    return '';
+  }
+
+  const committedLossCount = Number(markerState.committedLossCount ?? 0);
+  const pendingLossCount = Number(markerState.pendingLossCount ?? 0);
+  if (committedLossCount <= 0 && pendingLossCount <= 0) {
+    return '';
+  }
+
+  const committedMarkers = Array.from(
+    { length: committedLossCount },
+    () => '<span class="battlefield-cohesion-marker is-committed" aria-hidden="true"></span>',
+  ).join('');
+  const pendingMarkers = Array.from(
+    { length: pendingLossCount },
+    () => '<span class="battlefield-cohesion-marker is-pending" aria-hidden="true"></span>',
+  ).join('');
+
+  return `<span class="battlefield-cohesion-marker-layer" aria-hidden="true" data-cohesion-committed-losses="${committedLossCount}" data-cohesion-pending-losses="${pendingLossCount}" data-cohesion-status="${escapeHtml(markerState.status ?? '')}">${committedMarkers}${pendingMarkers}</span>`;
 }
 
 function createShootingSupportLineStyle(fromUnit, toUnit, battlefieldProfile) {
@@ -467,6 +493,7 @@ export function renderBattlefieldScreen(state) {
   const meleeParticipationByUnitId = meleePhaseActive
     ? getMeleeParticipationByUnitId(state.game)
     : new Map();
+  const meleeCohesionMarkerStateByUnitId = getMeleeCohesionMarkerStateByUnitId(state.game);
   const meleeProcedureStatusesByUnitId = meleePhaseActive
     ? new Map(state.game.units.map((unit) => [unit.id, meleeParticipationByUnitId.get(unit.id)?.status ?? 'non-melee']))
     : new Map();
@@ -1354,6 +1381,7 @@ export function renderBattlefieldScreen(state) {
                       : ''
                     : '';
                   const unitScenarioLabel = unit.scenarioLabel || unit.id;
+                  const cohesionMarkerState = meleeCohesionMarkerStateByUnitId.get(unit.id) ?? null;
                   const unitAutomationLabel = [
                     'Einheit auswaehlen',
                     unitScenarioLabel,
@@ -1369,6 +1397,8 @@ export function renderBattlefieldScreen(state) {
                     isShootingTargetEligible ? 'Schuss-Ziel erreichbar' : null,
                     isShootingTargetBlocked ? 'Schuss-Ziel blockiert' : null,
                     isShootingTargetSourceOpen ? 'Schuss-Ziel quellenoffen' : null,
+                    cohesionMarkerState?.committedLossCount ? `verlorene Kohäsion ${cohesionMarkerState.committedLossCount}` : null,
+                    cohesionMarkerState?.pendingLossCount ? `ausstehende Kohäsion ${cohesionMarkerState.pendingLossCount}` : null,
                   ].filter(Boolean).join('; ');
                   const unitVisualProfile = resolveRenderableVisualProfile(unit);
                   const unitVisualLayer = renderUnitVisualLayer(unitVisualProfile, {
@@ -1433,7 +1463,7 @@ export function renderBattlefieldScreen(state) {
                   data-selected-charge-contact-side="${selectedChargeContactSide ?? 'none'}"
                   title="${escapeHtml(unitTitle)}"
                   style="--token-color:${unit.owner === 'player-1' ? state.shell.settings.playerColor : '#a8a8a8'};${createUnitTokenStyle(unit)}"
-                >${activeCorpsStatusClass === 'is-corps-unit-mandatory' ? '<span class="battlefield-unit-status-badge is-mandatory" aria-hidden="true">!</span>' : ''}${unitVisualLayer}<span class="battlefield-unit-debug-label" aria-hidden="true">${escapeHtml(getRenderableUnitDebugLabel(unit, index))}</span>${renderChargeContactSideMarkers(chargeContactClassification, selectedChargeContactSide)}</button>
+                >${activeCorpsStatusClass === 'is-corps-unit-mandatory' ? '<span class="battlefield-unit-status-badge is-mandatory" aria-hidden="true">!</span>' : ''}${unitVisualLayer}${renderCohesionMarkerLayer(cohesionMarkerState)}<span class="battlefield-unit-debug-label" aria-hidden="true">${escapeHtml(getRenderableUnitDebugLabel(unit, index))}</span>${renderChargeContactSideMarkers(chargeContactClassification, selectedChargeContactSide)}</button>
                 ${commandRangeRing}
               `;
                 })()}

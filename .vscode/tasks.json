@@ -47,6 +47,14 @@
 			"args": [
 				"noop"
 			]
+		},
+		{
+			"label": "noop",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"noop"
+			]
 		}
 	]
 }

@@ -12,6 +12,8 @@ import {
   getAllUnitProfiles,
   getBaseProfile,
   getDefaultFootprintForProfile,
+  getMaxCohesionForProfile,
+  getMaxCohesionForUnit,
   getResolvedAbilityIdsForUnit,
   getShootingProfileForUnit,
   getUnitProfile,
@@ -54,6 +56,7 @@ test('unit profiles expose the required UCD-01 representative ids and fields', (
     assert.equal(typeof profile.shootingProfileId, 'string');
     assert.equal(typeof profile.combatProfileId, 'string');
     assert.equal(typeof profile.visualProfileId, 'string');
+    assert.equal(profile.defaultCohesion == null || Number.isFinite(profile.defaultCohesion), true);
     assert.ok(BASE_PROFILES[profile.baseProfileId]);
     assert.ok(VISUAL_PROFILES[profile.visualProfileId]);
     assert.equal(Array.isArray(profile.defaultAbilities), true);
@@ -62,6 +65,26 @@ test('unit profiles expose the required UCD-01 representative ids and fields', (
     assert.equal(profile.sourceRefs.length > 0, true);
     assert.equal(typeof profile.verificationStatus, 'string');
   }
+});
+
+test('profile-backed cohesion defaults stay source-bound to the p22 representative rows', () => {
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.LIGHT_INFANTRY), 2);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.LIGHT_INFANTRY_JAVELIN), 3);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.MEDIUM_INFANTRY_SWORDSMEN), 3);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.HEAVY_INFANTRY), 4);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.CAVALRY_BOW), 2);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.PIKE), 4);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.ELEPHANT), 3);
+  assert.equal(getMaxCohesionForProfile(UNIT_PROFILE_IDS.COMMANDER), null);
+
+  assert.equal(UNIT_PROFILES[UNIT_PROFILE_IDS.CAVALRY_BOW].sourceRefs.includes('docs/source/rules-v2-examples/rv2-p22-unit-characteristics-tables-a.png'), true);
+});
+
+test('unit max cohesion prefers explicit instance data and otherwise falls back to the shared profile default', () => {
+  assert.equal(getMaxCohesionForUnit({ id: 'li', profileId: UNIT_PROFILE_IDS.LIGHT_INFANTRY }), 2);
+  assert.equal(getMaxCohesionForUnit({ id: 'hc', profileId: UNIT_PROFILE_IDS.HEAVY_CAVALRY_IMPACT }), 3);
+  assert.equal(getMaxCohesionForUnit({ id: 'override', profileId: UNIT_PROFILE_IDS.LIGHT_INFANTRY, maxCohesion: 4 }), 4);
+  assert.equal(getMaxCohesionForUnit({ id: 'commander', profileId: UNIT_PROFILE_IDS.COMMANDER }), null);
 });
 
 test('unit profiles remain serializable plain data', () => {

@@ -27,13 +27,54 @@ function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase();
 }
 
+function getOppositeSupportSide(side) {
+  if (side === 'left') {
+    return 'right';
+  }
+  if (side === 'right') {
+    return 'left';
+  }
+  return side;
+}
+
+function resolveSupportSlotSide(classification = null) {
+  const contactSide = normalizeText(classification?.contactSide) || 'unspecified';
+  const role = normalizeText(classification?.role);
+  if (role !== MELEE_CONTACT_ROLE_STATUSES.MELEE_SUPPORT) {
+    return contactSide;
+  }
+
+  const supportTargetUnitId = String(classification?.supportTargetUnitId ?? '').trim();
+  const opponentUnitId = String(classification?.opponentUnitId ?? '').trim();
+  if (!supportTargetUnitId || !opponentUnitId || supportTargetUnitId === opponentUnitId) {
+    return contactSide;
+  }
+
+  return getOppositeSupportSide(contactSide);
+}
 function resolveContactEvidence(unit) {
   if (unit?.meleeContactEvidence && typeof unit.meleeContactEvidence === 'object') {
-    return unit.meleeContactEvidence;
+    return {
+      ...unit.meleeContactEvidence,
+      contactRole: unit.meleeContactEvidence.contactRole ?? unit?.contactRole ?? null,
+      supportTargetUnitId: unit.meleeContactEvidence.supportTargetUnitId
+        ?? unit.meleeContactEvidence.supportedFriendlyMainUnitId
+        ?? unit?.supportTargetUnitId
+        ?? unit?.supportedFriendlyMainUnitId
+        ?? null,
+    };
   }
 
   if (unit?.conformationApplied && typeof unit.conformationApplied === 'object') {
-    return unit.conformationApplied;
+    return {
+      ...unit.conformationApplied,
+      contactRole: unit.conformationApplied.contactRole ?? unit?.contactRole ?? null,
+      supportTargetUnitId: unit.conformationApplied.supportTargetUnitId
+        ?? unit.conformationApplied.supportedFriendlyMainUnitId
+        ?? unit?.supportTargetUnitId
+        ?? unit?.supportedFriendlyMainUnitId
+        ?? null,
+    };
   }
 
   return null;
@@ -61,9 +102,28 @@ function hasActionableContactEvidence(contactEvidence) {
     contactEvidence.contactRelationship
     || contactEvidence.contactSide
     || contactEvidence.contactRole
+    || contactEvidence.supportTargetUnitId
+    || contactEvidence.supportedFriendlyMainUnitId
     || contactEvidence.principalOpponentId
     || contactEvidence.contactClassification,
   );
+}
+
+function resolveSupportTargetUnitId(unit, contactEvidence, role) {
+  const explicitTarget = contactEvidence?.supportTargetUnitId
+    ?? contactEvidence?.supportedFriendlyMainUnitId
+    ?? unit?.supportTargetUnitId
+    ?? unit?.supportedFriendlyMainUnitId
+    ?? null;
+  if (explicitTarget) {
+    return explicitTarget;
+  }
+
+  if (role === MELEE_CONTACT_ROLE_STATUSES.SIMPLE_SUPPORT || role === MELEE_CONTACT_ROLE_STATUSES.MELEE_SUPPORT) {
+    return contactEvidence?.principalOpponentId ?? unit?.meleePendingOpponentId ?? null;
+  }
+
+  return null;
 }
 
 function getSupportKindFromFlags(unit) {
@@ -181,6 +241,7 @@ export function classifyMeleeContactUnit(unit) {
   const contactEvidence = resolveContactEvidence(unit);
   const classification = classifyRoleFromEvidence(unit, contactEvidence);
   const role = classification.role;
+  const supportTargetUnitId = resolveSupportTargetUnitId(unit, contactEvidence, role);
 
   return {
     unitId: unit?.id ?? null,
@@ -191,7 +252,9 @@ export function classifyMeleeContactUnit(unit) {
     sourceStatus: role === MELEE_CONTACT_ROLE_STATUSES.SOURCE_OPEN ? 'needs-source-check' : 'verified',
     diagnostics: classification.diagnostics,
     opponentUnitId: contactEvidence?.principalOpponentId ?? unit?.meleePendingOpponentId ?? null,
+    supportTargetUnitId,
     contactSide: contactEvidence?.contactSide ?? null,
+    supportSlotSide: null,
     contactRelationship: contactEvidence?.contactRelationship ?? null,
     contactEvidence,
   };
@@ -237,15 +300,24 @@ export function resolveMeleeSupportAssignments({
   const constrainedOwnerId = ownerId ?? mainUnit.owner ?? null;
   const candidates = allUnits
     .filter((unit) => unit && unit.id !== mainUnitId && (constrainedOwnerId == null || unit.owner === constrainedOwnerId))
-    .map((unit) => ({ unit, classification: classifyMeleeContactUnit(unit) }))
+    .map((unit) => {
+      const classification = classifyMeleeContactUnit(unit);
+      return {
+        unit,
+        classification: {
+          ...classification,
+          supportSlotSide: resolveSupportSlotSide(classification),
+        },
+      };
+    })
     .filter(({ classification }) => (
       isSupportRole(classification.role)
-      && classification.opponentUnitId === mainUnitId
+      && classification.supportTargetUnitId === mainUnitId
     ));
 
   const buckets = new Map();
   for (const candidate of candidates) {
-    const sideKey = normalizeText(candidate.classification.contactSide) || 'unspecified';
+    const sideKey = normalizeText(candidate.classification.supportSlotSide ?? candidate.classification.contactSide) || 'unspecified';
     const roleKey = candidate.classification.role;
     const bucketKey = `${roleKey}:${sideKey}`;
     if (!buckets.has(bucketKey)) {

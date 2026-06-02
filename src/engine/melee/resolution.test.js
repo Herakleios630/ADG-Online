@@ -274,6 +274,11 @@ test('P9-02 derives quality, flank/rear, height, and engaged-commander modifiers
     attackerModifierContext: {
       quality: 'elite',
       flankOrRearAttack: true,
+      flankRearBranch: {
+        attackContactType: 'flank',
+        sourceStatus: 'verified',
+        attackerSituationBonus: 1,
+      },
       heightAdvantage: true,
       engagedCommander: true,
       sourceStatus: 'verified',
@@ -291,12 +296,12 @@ test('P9-02 derives quality, flank/rear, height, and engaged-commander modifiers
   const situationValues = resolution.breakdown.attacker.stages.situation
     .map((entry) => Number(entry?.value ?? 0))
     .sort((left, right) => left - right);
-  assert.deepEqual(situationValues, [0, 1, 1]);
+  assert.deepEqual(situationValues, [1, 1, 1]);
   assert.equal(resolution.result.winnerSide, 'attacker');
 });
 
-test('P9V2-MINI-11A keeps flank/rear non-additive in final numeric resolution', () => {
-  const withFlankMarker = resolveMeleeOutcome({
+test('P9V2-MINI-12I applies source-closed flank/rear attacker situation bonus additively', () => {
+  const withFlankBonus = resolveMeleeOutcome({
     attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
     defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
     attackerDieRoll: 4,
@@ -304,25 +309,63 @@ test('P9V2-MINI-11A keeps flank/rear non-additive in final numeric resolution', 
     attackerModifierContext: {
       sourceStatus: 'verified',
       flankOrRearAttack: true,
+      flankRearBranch: {
+        attackContactType: 'flank',
+        sourceStatus: 'verified',
+        attackerSituationBonus: 1,
+      },
     },
   });
 
-  const withoutFlankMarker = resolveMeleeOutcome({
+  const withoutFlankBonus = resolveMeleeOutcome({
     attackerUnit: createUnit({ id: 'attacker', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
     defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
     attackerDieRoll: 4,
     defenderDieRoll: 4,
     attackerModifierContext: {
       sourceStatus: 'verified',
-      flankOrRearAttack: false,
+      flankOrRearAttack: true,
+      flankRearBranch: {
+        attackContactType: 'flank',
+        sourceStatus: 'verified',
+        attackerSituationBonus: 0,
+      },
     },
   });
 
-  assert.equal(withFlankMarker.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
-  assert.equal(withoutFlankMarker.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
-  assert.equal(withFlankMarker.breakdown?.attacker?.preDieTotal, withoutFlankMarker.breakdown?.attacker?.preDieTotal);
-  assert.equal(withFlankMarker.breakdown?.attacker?.finalTotal, withoutFlankMarker.breakdown?.attacker?.finalTotal);
-  assert.equal(withFlankMarker.breakdown?.attacker?.stageLedger?.flankRear, 0);
+  assert.equal(withFlankBonus.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  assert.equal(withoutFlankBonus.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  assert.equal(withFlankBonus.breakdown?.attacker?.preDieTotal, (withoutFlankBonus.breakdown?.attacker?.preDieTotal ?? 0) + 1);
+  assert.equal(withFlankBonus.breakdown?.attacker?.stageLedger?.flankRear, 0);
+  assert.equal(
+    withFlankBonus.breakdown?.attacker?.stages?.situation?.some((entry) => Number(entry?.value ?? 0) === 1 && String(entry?.code ?? '').includes('flank-or-rear')),
+    true,
+  );
+});
+
+test('P9V2-MINI-12I does not apply flank/rear +1 when branch owner differs from resolved attacker main unit', () => {
+  const resolution = resolveMeleeOutcome({
+    attackerUnit: createUnit({ id: 'attacker-main', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    defenderUnit: createUnit({ id: 'defender', meleeCombatFactorValue: 5, meleeCombatFactorSourceStatus: 'verified' }),
+    attackerDieRoll: 4,
+    defenderDieRoll: 4,
+    attackerModifierContext: {
+      sourceStatus: 'verified',
+      flankOrRearAttack: true,
+      flankRearBranch: {
+        attackContactType: 'flank',
+        sourceStatus: 'verified',
+        ownershipAttackerUnitId: 'flank-support-owner',
+        attackerSituationBonus: 1,
+      },
+    },
+  });
+
+  assert.equal(resolution.status, MELEE_RESOLUTION_STATUSES.RESOLVED);
+  assert.equal(
+    resolution.breakdown?.attacker?.stages?.situation?.some((entry) => String(entry?.code ?? '').includes('flank-or-rear')),
+    false,
+  );
 });
 
 test('P9-02 keeps derived modifier context source-open when source status is missing', () => {
@@ -822,6 +865,11 @@ test('P9V2-MINI-12D derived branch entries carry laneOwnership=branch in situati
     attackerModifierContext: {
       sourceStatus: 'verified',
       flankOrRearAttack: true,
+      flankRearBranch: {
+        attackContactType: 'flank',
+        sourceStatus: 'verified',
+        attackerSituationBonus: 1,
+      },
     },
   });
 

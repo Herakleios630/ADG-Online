@@ -48,10 +48,11 @@ Primary references used in this draft:
 
 ### L3 Flank/rear additive arithmetic lane
 
-- status: source-open
+- status: source-closed for MINI-12I supported subset; source-open outside that subset
 - decision:
-  - no additive flank/rear bonus is closed in this draft.
-  - any additive lane requires explicit source closure before matrix default switch.
+  - baseline additive lane is closed for the supported subset: a main unit situated on an enemy flank or rear gains a `+1` situation modifier even if conformation is incomplete.
+  - additive application remains branch-owned and must stay deterministic, single-owner, and source-honest in multi-candidate lanes.
+  - residual special families and unresolved edge combinations remain source-open until separately closed.
 - owner: decision-matrix versioning gate
 
 ### L4 Multiple-attack immediate cohesion event
@@ -109,10 +110,10 @@ These remain in separate board cards (P9V2-30 and P9V2-31).
 ### B1 Flank/rear additive lane closure
 
 - why blocked:
-  - current matrix-v1 mini-slice and test contract intentionally keep flankRear as non-additive marker.
-  - additive closure needs explicit source confirmation and reviewer decision.
+  - resolved for the MINI-12I supported subset only.
+  - residual edge families outside the supported subset still need explicit source confirmation and reviewer decision before additive closure can be claimed more broadly.
 - affected lanes:
-  - L3 and downstream final-sum expectations.
+  - L3 outside the MINI-12I supported subset and any downstream broader final-sum expectations.
 
 ### B2 Residual p.22 binding completeness
 

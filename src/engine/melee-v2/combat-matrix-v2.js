@@ -37,6 +37,7 @@ function resolveBranchLaneFromContext(context = {}, side = 'attacker') {
     attackContactType: branch?.attackContactType ?? null,
     applyDefenderCombatFactorToZero: branch?.applyDefenderCombatFactorToZero === true,
     cancellationApplies: branch?.cancellationApplies === true,
+    attackerSituationBonus: Number(branch?.attackerSituationBonus ?? 0),
   };
 
   return {
