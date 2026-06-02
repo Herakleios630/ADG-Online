@@ -2,6 +2,7 @@ import { createInitialChargePreview } from '../engine/charge/index.js';
 import { syncCommandContextSnapshots } from './p0-command-context.js';
 import { createInitialAdvanceState } from './p0-advance.js';
 import { createInitialMovementState, withMovementValidationSnapshot } from './p0-movement.js';
+import { MELEE_PROCEDURE_STATUSES } from './p9-melee-v2.js';
 import { createInitialShootingPreviewState } from './p0-shooting.js';
 import { createInitialSlideState } from './p0-slide.js';
 import { createInitialWheelState } from './p0-wheel.js';
@@ -52,6 +53,7 @@ export function resolveEffectiveCommandMenuBranch(gameState, selectedUnit = null
   }
 
   const shootingPhaseActive = gameState?.commandContext?.currentPhaseId === 'shooting';
+  const meleePhaseActive = gameState?.commandContext?.currentPhaseId === 'melee';
 
   const hasPendingChargePreview = gameState?.chargePreview?.status !== IDLE_CHARGE_PREVIEW_STATUS
     && gameState?.chargePreview?.intent?.unitId === selectedUnit.id;
@@ -77,6 +79,17 @@ export function resolveEffectiveCommandMenuBranch(gameState, selectedUnit = null
     && gameState?.shooting?.resolutionDraft?.shooterUnitId === selectedUnit.id;
   if (hasPendingShootingResolutionDraft) {
     return 'shoot';
+  }
+
+  const hasActiveMeleeProcedure = meleePhaseActive
+    && (
+      gameState?.melee?.status === MELEE_PROCEDURE_STATUSES.ACTIVE
+      || gameState?.melee?.status === MELEE_PROCEDURE_STATUSES.PREVIEW_READY
+      || gameState?.melee?.status === MELEE_PROCEDURE_STATUSES.APPLIED
+    )
+    && (selectedUnit?.engagedInMelee || selectedUnit?.meleePendingOpponentId);
+  if (hasActiveMeleeProcedure) {
+    return 'melee';
   }
 
   const hasPendingMovementPreview = Boolean(

@@ -1,4 +1,4 @@
-# Melee Source Lock
+﻿# Melee Source Lock
 
 Status: RV2-04 first source-lock baseline from Rules-v2 p.60-67; implementation-grade only after combat-factor table binding and ordered modifier application are manually accepted.
 
@@ -32,6 +32,78 @@ Status: RV2-04 first source-lock baseline from Rules-v2 p.60-67; implementation-
 - The solver pipeline must separate `combat factor`, `support`, `die modifier`, `final result modifier`, `immediate multiple-attack loss`, and `special auto-rout` stages.
 - Camp, fortification, obstacle, and war-wagon states are not cosmetic terrain tags; they alter contact geometry, support legality, special branches, and victory accounting.
 - Commander engagement must distinguish `attached to main melee unit`, `included commander`, and `melee support only`, because errata narrows which states count as fighting.
+
+## P9-03TF Melee Factor Rules Freeze
+
+Freeze date: 2026-05-29.
+
+Scope: this freeze is the mandatory source baseline for `P9-03T`, `P9-03O`, `P9-03U`, `P9-03V`, and `P9-03W`.
+
+### Canonical representative-lane factor matrix
+
+Allowed status values:
+
+- `approved`: source-anchored for current implementation.
+- `source-open`: cannot be claimed closed yet.
+- `blocked`: structurally unavailable until another dependency closes.
+
+| Attacker profile | Defender profile | Current lane status | Factor baseline | Source basis |
+| --- | --- | --- | --- | --- |
+| medium swordsmen | heavy spearmen | approved | attacker `+1`, defender `+1` | p.22 table row wording; no special mounted exceptions in this lane |
+| heavy spearmen | medium swordsmen | approved | attacker `+1`, defender `+1` | p.22 table row wording; no open-terrain LI exception in this lane |
+| heavy spearmen | light infantry javelin | source-open | conditional heavy-spearmen-vs-LMI branch is unresolved in current terrain-state seam | p.22 note depends on open-terrain condition not yet wired to deterministic lane closure |
+| light infantry javelin | heavy spearmen | source-open | javelinmen taxonomy binding unresolved for representative profile mapping | p.22 javelin-family wording requires final taxonomy closure |
+| medium cavalry impetuous | heavy cavalry impact | source-open | mounted-vs-mounted factors intentionally deferred | p.22 mounted rows plus errata wording still require direct transcription pass |
+| heavy cavalry impact | medium cavalry impetuous | source-open | mounted-vs-mounted factors intentionally deferred | p.22 mounted rows plus errata wording still require direct transcription pass |
+| any representative profile | camp / fortification / obstacle / war wagon special family | blocked | special-family branch required; generic lane factor binding is invalid | melee special branches in p.65-p.67 must not be collapsed into generic table lane |
+
+Errata provenance policy for approved lanes:
+
+- Every lane marked `approved` must carry explicit p.22 anchor plus any linked errata clarification.
+- If an errata dependency is unresolved, lane status must be `source-open` and never upgraded by assumption.
+
+### Modifier-stage freeze
+
+Ordered ownership is fixed as:
+
+1. combat factor (profile/table lane, including explicit to-0 branch when closed)
+2. support stage
+3. situation stage
+4. terrain stage
+5. die stage
+6. final-result stage
+7. result mapping (differential -> cohesion loss / rout)
+
+Implementation constraint:
+
+- Later cards may add entries inside a stage, but may not reorder stages.
+
+### First-contact versus continuing combat freeze
+
+- `first-contact` state means the first melee resolution cycle for that specific contact pairing.
+- `continuing` state means subsequent cycles after first-contact has already been resolved once for that pairing.
+- First-round-sensitive abilities (including impact/furious-charge families) are allowed only in `first-contact` lanes where source and errata confirm applicability.
+- If applicability is not source-closed for a lane, emit explicit `source-open` diagnostics and do not silently apply the bonus.
+
+### Flank/rear baseline freeze
+
+- Flank/rear effect requires contact/conformation evidence; UI flags are not legal evidence.
+- Defender combat-factor-to-`0` branch is only valid for source-closed formed-troop flank/rear lanes with required conformation evidence.
+- Incomplete-conformation flank lane keeps explicit `+1 situation` branch as the conservative baseline when to-`0` preconditions are not met.
+- Cancellation handling is branch-owned logic, not free-form modifier subtraction.
+
+Cancellation baseline set for subsequent implementation cards:
+
+- keep branch-specific cancellations explicit and source-anchored.
+- if cancellation wording for a lane is unresolved, lane remains `source-open`.
+
+### Residual source-open lanes after freeze
+
+- mounted-vs-mounted factor closure (priority: cavalry-vs-cavalry).
+- javelinmen representative taxonomy and LI branch exact binding.
+- terrain-conditioned heavy-spearmen-vs-LI lane closure.
+- complete flank/rear cancellation family extraction from direct source wording.
+- first-contact ability timing closure for impact/furious-charge variants.
 
 ## Edge Cases And Test Hooks
 

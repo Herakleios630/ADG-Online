@@ -4,7 +4,6 @@ import {
   getDefaultFootprintForProfile,
   getUnitProfile,
   UNIT_PROFILE_IDS,
-  VISUAL_PROFILE_IDS,
 } from './unit-profiles.js';
 import {
   SETUP_OBJECT_FAMILIES,
@@ -45,6 +44,10 @@ function cloneCapability(overrides = {}) {
 function getDefaultProfileId(overrides = {}) {
   if (typeof overrides.profileId === 'string' && overrides.profileId.trim().length > 0) {
     return overrides.profileId;
+  }
+
+  if (overrides.troopType === 'general') {
+    return UNIT_PROFILE_IDS.COMMANDER;
   }
 
   if (overrides.troopType === 'cavalry') {
@@ -107,13 +110,6 @@ export function createChargeDrillUnit(overrides) {
   if (unit.profileId) {
     unit.chargeReactionCapability = getChargeReactionCapabilityForUnit(unit);
     return unit;
-  }
-
-  if (overrides.troopType === 'general') {
-    unit.chargeReactionCapability = cloneCapability({
-      family: 'medium-infantry',
-      chargeWeight: 'heavy',
-    });
   }
 
   return unit;
@@ -266,11 +262,8 @@ export function createChargeDrillScenario() {
       xUd: 11,
       yUd: 18.4,
       facing: 'north',
-      widthUd: 1,
-      depthUd: 1,
       rotationRadians: 0,
       troopType: 'general',
-      visualProfileId: VISUAL_PROFILE_IDS.COMMANDER,
       baseShape: 'circle',
       isCommander: true,
       commanderQuality: 'brilliant',

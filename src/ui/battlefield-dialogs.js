@@ -5,6 +5,11 @@ import {
   CHARGE_REACTION_REQUEST_TYPES,
 } from '../engine/charge/index.js';
 import {
+  getMeleeProcedurePresentation,
+  MELEE_PROCEDURE_STATUSES,
+  normalizeMeleeSourceStatus,
+} from './melee-v2-adapter.js';
+import {
   getShootingDeclarationPresentation,
   getShootingProcedurePresentation,
   getShootingResolutionPresentation,
@@ -36,6 +41,11 @@ function renderRollPips(value) {
       `).join('')}
     </span>
   `;
+}
+
+function formatSignedModifierValue(value) {
+  const numericValue = Number(value ?? 0);
+  return numericValue > 0 ? `+${numericValue}` : String(numericValue);
 }
 
 function formatRoundCorpsLabel(corpsId) {
@@ -301,6 +311,35 @@ export function renderRoundDialog(state) {
       `;
     }
 
+    if (round.roundPhase === 'combat') {
+      const meleeProcedure = getMeleeProcedurePresentation(state.game);
+      const overview = meleeProcedure.overview ?? {
+        mainUnits: 0,
+        supportUnits: 0,
+        selectedMelees: 0,
+      };
+
+      return `
+        <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay data-automation-role="active-modal" data-active-modal-id="round-phase-announce" data-active-modal-priority="100" data-active-modal-next-action-selector="[data-action='acknowledge-melee-phase-procedure']" data-automation-id="melee-phase-dialog">
+          <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
+            <div class="battlefield-round-dialog-header">
+              <span class="battlefield-round-dialog-tag">Nahkampfphase</span>
+            </div>
+            <strong id="round-dialog-title">Gefuehrte Melee Procedure</strong>
+            <span class="muted-copy">Klicke danach die einzelnen Nahkampfgruppen auf dem Schlachtfeld an und loese sie nacheinander auf. Anwendung bleibt bis zum Ende gesammelt.</span>
+            <ul class="battlefield-setup-guide-list" data-testid="melee-phase-overview-list">
+              <li><strong>Main units in melee:</strong> ${overview.mainUnits}</li>
+              <li><strong>Support units:</strong> ${overview.supportUnits}</li>
+              <li><strong>Combat groups:</strong> ${overview.eligibleMelees}</li>
+            </ul>
+            <div class="battlefield-round-dialog-actions">
+              <button class="shell-button battlefield-round-dialog-button" type="button" data-action="acknowledge-melee-phase-procedure">OK</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="battlefield-round-dialog-overlay" data-round-dialog-overlay data-automation-role="active-modal" data-active-modal-id="round-phase-announce" data-active-modal-priority="100" data-active-modal-next-action-selector="[data-action='advance-round-phase']">
         <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="round-dialog-title">
@@ -361,6 +400,395 @@ export function renderRoundDialog(state) {
         <span class="muted-copy">${copy}</span>
         <div class="battlefield-round-dialog-actions">
           <button class="shell-button battlefield-round-dialog-button" type="button" data-action="round-begin" data-testid="round-begin-button" data-automation-id="round-begin" aria-label="Runde beginnen" autofocus>Beginnen</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export function renderMeleeResolutionDialog(state) {
+  if (state.game.commandContext.currentPhaseId !== 'melee') {
+    return '';
+  }
+
+  const meleeProcedure = getMeleeProcedurePresentation(state.game);
+  if (
+    meleeProcedure.status !== MELEE_PROCEDURE_STATUSES.ACTIVE
+    && meleeProcedure.status !== MELEE_PROCEDURE_STATUSES.PREVIEW_READY
+    && meleeProcedure.status !== MELEE_PROCEDURE_STATUSES.APPLIED
+  ) {
+    return '';
+  }
+
+  const batchSummary = meleeProcedure.batchSummary;
+  if (batchSummary?.isOpen) {
+    return `
+      <div class="battlefield-round-dialog-overlay" data-melee-summary-dialog-overlay data-automation-role="active-modal" data-active-modal-id="melee-summary" data-active-modal-priority="96" data-active-modal-next-action-selector="[data-action='acknowledge-melee-batch-summary']" data-automation-id="melee-summary-dialog">
+        <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="melee-summary-dialog-title">
+          <div class="battlefield-round-dialog-header">
+            <span class="battlefield-round-dialog-tag">Nahkampf</span>
+            <span class="battlefield-round-dialog-tag is-muted">Batch Apply</span>
+          </div>
+          <strong id="melee-summary-dialog-title">Melee Batch abgeschlossen</strong>
+          <ul class="battlefield-setup-guide-list" data-testid="melee-summary-list">
+            <li><strong>Resolved pairs:</strong> ${Number(batchSummary.resolvedMelees ?? 0)}</li>
+            <li><strong>Cohesion loss total:</strong> ${Number(batchSummary.cohesionLossCount ?? 0)}</li>
+            <li><strong>Destroyed/Routed units:</strong> ${Number(batchSummary.routedCount ?? 0)}</li>
+            <li><strong>Source status:</strong> <span data-testid="melee-summary-source-status">${escapeHtml(normalizeMeleeSourceStatus(batchSummary.batchSummarySourceStatus ?? 'source-open'))}</span></li>
+          </ul>
+          <div class="battlefield-round-dialog-actions">
+            <button class="shell-button battlefield-round-dialog-button" type="button" data-action="acknowledge-melee-batch-summary">OK</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const draft = meleeProcedure.resolutionDraft;
+  if (draft?.resolutionInput) {
+    const factorPresentation = draft.factorPresentation ?? {
+      attackerSupportUnits: [],
+      defenderSupportUnits: [],
+      attackerModifierStages: {},
+      defenderModifierStages: {},
+      attackerCombatFactorValue: null,
+      defenderCombatFactorValue: null,
+      attackerCombatFactorSourceStatus: 'source-open',
+      defenderCombatFactorSourceStatus: 'source-open',
+      attackerCombatFactorProvenanceLabel: 'Source-open binding',
+      defenderCombatFactorProvenanceLabel: 'Source-open binding',
+      combatFactorDebugOverrideEnabled: false,
+      attackerDerivedBranch: null,
+      defenderDerivedBranch: null,
+    };
+    const attackerSupportUnits = Array.isArray(factorPresentation.attackerSupportUnits)
+      ? factorPresentation.attackerSupportUnits
+      : [];
+    const defenderSupportUnits = Array.isArray(factorPresentation.defenderSupportUnits)
+      ? factorPresentation.defenderSupportUnits
+      : [];
+    const stageOrder = ['support', 'situation', 'terrain', 'final-result'];
+    const collectModifierRows = (groupedStages = {}, appendedRows = []) => {
+      const rows = [];
+      for (const stageKey of stageOrder) {
+        const entries = Array.isArray(groupedStages?.[stageKey]) ? groupedStages[stageKey] : [];
+        for (const entry of entries) {
+          const value = Number.isFinite(Number(entry?.value)) ? Number(entry.value) : 0;
+          rows.push({
+            code: entry?.code ?? null,
+            label: entry?.label ?? entry?.code ?? 'Modifier',
+            value,
+            sourceStatus: entry?.sourceStatus ?? null,
+          });
+        }
+      }
+
+      return [...rows, ...appendedRows];
+    };
+    const renderModifierRows = (rows = []) => {
+      const visibleRows = Array.isArray(rows)
+        ? rows.filter((row) => row?.code !== 'melee.combat-group.additional-main-attacker-contribution-source-open')
+        : [];
+
+      if (visibleRows.length === 0) {
+        return '<li><strong>No modifiers:</strong> 0</li>';
+      }
+
+      return visibleRows.map((row) => {
+        const sourceTag = row.sourceStatus ? ` [${row.sourceStatus}]` : '';
+        return `<li><strong>${escapeHtml(row.label)}:</strong> ${escapeHtml(formatSignedModifierValue(row.value))}${escapeHtml(sourceTag)}</li>`;
+      }).join('');
+    };
+    const renderCombatFactorValue = (value) => (Number.isFinite(value) ? String(Number(value)) : 'pending');
+    const debugOverrideEnabled = factorPresentation.combatFactorDebugOverrideEnabled === true;
+    const attackerDisplayModifierRows = Array.isArray(factorPresentation.attackerDisplayModifierRows)
+      ? factorPresentation.attackerDisplayModifierRows
+      : [];
+    const defenderDisplayModifierRows = Array.isArray(factorPresentation.defenderDisplayModifierRows)
+      ? factorPresentation.defenderDisplayModifierRows
+      : [];
+    const attackerModifierRows = collectModifierRows(
+      factorPresentation.attackerModifierStages,
+      attackerDisplayModifierRows,
+    );
+    const defenderModifierRows = collectModifierRows(
+      factorPresentation.defenderModifierStages,
+      defenderDisplayModifierRows,
+    );
+    const attackerModifierTotal = attackerModifierRows
+      .filter((row) => row?.countsTowardModifierSum !== false)
+      .reduce((sum, row) => sum + (Number(row.value) || 0), 0);
+    const defenderModifierTotal = defenderModifierRows
+      .filter((row) => row?.countsTowardModifierSum !== false)
+      .reduce((sum, row) => sum + (Number(row.value) || 0), 0);
+    const v2ContactSourceStatus = state.game.melee?.v2?.contactModelSourceStatus ?? 'source-open';
+    const v2RoleSourceStatus = state.game.melee?.v2?.roleAssignmentSourceStatus ?? 'source-open';
+    const normalizedV2ContactSourceStatus = normalizeMeleeSourceStatus(v2ContactSourceStatus);
+    const normalizedV2RoleSourceStatus = normalizeMeleeSourceStatus(v2RoleSourceStatus);
+    const hasVerifiedBranchLane = [
+      factorPresentation.attackerDerivedBranch,
+      factorPresentation.defenderDerivedBranch,
+    ].some((branch) => normalizeMeleeSourceStatus(branch?.sourceStatus) === 'verified');
+    const hasVerifiedSupportLane = [
+      ...attackerSupportUnits,
+      ...defenderSupportUnits,
+    ].some((unit) => normalizeMeleeSourceStatus(unit?.sourceStatus) === 'verified');
+    const hasSeamSourceOpen = normalizedV2ContactSourceStatus !== 'verified'
+      || normalizedV2RoleSourceStatus !== 'verified';
+    const showMixedStatusNote = hasSeamSourceOpen && (hasVerifiedBranchLane || hasVerifiedSupportLane);
+    const meleeEngineVersion = state.game.melee?.engineVersion ?? 'v1';
+    const attackerCommanderState = draft?.resolutionInput?.attackerModifierContext?.engagedCommander ?? null;
+    const defenderCommanderState = draft?.resolutionInput?.defenderModifierContext?.engagedCommander ?? null;
+    const renderCommanderToggleRow = (title, testId, action, commanderState) => {
+      if (!commanderState?.isToggleVisible) {
+        return '';
+      }
+
+      const participation = String(commanderState?.participation ?? '').trim().toLowerCase();
+      const participationLabel = participation === 'attached'
+        ? 'attached'
+        : participation === 'included'
+          ? 'included'
+          : 'source-open';
+      const checked = commanderState?.isEngaged === true ? 'checked' : '';
+      const disabled = commanderState?.isToggleLocked === true ? 'disabled' : '';
+      const isContinuingRound = String(commanderState?.meleeRoundState ?? '').trim().toLowerCase() === 'continuing';
+      const hasSourceOpenContinuingCommander = isContinuingRound
+        && normalizeMeleeSourceStatus(commanderState?.sourceStatus) !== 'verified';
+      const lockNote = commanderState?.isToggleLocked === true
+        ? '<span class="muted-copy">Continuing round: commander already fought in this melee, so participation stays ON.</span>'
+        : '<span class="muted-copy">Optional Mitkaempfen before roll.</span>';
+      const sourceOpenNote = hasSourceOpenContinuingCommander
+        ? '<span class="muted-copy" data-testid="melee-commander-continuing-source-open-note">Source-open: continuing commander lock timing remains under open verification.</span>'
+        : '';
+
+      return `
+        <label class="battlefield-command-free-cp-toggle" data-testid="${escapeHtml(testId)}">
+          <span>${escapeHtml(title)} (${escapeHtml(participationLabel)})</span>
+          <input type="checkbox" data-action="${escapeHtml(action)}" ${checked} ${disabled} />
+          ${lockNote}
+          ${sourceOpenNote}
+        </label>
+      `;
+    };
+    const renderSupportUnitRows = (title, units = []) => {
+      const testIdSuffix = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const rows = Array.isArray(units) && units.length > 0
+        ? units.map((unit) => {
+            const branchText = unit?.contactSide || unit?.contactRelationship
+              ? `; ${unit.contactSide ?? 'side'}${unit.contactRelationship ? ` / ${unit.contactRelationship}` : ''}`
+              : '';
+            const supportKindText = unit?.supportKind ? `; ${unit.supportKind} support` : '';
+            const sourceStatusText = unit?.sourceStatus ? ` [${unit.sourceStatus}]` : '';
+            return `<li><strong>${escapeHtml(unit?.label ?? 'Support unit')}:</strong> ${escapeHtml(unit?.roleLabel ?? unit?.role ?? 'support')}${escapeHtml(supportKindText)}${escapeHtml(branchText)}${escapeHtml(sourceStatusText)}</li>`;
+          }).join('')
+        : '<li><strong>No support units:</strong> 0</li>';
+
+      return `
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-${escapeHtml(testIdSuffix)}">
+            ${rows}
+          </ul>
+        </div>
+      `;
+    };
+    const renderBranchRows = (branch, fallbackLabel) => {
+      if (!branch) {
+        return `<li><strong>${escapeHtml(fallbackLabel)}:</strong> unresolved lane (source-open)</li>`;
+      }
+
+      const sourceStatus = normalizeMeleeSourceStatus(branch.sourceStatus);
+      const sourceStatusLabel = sourceStatus === 'verified'
+        ? 'verified'
+        : sourceStatus === 'needs-source-check'
+          ? 'needs-source-check'
+          : 'source-open';
+
+      return [
+        `<li><strong>${escapeHtml(branch.label ?? fallbackLabel)}:</strong> ${escapeHtml(branch.attackContactType ?? 'unknown')} (${escapeHtml(sourceStatusLabel)})</li>`,
+        `<li><strong>Branch to zero:</strong> ${branch.applyDefenderCombatFactorToZero === true ? 'yes' : 'no'}</li>`,
+        `<li><strong>Requires defender front engagement:</strong> ${branch.requiresDefenderFrontEngagementForToZero === true ? 'yes' : 'no'}</li>`,
+        Array.isArray(branch.branchCandidates) && branch.branchCandidates.length > 0
+          ? `<li><strong>Branch candidates:</strong> ${escapeHtml(branch.branchCandidates.map((candidate) => `${candidate.label}${candidate.isOwner === true ? ' (owner)' : ''}`).join(', '))}</li>`
+          : '',
+        branch.cancellationFamily ? `<li><strong>Cancellation family:</strong> ${escapeHtml(branch.cancellationFamily)}</li>` : '',
+        branch.ownershipAttackerUnitId ? `<li><strong>Branch owner attacker:</strong> ${escapeHtml(branch.ownershipAttackerUnitId)}</li>` : '',
+        branch.ownershipMeleeId ? `<li><strong>Branch melee id:</strong> ${escapeHtml(branch.ownershipMeleeId)}</li>` : '',
+        branch.inheritedDefenderToZeroFromBranch === true ? '<li><strong>Inherited defender zero:</strong> yes</li>' : '',
+        branch.immediateMultipleAttackTrigger ? `<li><strong>Immediate multi-attack trigger:</strong> ${escapeHtml(branch.immediateMultipleAttackTrigger)}</li>` : '',
+      ].filter(Boolean).join('');
+    };
+    const resolutionPreview = draft.resolutionPreview ?? null;
+    const hasResolutionPreview = Boolean(resolutionPreview);
+    if (hasResolutionPreview) {
+      const hasResolvedTie = resolutionPreview.status === 'resolved'
+        && resolutionPreview.result?.winnerSide == null;
+      const winnerSideLabel = resolutionPreview.result?.winnerSide === 'attacker'
+        ? 'Attacker'
+        : resolutionPreview.result?.winnerSide === 'defender'
+          ? 'Defender'
+          : hasResolvedTie
+            ? 'Tie'
+            : 'source-open';
+      const routLabel = resolutionPreview.result?.winnerSide
+        ? (resolutionPreview.result?.rout === true ? 'yes' : 'no')
+        : hasResolvedTie
+          ? 'no'
+          : 'source-open';
+      const attackerFactorRecap = resolutionPreview.factorRecap?.attacker ?? null;
+      const defenderFactorRecap = resolutionPreview.factorRecap?.defender ?? null;
+      const renderFactorRecapValue = (value) => (Number.isFinite(Number(value)) ? String(Number(value)) : 'source-open');
+
+      return `
+        <div class="battlefield-round-dialog-overlay" data-melee-resolution-dialog-overlay data-automation-role="active-modal" data-active-modal-id="melee-resolution" data-active-modal-priority="96" data-active-modal-next-action-selector="[data-action='acknowledge-melee-resolution-result']" data-automation-id="melee-resolution-dialog">
+          <div class="battlefield-round-dialog battlefield-shooting-dialog battlefield-melee-resolution-dialog" role="dialog" aria-modal="true" aria-labelledby="melee-resolution-dialog-title">
+            <div class="battlefield-round-dialog-header">
+              <span class="battlefield-round-dialog-tag">Nahkampf</span>
+              <span class="battlefield-round-dialog-tag is-muted">Combat Group Resolution (${escapeHtml(String(meleeEngineVersion).toUpperCase())})</span>
+            </div>
+            <strong id="melee-resolution-dialog-title">${escapeHtml(draft.attackerLabel)} vs ${escapeHtml(draft.defenderLabel)}</strong>
+            <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="melee-dialog-result-card">
+              <strong>Wuerfeln abgeschlossen</strong>
+              <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-result-list">
+                <li><strong>Attacker D6:</strong> ${escapeHtml(String(resolutionPreview.attackerDieRoll ?? 'source-open'))}</li>
+                <li><strong>Defender D6:</strong> ${escapeHtml(String(resolutionPreview.defenderDieRoll ?? 'source-open'))}</li>
+                <li><strong>Winner:</strong> ${escapeHtml(winnerSideLabel)}</li>
+                <li><strong>Difference:</strong> ${escapeHtml(String(resolutionPreview.result?.difference ?? 'source-open'))}</li>
+                <li><strong>Cohesion loss:</strong> ${escapeHtml(String(resolutionPreview.result?.cohesionLoss ?? 'source-open'))}</li>
+                <li><strong>Rout:</strong> ${escapeHtml(routLabel)}</li>
+                <li><strong>Attacker factors:</strong> base ${escapeHtml(renderFactorRecapValue(attackerFactorRecap?.baseCombatFactor))}, modifiers ${escapeHtml(renderFactorRecapValue(attackerFactorRecap?.modifierSum))}, final ${escapeHtml(renderFactorRecapValue(attackerFactorRecap?.finalTotal))}</li>
+                <li><strong>Defender factors:</strong> base ${escapeHtml(renderFactorRecapValue(defenderFactorRecap?.baseCombatFactor))}, modifiers ${escapeHtml(renderFactorRecapValue(defenderFactorRecap?.modifierSum))}, final ${escapeHtml(renderFactorRecapValue(defenderFactorRecap?.finalTotal))}</li>
+                <li><strong>Source status:</strong> ${escapeHtml(normalizeMeleeSourceStatus(resolutionPreview.sourceStatus))}</li>
+              </ul>
+            </div>
+            <div class="battlefield-round-dialog-actions">
+              <button class="shell-button battlefield-round-dialog-button" type="button" data-action="acknowledge-melee-resolution-result">OK</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="battlefield-round-dialog-overlay" data-melee-resolution-dialog-overlay data-automation-role="active-modal" data-active-modal-id="melee-resolution" data-active-modal-priority="96" data-active-modal-next-action-selector="[data-action='confirm-melee-resolution-draft']" data-automation-id="melee-resolution-dialog">
+        <div class="battlefield-round-dialog battlefield-shooting-dialog battlefield-melee-resolution-dialog" role="dialog" aria-modal="true" aria-labelledby="melee-resolution-dialog-title">
+          <div class="battlefield-round-dialog-header">
+            <span class="battlefield-round-dialog-tag">Nahkampf</span>
+            <span class="battlefield-round-dialog-tag is-muted">Combat Group Resolution (${escapeHtml(String(meleeEngineVersion).toUpperCase())})</span>
+          </div>
+          <strong id="melee-resolution-dialog-title">${escapeHtml(draft.attackerLabel)} vs ${escapeHtml(draft.defenderLabel)}</strong>
+          <span class="muted-copy">Combat group attackers: ${1 + (Array.isArray(draft?.resolutionInput?.additionalAttackerUnits) ? draft.resolutionInput.additionalAttackerUnits.length : 0)}</span>
+          <span class="muted-copy">Gebundene Faktoren werden standardmaessig aus p.22-Daten gelesen. Der Wuerfeln-Button legt die D6-Werte automatisch fest.</span>
+          <div class="battlefield-melee-resolution-body">
+            <div class="battlefield-command-free-cp-toggle" data-testid="melee-factor-debug-toggle-row">
+              <span>Combat factor override</span>
+              <button class="ghost-button battlefield-round-dialog-button" type="button" data-action="toggle-melee-resolution-debug-factor-override">${debugOverrideEnabled ? 'Disable debug override' : 'Enable debug override'}</button>
+            </div>
+            ${debugOverrideEnabled ? `
+              <label class="battlefield-command-free-cp-toggle" data-testid="melee-attacker-factor-input-row">
+                <span>Attacker factor</span>
+                <select data-action="set-melee-resolution-attacker-factor" aria-label="Attacker factor value">
+                  ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => `<option value="${value}" ${Number(draft.resolutionInput.attackerCombatFactorValue) === value ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+              </label>
+              <label class="battlefield-command-free-cp-toggle" data-testid="melee-defender-factor-input-row">
+                <span>Defender factor</span>
+                <select data-action="set-melee-resolution-defender-factor" aria-label="Defender factor value">
+                  ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => `<option value="${value}" ${Number(draft.resolutionInput.defenderCombatFactorValue) === value ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+              </label>
+            ` : ''}
+            ${renderCommanderToggleRow(
+              'Attacker commander participation',
+              'melee-attacker-commander-toggle-row',
+              'toggle-melee-resolution-attacker-commander-engaged',
+              attackerCommanderState,
+            )}
+            ${renderCommanderToggleRow(
+              'Defender commander participation',
+              'melee-defender-commander-toggle-row',
+              'toggle-melee-resolution-defender-commander-engaged',
+              defenderCommanderState,
+            )}
+            <div class="battlefield-command-diagnostics battlefield-command-why-card" data-testid="melee-dialog-factor-breakdown-card">
+              <strong>Factor Summary</strong>
+              <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-factor-breakdown-list">
+                <li><strong>Attacker base combat factor:</strong> ${escapeHtml(renderCombatFactorValue(factorPresentation.attackerCombatFactorValue))} (${escapeHtml(normalizeMeleeSourceStatus(factorPresentation.attackerCombatFactorSourceStatus))}; ${escapeHtml(factorPresentation.attackerCombatFactorProvenanceLabel)})</li>
+                <li><strong>Defender base combat factor:</strong> ${escapeHtml(renderCombatFactorValue(factorPresentation.defenderCombatFactorValue))} (${escapeHtml(normalizeMeleeSourceStatus(factorPresentation.defenderCombatFactorSourceStatus))}; ${escapeHtml(factorPresentation.defenderCombatFactorProvenanceLabel)})</li>
+                <li><strong>V2 contact source status:</strong> <span data-testid="melee-v2-contact-source-status">${escapeHtml(normalizedV2ContactSourceStatus)}</span></li>
+                <li><strong>V2 role source status:</strong> <span data-testid="melee-v2-role-source-status">${escapeHtml(normalizedV2RoleSourceStatus)}</span></li>
+                ${showMixedStatusNote ? '<li data-testid="melee-v2-mixed-status-note"><strong>Mixed status note:</strong> Branch/support lanes can be verified for this fight while V2 contact/role seam status remains source-open; unresolved seam evidence is still not source-closed.</li>' : ''}
+                <li><strong>Attacker support units:</strong> ${attackerSupportUnits.length}</li>
+                <li><strong>Defender support units:</strong> ${defenderSupportUnits.length}</li>
+              </ul>
+              <div class="battlefield-shooting-dialog-grid">
+                ${renderSupportUnitRows('Attacker support participants', attackerSupportUnits)}
+                ${renderSupportUnitRows('Defender support participants', defenderSupportUnits)}
+              </div>
+              <div class="battlefield-shooting-dialog-grid">
+                <div>
+                  <strong>Attacker branch visibility</strong>
+                  <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-attacker-branch-list">
+                    ${renderBranchRows(factorPresentation.attackerDerivedBranch, 'Attacker branch')}
+                  </ul>
+                </div>
+                <div>
+                  <strong>Defender branch visibility</strong>
+                  <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-defender-branch-list">
+                    ${renderBranchRows(factorPresentation.defenderDerivedBranch, 'Defender branch')}
+                  </ul>
+                </div>
+              </div>
+              <div class="battlefield-shooting-dialog-grid">
+                <div>
+                  <strong>Attacker bonuses/maluses</strong>
+                  <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-attacker-modifier-list">
+                    ${renderModifierRows(attackerModifierRows)}
+                  </ul>
+                  <span class="muted-copy">Modifier sum: ${escapeHtml(formatSignedModifierValue(attackerModifierTotal))}</span>
+                </div>
+                <div>
+                  <strong>Defender bonuses/maluses</strong>
+                  <ul class="battlefield-setup-guide-list" data-testid="melee-dialog-defender-modifier-list">
+                    ${renderModifierRows(defenderModifierRows)}
+                  </ul>
+                  <span class="muted-copy">Modifier sum: ${escapeHtml(formatSignedModifierValue(defenderModifierTotal))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="battlefield-round-dialog-actions">
+            <button class="shell-button battlefield-round-dialog-button" type="button" data-action="confirm-melee-resolution-draft">Wuerfeln</button>
+            <button class="ghost-button battlefield-round-dialog-button" type="button" data-action="cancel-melee-resolution-draft">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (!state.game.melee?.isDialogOpen) {
+    return '';
+  }
+
+  const selectedIds = new Set(meleeProcedure.queueSelectionIds);
+  return `
+    <div class="battlefield-round-dialog-overlay" data-melee-resolution-dialog-overlay data-automation-role="active-modal" data-active-modal-id="melee-resolution" data-active-modal-priority="95" data-active-modal-next-action-selector="[data-action='close-melee-phase-procedure']" data-automation-id="melee-resolution-dialog">
+      <div class="battlefield-round-dialog" role="dialog" aria-modal="true" aria-labelledby="melee-resolution-dialog-title">
+        <div class="battlefield-round-dialog-header">
+          <span class="battlefield-round-dialog-tag">Nahkampf</span>
+          <span class="battlefield-round-dialog-tag is-muted">Status</span>
+        </div>
+        <strong id="melee-resolution-dialog-title">Melee Pair Status</strong>
+        <ul class="battlefield-setup-guide-list" data-testid="melee-pair-status-list">
+          ${meleeProcedure.eligibleEntries.map((entry) => `
+            <li>
+              <strong>${escapeHtml(entry.label)}:</strong> ${selectedIds.has(entry.id) ? 'ausstehend/aktiv' : 'nicht ausgewaehlt'}
+            </li>
+          `).join('')}
+        </ul>
+        <div class="battlefield-round-dialog-actions">
+          <button class="ghost-button battlefield-round-dialog-button" type="button" data-action="close-melee-phase-procedure">Schliessen</button>
         </div>
       </div>
     </div>

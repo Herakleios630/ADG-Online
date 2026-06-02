@@ -1,4 +1,4 @@
-# Open Rule Verification
+﻿# Open Rule Verification
 
 This file tracks rule areas that must be checked directly against the source documents before implementation.
 
@@ -717,7 +717,7 @@ Use this compact entry format for new items:
 	Sources: `Rules.pdf` commander movement and command sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
 	Question: confirm exact legality, cost, and placement procedure when a non-included commander attaches to or detaches from a unit, including range limits and whether wheel/turn is involved.
 	Why it matters: P6 commander command-actions must be reducer-deterministic and rule-conform; placement ambiguity would break replay consistency.
-	Next check: direct source pass over commander join/leave wording and diagrams, with errata cross-check.
+	Next check: direct source pass over commander join/leave wording and diagrams, with errata cross-check. P9V2-14D continuing commander lock diagnostics must keep this ID explicit in source-open notes until closure.
 
 - ID: command.commander-detach-combat-lock-timing
 	Status: open
@@ -725,7 +725,7 @@ Use this compact entry format for new items:
 	Sources: `Rules.pdf` movement/melee/contact lifecycle sections, `Errata_ADG_V4_English.pdf`, `Reference_Sheet_V4.pdf`
 	Question: in which combat/contact states a commander may no longer leave an attached unit, and at what exact timing this lock applies or ends.
 	Why it matters: attach/detach can be staged in P6, but combat-lock behavior must remain correctly phase-gated for P7+ without illegal early assumptions.
-	Next check: verify contact/melee timing language and commander-engagement errata interaction.
+	Next check: verify contact/melee timing language and commander-engagement errata interaction. P9V2-14D continuing lock UI/state behavior remains source-open-linked to this ID and must not be presented as fully source-closed.
 
 - ID: rally.test-thresholds-and-post-rally-locks
 	Status: ocr-check
@@ -746,10 +746,10 @@ Use this compact entry format for new items:
 - ID: melee.main-unit-support-multiple-attack-and-modifiers
 	Status: errata-check
 	Area: combat
-	Sources: `docs/source/Rules_v2.md` melee sections p.60-67, `Rules_Color_300DPI.pdf` p.60-67, melee example crops, `Errata_ADG_V4_English.pdf`
-	Question: do errata or exact table binding alter the scan-confirmed melee baseline for role classification, support, multiple attacks, factor and modifier ordering, and special-object combat?
-	Why it matters: the corpus now has a conservative melee digest, but P8/P9 combat resolution needs exact tie-breaks, factor tables, and modifier scope before any engine implementation can be called source-locked.
-	Next check: use `docs/rules/melee.md` as the working baseline and keep this open only for exact p.22 factor-table binding, modifier categorization, and errata confirmation.
+	Sources: docs/source/Rules_v2.md melee sections p.60-67, Rules_Color_300DPI.pdf p.60-67, melee example crops, Errata_ADG_V4_English.pdf, docs/rules/melee.md (P9-03TF Melee Factor Rules Freeze)
+	 Question: after `P9-03T`, which residual lanes remain unresolved for exact table binding and errata closure (conditional mounted-vs-HI flank/rear lanes, mounted first-contact bonus lanes, LI javelin taxonomy lane, heavy-spearmen terrain-conditioned lane, flank/rear cancellation family, and first-contact ability timing), while keeping the grouped-support interpretation fixed (same-side simple support is displaced when flank/rear melee support occupies that side support slot)?
+	Why it matters: P9-03TF now freezes stage ownership and branch semantics; later cards must only implement that baseline and narrow explicit residuals without reinterpreting melee source rules.
+	Next check: consume the freeze baseline in P9-03T, P9-03O, P9-03U, P9-03V, and P9-03W; align MINI-12A lane decisions with docs/rules/melee-decision-matrix.md; close this item only when all listed residual lanes are source-anchored with direct errata provenance.
 
 - ID: pursuit.mandatory-optional-matrix-and-contact-branch
 	Status: errata-check
@@ -780,3 +780,5 @@ Use this compact entry format for new items:
 - P2 documentation boundary: geometry labels such as `front`, `leftFlank`, `rightFlank`, `rear`, `boundary`, and `ambiguous` are accepted as pure geometry/debug outputs for this phase.
 - P2 non-claim reminder: these labels do not by themselves establish official AdG legality for movement, charge, ZOC, conformation, contact, combat, setup, or terrain interaction.
 - P2 dependency reminder: base dimensions and pose are sufficient for current geometry work; unresolved setup, terrain, disclosure, and phase-order questions remain carried forward for P3+.
+
+

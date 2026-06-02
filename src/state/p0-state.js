@@ -10,6 +10,7 @@ import { BATTLEFIELD_PROFILE_IDS } from '../data/battlefield-profiles.js';
 import { getBattlefieldProfile } from '../data/battlefield-profiles.js';
 import { createChargeDrillScenario } from '../data/charge-drill-scenarios.js';
 import { createConformDrillScenario } from '../data/conform-drill-scenarios.js';
+import { createMeleeDrillScenario } from '../data/melee-drill-scenarios.js';
 import {
   createShootingDrillScenario,
   createShootingLosExampleScenario,
@@ -206,6 +207,25 @@ import {
   withMovementValidationSnapshot,
 } from './p0-movement.js';
 import {
+  acknowledgeMeleeBatchSummary,
+  acknowledgeMeleePhaseProcedure,
+  acknowledgeMeleeResolutionResult,
+  applyMeleeBatch,
+  beginMeleePhaseState,
+  cancelMeleeResolutionDraft,
+  confirmMeleeResolutionDraft,
+  getMeleeUnitParticipation,
+  moveMeleeQueueSelection,
+  previewMeleeBatch,
+  setMeleeProcedureDialogOpen,
+  setMeleeMatrixV2FeatureFlag,
+  setMeleeResolutionDraftCommanderEngaged,
+  setMeleeResolutionDraftValue,
+  startMeleeResolutionDraft,
+  toggleMeleeResolutionCombatFactorDebugOverride,
+  toggleMeleeQueueSelection,
+} from './p9-melee-v2.js';
+import {
   acknowledgeShootingPhaseProcedure,
   beginShootingPhaseState,
   cancelShootingDeclarationPreview,
@@ -276,6 +296,7 @@ import {
   advanceFromShootingToCombat,
   beginShootingSequenceForPlayer,
   ROUND_PHASE_IDS,
+  ROUND_PHASE_LABELS,
   ROUND_DIALOG_TYPES,
   createInitialRoundState,
   openShootingSequenceHandoffDialog,
@@ -329,6 +350,7 @@ export const ACTION_TYPES = {
   START_CONFORM_DRILL_BATTLE: 'game/start-conform-drill-battle',
   START_SHOOTING_DRILL_BATTLE: 'game/start-shooting-drill-battle',
   START_SHOOTING_LOS_EXAMPLE_BATTLE: 'game/start-shooting-los-example-battle',
+  START_MELEE_DRILL_BATTLE: 'game/start-melee-drill-battle',
   GO_TO_PREVIOUS_SETUP_STEP: 'game/go-to-previous-setup-step',
   ADVANCE_SETUP_STEP: 'game/advance-setup-step',
   LOCK_CURRENT_SETUP_STEP: 'game/lock-current-setup-step',
@@ -378,6 +400,28 @@ export const ACTION_TYPES = {
   SET_USE_FREE_COMMAND_POINT_FOR_ORDER: 'game/set-use-free-command-point-for-order',
   SET_COMMANDER_ENGAGED_DIAGNOSTIC: 'game/set-commander-engaged-diagnostic',
   SET_COMMAND_MENU_BRANCH: 'game/set-command-menu-branch',
+  OPEN_MELEE_PHASE_PROCEDURE: 'game/open-melee-phase-procedure',
+  CLOSE_MELEE_PHASE_PROCEDURE: 'game/close-melee-phase-procedure',
+  ACKNOWLEDGE_MELEE_PHASE_PROCEDURE: 'game/acknowledge-melee-phase-procedure',
+  TOGGLE_MELEE_QUEUE_SELECTION: 'game/toggle-melee-queue-selection',
+  SET_MELEE_MATRIX_V2_FEATURE_FLAG: 'game/set-melee-matrix-v2-feature-flag',
+  MOVE_MELEE_QUEUE_ENTRY_UP: 'game/move-melee-queue-entry-up',
+  MOVE_MELEE_QUEUE_ENTRY_DOWN: 'game/move-melee-queue-entry-down',
+  START_MELEE_RESOLUTION_DRAFT: 'game/start-melee-resolution-draft',
+  CANCEL_MELEE_RESOLUTION_DRAFT: 'game/cancel-melee-resolution-draft',
+  TOGGLE_MELEE_RESOLUTION_DEBUG_FACTOR_OVERRIDE: 'game/toggle-melee-resolution-debug-factor-override',
+  SET_MELEE_RESOLUTION_ATTACKER_FACTOR: 'game/set-melee-resolution-attacker-factor',
+  SET_MELEE_RESOLUTION_DEFENDER_FACTOR: 'game/set-melee-resolution-defender-factor',
+  SET_MELEE_RESOLUTION_ATTACKER_DIE: 'game/set-melee-resolution-attacker-die',
+  SET_MELEE_RESOLUTION_DEFENDER_DIE: 'game/set-melee-resolution-defender-die',
+  SET_MELEE_RESOLUTION_ROUND_STATE: 'game/set-melee-resolution-round-state',
+  TOGGLE_MELEE_RESOLUTION_ATTACKER_COMMANDER_ENGAGED: 'game/toggle-melee-resolution-attacker-commander-engaged',
+  TOGGLE_MELEE_RESOLUTION_DEFENDER_COMMANDER_ENGAGED: 'game/toggle-melee-resolution-defender-commander-engaged',
+  CONFIRM_MELEE_RESOLUTION_DRAFT: 'game/confirm-melee-resolution-draft',
+  ACKNOWLEDGE_MELEE_RESOLUTION_RESULT: 'game/acknowledge-melee-resolution-result',
+  PREVIEW_MELEE_BATCH: 'game/preview-melee-batch',
+  APPLY_MELEE_BATCH: 'game/apply-melee-batch',
+  ACKNOWLEDGE_MELEE_BATCH_SUMMARY: 'game/acknowledge-melee-batch-summary',
   ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE: 'game/acknowledge-shooting-phase-procedure',
   OPEN_SHOOTING_SEQUENCE_HANDOFF: 'game/open-shooting-sequence-handoff',
   DISMISS_SHOOTING_SEQUENCE_HANDOFF: 'game/dismiss-shooting-sequence-handoff',
@@ -542,12 +586,26 @@ function confirmShootingSequenceHandoff(gameState) {
   }
 
   if (handoff.kind === SHOOTING_SEQUENCE_HANDOFF_KINDS.MELEE) {
-    return advanceFromShootingToCombat({
+    const combatState = advanceFromShootingToCombat({
       ...gameState,
       shooting: {
         ...gameState.shooting,
         handoff: createInitialShootingSequenceHandoffState(),
       },
+    });
+
+    return beginMeleePhaseState({
+      ...combatState,
+      round: {
+        ...combatState.round,
+        dialog: {
+          type: ROUND_DIALOG_TYPES.PHASE_ANNOUNCE,
+          phaseLabel: 'Kampf',
+        },
+      },
+    }, {
+      phaseId: BATTLE_PHASE_IDS.MELEE,
+      actingPlayerId: combatState.round?.turnPlayerId ?? COMMAND_PLAYER_IDS.PLAYER_ONE,
     });
   }
 
@@ -673,6 +731,33 @@ export function reduceAppState(state, action) {
               preview: createInitialShootingPreviewState(),
             },
           },
+        };
+      }
+
+    case ACTION_TYPES.START_MELEE_DRILL_BATTLE:
+      {
+        const baseState = createBattleStartGameState(state, {
+          setupIsActive: false,
+          currentBattlePhaseId: BATTLE_PHASE_IDS.MELEE,
+          scenario: createMeleeDrillScenario(),
+        });
+
+        return {
+          ...baseState,
+          game: beginMeleePhaseState({
+            ...baseState.game,
+            round: {
+              ...baseState.game.round,
+              roundPhase: ROUND_PHASE_IDS.COMBAT,
+              dialog: {
+                type: ROUND_DIALOG_TYPES.PHASE_ANNOUNCE,
+                phaseLabel: 'Kampf',
+              },
+            },
+          }, {
+            phaseId: BATTLE_PHASE_IDS.MELEE,
+            actingPlayerId: COMMAND_PLAYER_IDS.PLAYER_ONE,
+          }),
         };
       }
 
@@ -813,7 +898,9 @@ export function reduceAppState(state, action) {
 
       if (action.unitId) {
         const candidateUnit = state.game.units.find((unit) => unit.id === action.unitId) || null;
-        if (!isUnitSelectableInCurrentCorps(state, candidateUnit)) {
+        const isMeleePhaseSelection = state.game.commandContext?.currentPhaseId === BATTLE_PHASE_IDS.MELEE
+          && (candidateUnit?.engagedInMelee || candidateUnit?.meleePendingOpponentId);
+        if (!isMeleePhaseSelection && !isUnitSelectableInCurrentCorps(state, candidateUnit)) {
           return state;
         }
       }
@@ -848,9 +935,17 @@ export function reduceAppState(state, action) {
           commanderFreeMovePreview: createInitialCommanderFreeMovePreview(),
         }, action.unitId);
 
-        const nextGame = selectedGame.commandContext?.currentPhaseId === BATTLE_PHASE_IDS.SHOOTING && action.unitId
-          ? startShootingDeclarationPreview(selectedGame, action.unitId)
-          : selectedGame;
+        let nextGame = selectedGame;
+        if (selectedGame.commandContext?.currentPhaseId === BATTLE_PHASE_IDS.SHOOTING && action.unitId) {
+          nextGame = startShootingDeclarationPreview(selectedGame, action.unitId);
+        }
+
+        if (selectedGame.commandContext?.currentPhaseId === BATTLE_PHASE_IDS.MELEE && action.unitId) {
+          const meleeParticipation = getMeleeUnitParticipation(selectedGame, action.unitId);
+          if (meleeParticipation.canStartResolutionDraft) {
+            nextGame = startMeleeResolutionDraft(nextGame, { unitId: action.unitId });
+          }
+        }
 
         return {
           ...state,
@@ -1122,6 +1217,197 @@ export function reduceAppState(state, action) {
       return {
         ...state,
         game: setActiveCommandMenuBranch(state.game, action.branch ?? null),
+      };
+
+    case ACTION_TYPES.OPEN_MELEE_PHASE_PROCEDURE:
+      if (!state.game.round || state.game.round.roundPhase !== ROUND_PHASE_IDS.COMBAT) {
+        return state;
+      }
+
+      if (
+        state.game.melee?.status === 'active'
+        || state.game.melee?.status === 'preview-ready'
+        || state.game.melee?.status === 'applied'
+      ) {
+        return {
+          ...state,
+          game: setMeleeProcedureDialogOpen(state.game, true),
+        };
+      }
+
+      return {
+        ...state,
+        game: {
+          ...state.game,
+          round: {
+            ...state.game.round,
+            dialog: {
+              type: ROUND_DIALOG_TYPES.PHASE_ANNOUNCE,
+              phaseLabel: 'Kampf',
+            },
+          },
+        },
+      };
+
+    case ACTION_TYPES.CLOSE_MELEE_PHASE_PROCEDURE:
+      return {
+        ...state,
+        game: setMeleeProcedureDialogOpen(state.game, false),
+      };
+
+    case ACTION_TYPES.ACKNOWLEDGE_MELEE_PHASE_PROCEDURE:
+      {
+        const nextGameState = acknowledgeMeleePhaseProcedure(state.game);
+        const nextRound = nextGameState.round?.dialog?.type === ROUND_DIALOG_TYPES.PHASE_ANNOUNCE
+          && nextGameState.round?.roundPhase === ROUND_PHASE_IDS.COMBAT
+          ? {
+              ...nextGameState.round,
+              dialog: null,
+            }
+          : nextGameState.round;
+
+        return {
+          ...state,
+          game: {
+            ...nextGameState,
+            round: nextRound,
+          },
+        };
+      }
+
+    case ACTION_TYPES.TOGGLE_MELEE_QUEUE_SELECTION:
+      return {
+        ...state,
+        game: toggleMeleeQueueSelection(state.game, action.meleeId),
+      };
+
+    case ACTION_TYPES.SET_MELEE_MATRIX_V2_FEATURE_FLAG:
+      return {
+        ...state,
+        game: setMeleeMatrixV2FeatureFlag(state.game, action.isEnabled),
+      };
+
+    case ACTION_TYPES.MOVE_MELEE_QUEUE_ENTRY_UP:
+      return {
+        ...state,
+        game: moveMeleeQueueSelection(state.game, action.meleeId, 'up'),
+      };
+
+    case ACTION_TYPES.MOVE_MELEE_QUEUE_ENTRY_DOWN:
+      return {
+        ...state,
+        game: moveMeleeQueueSelection(state.game, action.meleeId, 'down'),
+      };
+
+    case ACTION_TYPES.START_MELEE_RESOLUTION_DRAFT:
+      return {
+        ...state,
+        game: startMeleeResolutionDraft(state.game, {
+          unitId: action.unitId ?? null,
+          meleeId: action.meleeId ?? null,
+        }),
+      };
+
+    case ACTION_TYPES.CANCEL_MELEE_RESOLUTION_DRAFT:
+      return {
+        ...state,
+        game: cancelMeleeResolutionDraft(state.game),
+      };
+
+    case ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_DEBUG_FACTOR_OVERRIDE:
+      return {
+        ...state,
+        game: toggleMeleeResolutionCombatFactorDebugOverride(state.game),
+      };
+
+    case ACTION_TYPES.SET_MELEE_RESOLUTION_ATTACKER_FACTOR:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftValue(state.game, 'attackerCombatFactorValue', Number(action.value)),
+      };
+
+    case ACTION_TYPES.SET_MELEE_RESOLUTION_DEFENDER_FACTOR:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftValue(state.game, 'defenderCombatFactorValue', Number(action.value)),
+      };
+
+    case ACTION_TYPES.SET_MELEE_RESOLUTION_ATTACKER_DIE:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftValue(state.game, 'attackerDieRoll', Number(action.dieRoll)),
+      };
+
+    case ACTION_TYPES.SET_MELEE_RESOLUTION_DEFENDER_DIE:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftValue(state.game, 'defenderDieRoll', Number(action.dieRoll)),
+      };
+
+    case ACTION_TYPES.SET_MELEE_RESOLUTION_ROUND_STATE:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftValue(state.game, 'meleeRoundState', action.value),
+      };
+
+    case ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_ATTACKER_COMMANDER_ENGAGED:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftCommanderEngaged(state.game, 'attacker', action.isEngaged),
+      };
+
+    case ACTION_TYPES.TOGGLE_MELEE_RESOLUTION_DEFENDER_COMMANDER_ENGAGED:
+      return {
+        ...state,
+        game: setMeleeResolutionDraftCommanderEngaged(state.game, 'defender', action.isEngaged),
+      };
+
+    case ACTION_TYPES.CONFIRM_MELEE_RESOLUTION_DRAFT:
+      return {
+        ...state,
+        game: confirmMeleeResolutionDraft(state.game),
+      };
+
+    case ACTION_TYPES.ACKNOWLEDGE_MELEE_RESOLUTION_RESULT:
+      return {
+        ...state,
+        game: acknowledgeMeleeResolutionResult(state.game),
+      };
+
+    case ACTION_TYPES.PREVIEW_MELEE_BATCH:
+      return {
+        ...state,
+        game: previewMeleeBatch(state.game),
+      };
+
+    case ACTION_TYPES.APPLY_MELEE_BATCH:
+      return {
+        ...state,
+        game: applyMeleeBatch(state.game),
+      };
+
+    case ACTION_TYPES.ACKNOWLEDGE_MELEE_BATCH_SUMMARY:
+      return {
+        ...state,
+        game: {
+          ...acknowledgeMeleeBatchSummary(state.game),
+          round: {
+            ...state.game.round,
+            roundPhase: ROUND_PHASE_IDS.ROUT_PURSUIT,
+            dialog: {
+              type: ROUND_DIALOG_TYPES.PHASE_ANNOUNCE,
+              phaseLabel: ROUND_PHASE_LABELS[ROUND_PHASE_IDS.ROUT_PURSUIT],
+            },
+          },
+          phaseTracker: {
+            ...state.game.phaseTracker,
+            currentBattlePhaseId: BATTLE_PHASE_IDS.CLEANUP,
+          },
+          commandContext: {
+            ...state.game.commandContext,
+            currentPhaseId: BATTLE_PHASE_IDS.CLEANUP,
+          },
+        },
       };
 
     case ACTION_TYPES.ACKNOWLEDGE_SHOOTING_PHASE_PROCEDURE:
